@@ -1,0 +1,141 @@
+// Etiquetas de presentación exactas del glosario del proyecto.
+// Los badges/estados de la UI deben usar SIEMPRE estos textos (HANDOFF: "Status words: keep these exact").
+
+import {
+  type ActiveStatus,
+  type DiscountApplication,
+  type EnrollmentStatus,
+  type EnrollmentType,
+  type GuardianRelation,
+  type InstallmentStatus,
+  type InstallmentType,
+  type InsuranceType,
+  type NotificationChannel,
+  type PeriodStatus,
+  type PeriodType,
+  type ProgramStatus,
+  type ProgramType,
+  type Sex,
+  type Shift,
+  type StudentStatus,
+  type UserRole,
+  type UserStatus,
+  type YearStatus,
+} from './enums';
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  ADMIN: 'Administrador',
+  SECRETARIA_CAJA: 'Secretaría / Caja',
+  DOCENTE: 'Docente',
+  PORTERIA: 'Portería',
+  APODERADO: 'Apoderado',
+};
+
+export const USER_STATUS_LABELS: Record<UserStatus, string> = {
+  ACTIVO: 'Activo',
+  SUSPENDIDO: 'Suspendido',
+};
+
+export const YEAR_STATUS_LABELS: Record<YearStatus, string> = {
+  ACTIVO: 'Activo',
+  CERRADO: 'Cerrado',
+};
+
+export const PERIOD_TYPE_LABELS: Record<PeriodType, string> = {
+  BIMESTRE: 'Bimestre',
+  TRIMESTRE: 'Trimestre',
+  SEMESTRE: 'Semestre',
+};
+
+export const PERIOD_STATUS_LABELS: Record<PeriodStatus, string> = {
+  CERRADO: 'Cerrado',
+  EN_CURSO: 'En curso',
+  PROXIMO: 'Próximo',
+};
+
+export const SHIFT_LABELS: Record<Shift, string> = {
+  MANANA: 'Mañana',
+  TARDE: 'Tarde',
+};
+
+export const PROGRAM_TYPE_LABELS: Record<ProgramType, string> = {
+  TALLER: 'Taller',
+  REFORZAMIENTO: 'Reforzamiento',
+  ACADEMIA: 'Academia',
+};
+
+export const PROGRAM_STATUS_LABELS: Record<ProgramStatus, string> = {
+  ACTIVO: 'Activo',
+  CERRADO: 'Cerrado',
+};
+
+export const SEX_LABELS: Record<Sex, string> = {
+  M: 'Masculino',
+  F: 'Femenino',
+};
+
+export const INSURANCE_TYPE_LABELS: Record<InsuranceType, string> = {
+  SIS: 'SIS',
+  ESSALUD: 'EsSalud',
+  PRIVADO: 'Privado',
+  NINGUNO: 'Ninguno',
+};
+
+export const STUDENT_STATUS_LABELS: Record<StudentStatus, string> = {
+  ACTIVO: 'Activo',
+  BECADO: 'Becado',
+  RETIRADO: 'Retirado',
+  TRASLADADO: 'Trasladado',
+  EGRESADO: 'Egresado',
+  RESERVADO: 'Reservado',
+};
+
+export const NOTIFICATION_CHANNEL_LABELS: Record<NotificationChannel, string> = {
+  WHATSAPP_Y_CORREO: 'WhatsApp + correo',
+  SOLO_WHATSAPP: 'Solo WhatsApp',
+  SOLO_CORREO: 'Solo correo',
+  NINGUNO: 'Ninguno',
+};
+
+export const GUARDIAN_RELATION_LABELS: Record<GuardianRelation, string> = {
+  MADRE: 'Madre',
+  PADRE: 'Padre',
+  ABUELO_A: 'Abuelo/a',
+  TIO_A: 'Tío/a',
+  TUTOR_LEGAL: 'Tutor legal',
+};
+
+export const ENROLLMENT_TYPE_LABELS: Record<EnrollmentType, string> = {
+  NUEVA: 'Nueva',
+  RATIFICADA: 'Ratificada',
+  TRASLADO: 'Traslado',
+};
+
+export const ENROLLMENT_STATUS_LABELS: Record<EnrollmentStatus, string> = {
+  COMPLETA: 'Completa',
+  PENDIENTE_PAGO: 'Pendiente de pago',
+  OBSERVADA: 'Observada',
+};
+
+export const INSTALLMENT_TYPE_LABELS: Record<InstallmentType, string> = {
+  MATRICULA: 'Matrícula',
+  PENSION: 'Pensión',
+};
+
+export const INSTALLMENT_STATUS_LABELS: Record<InstallmentStatus, string> = {
+  PAGADO: 'Pagado',
+  PENDIENTE: 'Pendiente',
+  VENCIDO: 'Vencido',
+  ANULADO: 'Anulado',
+  EXONERADO: 'Exonerado',
+};
+
+export const DISCOUNT_APPLICATION_LABELS: Record<DiscountApplication, string> = {
+  AUTOMATICO: 'Automático',
+  MANUAL: 'Manual',
+};
+
+export const ACTIVE_STATUS_LABELS: Record<ActiveStatus, string> = {
+  ACTIVO: 'Activo',
+  INACTIVO: 'Inactivo',
+};

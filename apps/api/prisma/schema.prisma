@@ -1,0 +1,456 @@
+// Elohim SGE — schema R1
+// Reglas heredadas del prototipo: dinero en NUMERIC(10,2); nada se borra (anulación con motivo);
+// entidades anuales llevan academicYearId; enums con valores en español (glosario del proyecto).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== Enums =====
+
+enum UserRole {
+  ADMIN
+  SECRETARIA_CAJA
+  DOCENTE
+  PORTERIA
+  APODERADO
+}
+
+enum UserStatus {
+  ACTIVO
+  SUSPENDIDO
+}
+
+enum YearStatus {
+  ACTIVO
+  CERRADO
+}
+
+enum PeriodType {
+  BIMESTRE
+  TRIMESTRE
+  SEMESTRE
+}
+
+enum PeriodStatus {
+  CERRADO
+  EN_CURSO
+  PROXIMO
+}
+
+enum Shift {
+  MANANA
+  TARDE
+}
+
+enum ProgramType {
+  TALLER
+  REFORZAMIENTO
+  ACADEMIA
+}
+
+enum ProgramStatus {
+  ACTIVO
+  CERRADO
+}
+
+enum Sex {
+  M
+  F
+}
+
+enum InsuranceType {
+  SIS
+  ESSALUD
+  PRIVADO
+  NINGUNO
+}
+
+enum StudentStatus {
+  ACTIVO
+  BECADO
+  RETIRADO
+  TRASLADADO
+  EGRESADO
+  RESERVADO
+}
+
+enum NotificationChannel {
+  WHATSAPP_Y_CORREO
+  SOLO_WHATSAPP
+  SOLO_CORREO
+  NINGUNO
+}
+
+enum GuardianRelation {
+  MADRE
+  PADRE
+  ABUELO_A
+  TIO_A
+  TUTOR_LEGAL
+}
+
+enum EnrollmentType {
+  NUEVA
+  RATIFICADA
+  TRASLADO
+}
+
+enum EnrollmentStatus {
+  COMPLETA
+  PENDIENTE_PAGO
+  OBSERVADA
+}
+
+enum InstallmentType {
+  MATRICULA
+  PENSION
+}
+
+enum InstallmentStatus {
+  PAGADO
+  PENDIENTE
+  VENCIDO
+  ANULADO
+  EXONERADO
+}
+
+enum DiscountApplication {
+  AUTOMATICO
+  MANUAL
+}
+
+enum ActiveStatus {
+  ACTIVO
+  INACTIVO
+}
+
+// ===== Identity / Configuración =====
+
+model User {
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  passwordHash       String
+  fullName           String
+  role               UserRole
+  status             UserStatus @default(ACTIVO)
+  permissions        Json // { [modulo]: { ver: boolean, editar: boolean } }
+  mustChangePassword Boolean    @default(false)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  tutorOf               Section[]    @relation("SectionTutor")
+  courses               Course[]     @relation("CourseTeacher")
+  enrollmentsRegistered Enrollment[] @relation("RegisteredBy")
+  auditLogs             AuditLog[]
+}
+
+// Singleton (id = 1): datos institucionales de la pestaña Configuración > Institución.
+model Institution {
+  id          Int      @id @default(1)
+  name        String
+  modularCode String // asignado por MINEDU
+  ruc         String
+  address     String
+  phone       String
+  email       String
+  region      String
+  ugel        String
+  motto       String?
+  logoUrl     String?
+  updatedAt   DateTime @updatedAt
+}
+
+// Singleton (id = 1): configuración de cobranza (Tarifario y becas > Mora por atraso).
+model BillingSettings {
+  id                Int      @id @default(1)
+  lateFeeAmount     Decimal  @default(5.00) @db.Decimal(10, 2)
+  graceDays         Int      @default(3)
+  transferCutoffDay Int      @default(20) // día de corte de traslados: ingresa antes → paga el mes
+  autoLateFee       Boolean  @default(true)
+  dueDayOfMonth     Int? // null = último día del mes
+  updatedAt         DateTime @updatedAt
+}
+
+// Append-only: nunca UPDATE/DELETE sobre esta tabla.
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String // "enrollment.create", "section.update", "user.suspend"...
+  entity    String
+  entityId  String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+}
+
+// ===== Estructura académica (anualizada) =====
+
+model AcademicYear {
+  id              String     @id @default(cuid())
+  name            String     @unique // "2026"
+  startDate       DateTime   @db.Date
+  endDate         DateTime   @db.Date
+  periodType      PeriodType
+  enrollmentStart DateTime   @db.Date
+  status          YearStatus @default(ACTIVO)
+
+  periods     Period[]
+  levels      Level[]
+  programs    Program[]
+  enrollments Enrollment[]
+}
+
+model Period {
+  id             String       @id @default(cuid())
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  name           String // "Bimestre I"
+  startDate      DateTime     @db.Date
+  endDate        DateTime     @db.Date
+  status         PeriodStatus @default(PROXIMO)
+  order          Int
+
+  @@unique([academicYearId, order])
+}
+
+model Level {
+  id             String       @id @default(cuid())
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  name           String // "Inicial", "Primaria", "Secundaria", "Academia"
+  description    String? // rango: "3–5 años"
+  order          Int
+
+  grades GradeLevel[]
+  fee    LevelFee?
+
+  @@unique([academicYearId, name])
+}
+
+model GradeLevel {
+  id      String @id @default(cuid())
+  levelId String
+  level   Level  @relation(fields: [levelId], references: [id])
+  name    String // "3 años" | "3°"
+  order   Int
+
+  sections Section[]
+  courses  Course[]
+
+  @@unique([levelId, name])
+}
+
+model Section {
+  id            String     @id @default(cuid())
+  gradeLevelId  String
+  gradeLevel    GradeLevel @relation(fields: [gradeLevelId], references: [id])
+  name          String // "A" | "Los Girasoles" (Inicial usa nombres)
+  shift         Shift
+  capacity      Int // vacantes con límite por sección
+  tutorId       String?
+  tutor         User?      @relation("SectionTutor", fields: [tutorId], references: [id])
+  assistantName String? // auxiliar (texto libre hasta que exista el módulo Personal en R3)
+
+  enrollments Enrollment[]
+
+  @@unique([gradeLevelId, name, shift])
+}
+
+model Course {
+  id           String     @id @default(cuid())
+  gradeLevelId String
+  gradeLevel   GradeLevel @relation(fields: [gradeLevelId], references: [id])
+  name         String // "Matemática", "Comunicación"...
+  weeklyHours  Int
+  teacherId    String?
+  teacher      User?      @relation("CourseTeacher", fields: [teacherId], references: [id])
+
+  @@unique([gradeLevelId, name])
+}
+
+model Program {
+  id             String        @id @default(cuid())
+  academicYearId String
+  academicYear   AcademicYear  @relation(fields: [academicYearId], references: [id])
+  name           String
+  type           ProgramType
+  scheduleText   String // "Sáb 9:00–11:00"
+  capacity       Int
+  enrollmentFee  Decimal       @db.Decimal(10, 2) // matrícula del programa (0 = sin pago)
+  monthlyFee     Decimal       @db.Decimal(10, 2)
+  status         ProgramStatus @default(ACTIVO)
+
+  enrollmentPrograms EnrollmentProgram[]
+
+  @@unique([academicYearId, name])
+}
+
+// Tarifario por nivel: alimenta la generación automática del cronograma.
+// Cambiarlo NO altera cronogramas ya generados (los montos se copian a Installment).
+model LevelFee {
+  id                String   @id @default(cuid())
+  levelId           String   @unique
+  level             Level    @relation(fields: [levelId], references: [id])
+  enrollmentFee     Decimal  @db.Decimal(10, 2)
+  monthlyFee        Decimal  @db.Decimal(10, 2)
+  installmentsCount Int // 10 (mar–dic) u 11 (feb–dic)
+  updatedAt         DateTime @updatedAt
+}
+
+model Discount {
+  id          String              @id @default(cuid())
+  code        String?             @unique // "HERMANOS" para la regla automática
+  name        String
+  percent     Decimal             @db.Decimal(5, 2) // sobre la pensión, nunca matrícula/programas
+  application DiscountApplication
+  condition   String
+  status      ActiveStatus        @default(ACTIVO)
+
+  enrollments Enrollment[]
+}
+
+// ===== Personas =====
+
+model Student {
+  id             String        @id @default(cuid())
+  code           String        @unique // "E-1042"
+  firstNames     String
+  lastNames      String
+  dni            String        @unique @db.Char(8)
+  birthDate      DateTime      @db.Date
+  sex            Sex
+  address        String
+  previousSchool String?
+  photoUrl       String?
+  status         StudentStatus @default(ACTIVO)
+  shift          Shift?
+
+  // Salud y emergencia (ficha)
+  allergies             String? // visible para tutor y auxiliar
+  insuranceType         InsuranceType @default(NINGUNO)
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  authorizedPickups     Json          @default("[]") // [{ name, dni?, relation }]
+
+  // Retiro / traslado saliente (nada se borra)
+  withdrawalReason String?
+  withdrawnAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guardians   StudentGuardian[]
+  enrollments Enrollment[]
+}
+
+model Guardian {
+  id                  String              @id @default(cuid())
+  code                String              @unique // "A-0211"
+  fullName            String
+  dni                 String              @unique @db.Char(8)
+  phone               String // WhatsApp
+  email               String?
+  address             String
+  notificationChannel NotificationChannel @default(SOLO_WHATSAPP)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  students          StudentGuardian[]
+  enrollmentsSigned Enrollment[]      @relation("SigningGuardian")
+}
+
+// Relación N:M estudiante↔apoderado. Desvincular = active:false (soft), nunca DELETE.
+model StudentGuardian {
+  studentId  String
+  guardianId String
+  student    Student          @relation(fields: [studentId], references: [id])
+  guardian   Guardian         @relation(fields: [guardianId], references: [id])
+  relation   GuardianRelation
+  isPrimary  Boolean          @default(false) // contacto principal: recibe notificaciones de pago
+  active     Boolean          @default(true)
+
+  @@id([studentId, guardianId])
+}
+
+// ===== Matrícula y cronograma =====
+
+model Enrollment {
+  id             String           @id @default(cuid())
+  code           String           @unique // "M-2026-0483"
+  studentId      String
+  student        Student          @relation(fields: [studentId], references: [id])
+  sectionId      String
+  section        Section          @relation(fields: [sectionId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear     @relation(fields: [academicYearId], references: [id])
+  type           EnrollmentType
+  status         EnrollmentStatus @default(PENDIENTE_PAGO)
+
+  signingGuardianId String
+  signingGuardian   Guardian @relation("SigningGuardian", fields: [signingGuardianId], references: [id])
+  registeredById    String
+  registeredBy      User     @relation("RegisteredBy", fields: [registeredById], references: [id])
+  enrolledAt        DateTime @default(now())
+
+  discountId String?
+  discount   Discount? @relation(fields: [discountId], references: [id])
+
+  // Traslado entrante (primero se aprueba en SIAGIE)
+  originSchool String?
+  siagieCode   String?   @db.Char(14)
+  entryDate    DateTime? @db.Date // define desde cuándo se cobran pensiones
+
+  // Anulación con justificación (nada se borra)
+  canceledAt   DateTime?
+  cancelReason String?
+
+  programs     EnrollmentProgram[]
+  installments Installment[]
+
+  @@unique([studentId, academicYearId])
+}
+
+model EnrollmentProgram {
+  enrollmentId       String
+  programId          String
+  enrollment         Enrollment @relation(fields: [enrollmentId], references: [id])
+  program            Program    @relation(fields: [programId], references: [id])
+  monthlyFeeSnapshot Decimal    @db.Decimal(10, 2) // congelado al matricular
+
+  @@id([enrollmentId, programId])
+}
+
+model Installment {
+  id           String            @id @default(cuid())
+  enrollmentId String
+  enrollment   Enrollment        @relation(fields: [enrollmentId], references: [id])
+  type         InstallmentType
+  concept      String // "Matrícula" | "Pensión Marzo"
+  sequence     Int // 0 = matrícula, 1..11 = pensiones
+  dueDate      DateTime          @db.Date
+  baseAmount   Decimal           @db.Decimal(10, 2) // snapshot del tarifario
+  discountAmount Decimal         @default(0) @db.Decimal(10, 2)
+  programsAmount Decimal         @default(0) @db.Decimal(10, 2)
+  amount       Decimal           @db.Decimal(10, 2) // total = base - descuento + programas
+  status       InstallmentStatus @default(PENDIENTE)
+
+  canceledAt   DateTime?
+  cancelReason String?
+  canceledById String?
+
+  @@unique([enrollmentId, sequence])
+}
+
+// Secuencias de códigos legibles: "student" → E-####, "guardian" → A-####, "enrollment:2026" → M-2026-####
+model CodeCounter {
+  key   String @id
+  value Int
+}

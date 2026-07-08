@@ -1,0 +1,77 @@
+// Enums del dominio — espejo de los enums de Prisma (valores en español, glosario del proyecto).
+// El front los consume sin depender del cliente Prisma.
+
+export const USER_ROLES = ['ADMIN', 'SECRETARIA_CAJA', 'DOCENTE', 'PORTERIA', 'APODERADO'] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+
+export const USER_STATUSES = ['ACTIVO', 'SUSPENDIDO'] as const;
+export type UserStatus = (typeof USER_STATUSES)[number];
+
+export const YEAR_STATUSES = ['ACTIVO', 'CERRADO'] as const;
+export type YearStatus = (typeof YEAR_STATUSES)[number];
+
+export const PERIOD_TYPES = ['BIMESTRE', 'TRIMESTRE', 'SEMESTRE'] as const;
+export type PeriodType = (typeof PERIOD_TYPES)[number];
+
+export const PERIOD_STATUSES = ['CERRADO', 'EN_CURSO', 'PROXIMO'] as const;
+export type PeriodStatus = (typeof PERIOD_STATUSES)[number];
+
+export const SHIFTS = ['MANANA', 'TARDE'] as const;
+export type Shift = (typeof SHIFTS)[number];
+
+export const PROGRAM_TYPES = ['TALLER', 'REFORZAMIENTO', 'ACADEMIA'] as const;
+export type ProgramType = (typeof PROGRAM_TYPES)[number];
+
+export const PROGRAM_STATUSES = ['ACTIVO', 'CERRADO'] as const;
+export type ProgramStatus = (typeof PROGRAM_STATUSES)[number];
+
+export const SEXES = ['M', 'F'] as const;
+export type Sex = (typeof SEXES)[number];
+
+export const INSURANCE_TYPES = ['SIS', 'ESSALUD', 'PRIVADO', 'NINGUNO'] as const;
+export type InsuranceType = (typeof INSURANCE_TYPES)[number];
+
+export const STUDENT_STATUSES = [
+  'ACTIVO',
+  'BECADO',
+  'RETIRADO',
+  'TRASLADADO',
+  'EGRESADO',
+  'RESERVADO',
+] as const;
+export type StudentStatus = (typeof STUDENT_STATUSES)[number];
+
+export const NOTIFICATION_CHANNELS = [
+  'WHATSAPP_Y_CORREO',
+  'SOLO_WHATSAPP',
+  'SOLO_CORREO',
+  'NINGUNO',
+] as const;
+export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
+
+export const GUARDIAN_RELATIONS = ['MADRE', 'PADRE', 'ABUELO_A', 'TIO_A', 'TUTOR_LEGAL'] as const;
+export type GuardianRelation = (typeof GUARDIAN_RELATIONS)[number];
+
+export const ENROLLMENT_TYPES = ['NUEVA', 'RATIFICADA', 'TRASLADO'] as const;
+export type EnrollmentType = (typeof ENROLLMENT_TYPES)[number];
+
+export const ENROLLMENT_STATUSES = ['COMPLETA', 'PENDIENTE_PAGO', 'OBSERVADA'] as const;
+export type EnrollmentStatus = (typeof ENROLLMENT_STATUSES)[number];
+
+export const INSTALLMENT_TYPES = ['MATRICULA', 'PENSION'] as const;
+export type InstallmentType = (typeof INSTALLMENT_TYPES)[number];
+
+export const INSTALLMENT_STATUSES = [
+  'PAGADO',
+  'PENDIENTE',
+  'VENCIDO',
+  'ANULADO',
+  'EXONERADO',
+] as const;
+export type InstallmentStatus = (typeof INSTALLMENT_STATUSES)[number];
+
+export const DISCOUNT_APPLICATIONS = ['AUTOMATICO', 'MANUAL'] as const;
+export type DiscountApplication = (typeof DISCOUNT_APPLICATIONS)[number];
+
+export const ACTIVE_STATUSES = ['ACTIVO', 'INACTIVO'] as const;
+export type ActiveStatus = (typeof ACTIVE_STATUSES)[number];
