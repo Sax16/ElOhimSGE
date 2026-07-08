@@ -1,0 +1,74 @@
+<!-- @dsCard group="Components" viewport="700x560" name="Navigation" subtitle="Sidebar, topbar, tabs, breadcrumb, pagination" -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  body { margin: 0; padding: 22px; background: var(--surface-app); }
+  .wrap { display: flex; flex-direction: column; gap: 18px; max-width: 660px; }
+  .sub { font: var(--type-caption); text-transform: uppercase; letter-spacing: var(--tracking-caps); color: var(--text-muted); font-weight: 600; margin-bottom: 8px; }
+  .shell { height: 280px; display: flex; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .shell__main { flex: 1; display: flex; flex-direction: column; background: var(--surface-app); }
+  .shell__body { padding: 18px; }
+  .panel { background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 16px; }
+</style>
+</head>
+<body>
+<div id="root" class="wrap"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel" data-presets="react">
+const { Sidebar, Topbar, Tabs, Breadcrumb, Pagination, Avatar, IconButton } = window.ElohimSGEDesignSystem_956020;
+const ic = (d) => () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{__html:d}} />;
+const Home = ic('<path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/>');
+const Users = ic('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>');
+const Book = ic('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>');
+const Cash = ic('<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>');
+const Bell = ic('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>');
+const Home2 = ic('<path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/>');
+
+function Demo(){
+  const [route, setRoute] = React.useState("est");
+  const [tab, setTab] = React.useState("notas");
+  const [page, setPage] = React.useState(2);
+  return (
+    <React.Fragment>
+      <div>
+        <div className="sub">App shell · sidebar + topbar</div>
+        <div className="shell">
+          <Sidebar logoSrc="../../assets/elohim-insignia.png" activeId={route} onSelect={setRoute}
+            items={[
+              {id:"dash", label:"Panel", icon:<Home/>},
+              {id:"est", label:"Estudiantes", icon:<Users/>, section:"Académico"},
+              {id:"notas", label:"Notas", icon:<Book/>},
+              {id:"pagos", label:"Pensiones", icon:<Cash/>, badge:8, section:"Finanzas"},
+            ]} />
+          <div className="shell__main">
+            <Topbar title="Estudiantes" showSearch={true}
+              actions={<IconButton label="Notificaciones"><Bell/></IconButton>}
+              user={{name:"Dir. Pérez", role:"Administrador", avatar:<Avatar name="Dir Pérez" size="sm" color="var(--blue-500)"/>}} />
+            <div className="shell__body">
+              <Breadcrumb items={[{label:"Inicio", href:"#", icon:<Home2/>},{label:"Estudiantes", href:"#"},{label:"María Quispe"}]} />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div className="sub">Tabs &amp; pagination</div>
+        <div className="panel" style={{display:"flex", flexDirection:"column", gap:16}}>
+          <Tabs value={tab} onChange={setTab} items={[{id:"datos",label:"Datos"},{id:"notas",label:"Notas",count:4},{id:"asist",label:"Asistencia"},{id:"pagos",label:"Pagos"}]} />
+          <Tabs variant="pill" value={tab} onChange={setTab} items={[{id:"datos",label:"Datos"},{id:"notas",label:"Notas"},{id:"asist",label:"Asistencia"}]} />
+          <Pagination page={page} pageCount={24} onPageChange={setPage} total={482} pageSize={20} />
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<Demo/>);
+</script>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!-- @dsCard group="SGE Dashboard" viewport="1320x840" name="SGE · Panel completo" subtitle="App shell interactivo — login, panel, estudiantes, pensiones, notas" -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Elohim SGE — Panel</title>
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--surface-app); }
+  #root { height: 100vh; }
+  .app { display: flex; height: 100vh; overflow: hidden; }
+  .app__main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .app__content { flex: 1; overflow-y: auto; padding: var(--content-pad); }
+  .app__pagehead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+  .app__title { font: var(--type-h1); }
+  .app__crumb { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel" src="icons.jsx" data-presets="react"></script>
+<script type="text/babel" src="LoginScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="AcademicStructureScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="EnrollmentScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="CashierScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="StaffScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="GuardiansScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="FeesScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="SettingsScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="TreasuryScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="InventoryScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="DashboardScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="StudentsScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="PaymentsScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="GradesScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="TeacherScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="ScheduleScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="AnnouncementsScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="ReportsScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="CalendarScreen.jsx" data-presets="react"></script>
+<script type="text/babel" src="ConductScreen.jsx" data-presets="react"></script>
+<script type="text/babel" data-presets="react">
+const { Sidebar, Topbar, Breadcrumb, Avatar, IconButton, Switch, Tooltip, Button, Toast, ToastStack, Select } = window.ElohimSGEDesignSystem_956020;
+const Ic = window.SGEIcons;
+
+const NAV = [
+  { id: "dash", label: "Panel", icon: <Ic.Dashboard /> },
+  { id: "estructura", label: "Estructura académica", icon: <Ic.Layers />, section: "Académico" },
+  { id: "est", label: "Estudiantes", icon: <Ic.Users /> },
+  { id: "apoderados", label: "Apoderados", icon: <Ic.Home /> },
+  { id: "docentes", label: "Personal", icon: <Ic.Teacher /> },
+  { id: "notas", label: "Notas", icon: <Ic.Book /> },
+  { id: "asist", label: "Asistencia", icon: <Ic.Calendar /> },
+  { id: "horarios", label: "Horarios", icon: <Ic.Clock /> },
+  { id: "conducta", label: "Conducta", icon: <Ic.Clipboard /> },
+  { id: "calendario", label: "Calendario", icon: <Ic.Calendar /> },
+  { id: "matricula", label: "Matrícula", icon: <Ic.Clipboard /> },
+  { id: "caja", label: "Caja y cobros", icon: <Ic.Receipt />, section: "Finanzas" },
+  { id: "pagos", label: "Pensiones", icon: <Ic.Cash />, badge: 8 },
+  { id: "tarifario", label: "Tarifario y becas", icon: <Ic.Clipboard /> },
+  { id: "tesoreria", label: "Gastos e ingresos", icon: <Ic.Chart /> },
+  { id: "inventario", label: "Inventario y activos", icon: <Ic.Box /> },
+  { id: "reportes", label: "Reportes", icon: <Ic.Chart />, section: "Sistema" },
+  { id: "comunicados", label: "Comunicados", icon: <Ic.Megaphone /> },
+  { id: "config", label: "Configuración", icon: <Ic.Settings /> },
+];
+
+const TEACHER_NAV = [
+  { id: "tclases", label: "Mis clases", icon: <Ic.Dashboard /> },
+  { id: "tasist", label: "Asistencia", icon: <Ic.Calendar />, section: "Mis aulas" },
+  { id: "notas", label: "Notas", icon: <Ic.Book /> },
+  { id: "conducta", label: "Conducta", icon: <Ic.Clipboard /> },
+];
+
+const PORTER_NAV = [
+  { id: "pmarcacion", label: "Marcación de personal", icon: <Ic.Clock /> },
+];
+
+const META = {
+  dash:      { title: "Panel administrativo", crumbs: ["Inicio", "Panel"], render: () => <window.SGE_Dashboard /> },
+  estructura:{ title: "Estructura académica", crumbs: ["Inicio", "Académico", "Estructura"], render: () => <window.SGE_Structure /> },
+  matricula: { title: "Matrícula", crumbs: ["Inicio", "Académico", "Matrícula"], render: () => <window.SGE_Enrollment /> },
+  caja:      { title: "Caja y cobros", crumbs: ["Inicio", "Finanzas", "Caja"], render: () => <window.SGE_Cashier /> },
+  docentes:  { title: "Personal", crumbs: ["Inicio", "Académico", "Personal"], render: () => <window.SGE_Staff /> },
+  apoderados:{ title: "Apoderados", crumbs: ["Inicio", "Académico", "Apoderados"], render: () => <window.SGE_Guardians /> },
+  tarifario: { title: "Tarifario y becas", crumbs: ["Inicio", "Finanzas", "Tarifario"], render: () => <window.SGE_Fees /> },
+  tesoreria: { title: "Gastos e ingresos", crumbs: ["Inicio", "Finanzas", "Gastos e ingresos"], render: () => <window.SGE_Treasury /> },
+  inventario:{ title: "Inventario y activos", crumbs: ["Inicio", "Finanzas", "Inventario"], render: () => <window.SGE_Inventory /> },
+  config:    { title: "Configuración", crumbs: ["Inicio", "Sistema", "Configuración"], render: () => <window.SGE_Settings /> },
+  est:       { title: "Estudiantes", crumbs: ["Inicio", "Académico", "Estudiantes"], render: () => <window.SGE_Students /> },
+  pagos:     { title: "Pensiones", crumbs: ["Inicio", "Finanzas", "Pensiones"], render: () => <window.SGE_Payments /> },
+  notas:     { title: "Registro de notas", crumbs: ["Inicio", "Académico", "Notas"], render: () => <window.SGE_Grades /> },
+  horarios:  { title: "Horarios", crumbs: ["Inicio", "Académico", "Horarios"], render: () => <window.SGE_Schedule /> },
+  calendario:{ title: "Calendario académico", crumbs: ["Inicio", "Académico", "Calendario"], render: () => <window.SGE_Calendar /> },
+  conducta:  { title: "Conducta e incidencias", crumbs: ["Inicio", "Académico", "Conducta"], render: () => <window.SGE_Conduct /> },
+  asist:     { title: "Asistencia de estudiantes", crumbs: ["Inicio", "Académico", "Asistencia"], render: () => <window.SGE_TeacherAttendance /> },
+  comunicados:{ title: "Comunicados", crumbs: ["Inicio", "Sistema", "Comunicados"], render: () => <window.SGE_Announcements /> },
+  reportes:  { title: "Reportes", crumbs: ["Inicio", "Sistema", "Reportes"], render: () => <window.SGE_Reports /> },
+  tclases:   { title: "Mis clases", crumbs: ["Inicio", "Mis clases"], render: () => <window.SGE_TeacherHome /> },
+  tasist:    { title: "Asistencia de estudiantes", crumbs: ["Inicio", "Mis aulas", "Asistencia"], render: () => <window.SGE_TeacherAttendance /> },
+  pmarcacion:{ title: "Marcación de personal", crumbs: ["Inicio", "Marcación"], render: () => <window.SGE_StaffAttendance /> },
+};
+const PLACEHOLDER = (id) => ({ title: (NAV.find(n => n.id === id) || {}).label || "Sección", crumbs: ["Inicio", (NAV.find(n => n.id === id) || {}).label], render: () => (
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 380 }}>
+    {React.createElement(window.ElohimSGEDesignSystem_956020.EmptyState, {
+      icon: <Ic.Settings />, title: "Módulo en construcción",
+      description: "Esta sección del SGE se desarrollará en una próxima etapa. La navegación y el marco ya están listos.",
+    })}
+  </div>) });
+
+function App() {
+  const [authed, setAuthed] = React.useState(false);
+  const [route, setRoute] = React.useState(() => localStorage.getItem("sge_route") || "dash");
+  const [theme, setTheme] = React.useState(() => localStorage.getItem("sge_theme") || "light");
+  const [collapsed, setCollapsed] = React.useState(false);
+  const [toasts, setToasts] = React.useState([]);
+  const [role, setRole] = React.useState("admin");
+  const [anio, setAnio] = React.useState("2026");
+
+  // Global helpers for the screens: notifications + cross-module navigation
+  React.useEffect(() => {
+    window.SGEToast = (tone, title, message) => {
+      const id = Date.now() + Math.random();
+      setToasts(ts => [...ts.slice(-2), { id, tone, title, message }]);
+      setTimeout(() => setToasts(ts => ts.filter(t => t.id !== id)), 4200);
+    };
+    window.SGENavigate = (r) => setRoute(r);
+    return () => { delete window.SGEToast; delete window.SGENavigate; };
+  }, []);
+
+  React.useEffect(() => { document.documentElement.setAttribute("data-theme", theme); localStorage.setItem("sge_theme", theme); }, [theme]);
+  React.useEffect(() => { localStorage.setItem("sge_route", route); }, [route]);
+
+  if (!authed) return <window.SGE_Login onLogin={(r) => { const rol = r || "admin"; setRole(rol); setRoute(rol === "docente" ? "tclases" : rol === "porteria" ? "pmarcacion" : "dash"); setAuthed(true); }} />;
+
+  const esDocente = role === "docente";
+  const esPorteria = role === "porteria";
+  const userName = esDocente ? "Prof. P. Gómez" : esPorteria ? "Sr. F. Huamán" : "Dir. Pérez";
+  const userRole = esDocente ? "Docente" : esPorteria ? "Portería" : "Administrador";
+  const userColor = esDocente ? "var(--blue-500)" : esPorteria ? "var(--green-500)" : "var(--gold-500)";
+
+  const meta = META[route] || PLACEHOLDER(route);
+
+  return (
+    <div className="app">
+      <Sidebar logoSrc="../../assets/elohim-insignia.png" brandName="Elohim" brandSub="SGE"
+        items={esDocente ? TEACHER_NAV : esPorteria ? PORTER_NAV : NAV} activeId={route} onSelect={setRoute} collapsed={collapsed}
+        footer={
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: collapsed ? 0 : "2px 4px", justifyContent: collapsed ? "center" : "flex-start" }}>
+            <Avatar name={userName} size="sm" color={userColor} />
+            {!collapsed && <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ font: "var(--type-label)", color: "#fff", whiteSpace: "nowrap" }}>{userName}</div>
+              <div style={{ font: "var(--type-2xs)", color: "var(--sidebar-muted)" }}>{userRole}</div>
+            </div>}
+            {!collapsed && <span style={{ color: "var(--sidebar-muted)", cursor: "pointer", display: "inline-flex" }} title="Cerrar sesión" onClick={() => setAuthed(false)}><Ic.Logout /></span>}
+          </div>
+        } />
+      <div className="app__main">
+        <Topbar
+          menuButton={<IconButton label="Menú" onClick={() => setCollapsed(c => !c)}><Ic.Dashboard /></IconButton>}
+          onMenuClick={() => setCollapsed(c => !c)}
+          searchPlaceholder={esDocente ? "Buscar estudiante en mis aulas…" : esPorteria ? "Buscar empleado…" : "Buscar estudiante, docente, recibo…"}
+          actions={
+            <>
+              {!esDocente && !esPorteria && (
+                <Tooltip content="Año académico">
+                  <span style={{ display: "inline-flex" }}>
+                    <Select size="sm" options={["2026", "2025", "2024"]} value={anio} aria-label="Año académico"
+                      onChange={(e) => { const a = e.target.value; setAnio(a); window.SGEToast(a === "2026" ? "info" : "warning", `Año académico ${a}`, a === "2026" ? "Año en curso — edición habilitada." : "Año cerrado — consulta en modo solo lectura."); }}
+                      containerStyle={{ width: 92 }} />
+                  </span>
+                </Tooltip>
+              )}
+              <Tooltip content={theme === "light" ? "Modo oscuro" : "Modo claro"}>
+                <span style={{ display: "inline-flex", alignItems: "center", padding: "0 4px" }}>
+                  <Switch checked={theme === "dark"} onChange={() => setTheme(t => t === "light" ? "dark" : "light")} size="sm" />
+                </span>
+              </Tooltip>
+              <Tooltip content="Notificaciones"><IconButton label="Notificaciones" onClick={() => window.SGEToast("info", "Notificaciones", esDocente ? "Tienes 2 clases sin asistencia hoy · 36% de notas del bimestre pendientes." : esPorteria ? "3 empleados aún no marcan ingreso · tolerancia hasta las 8:00." : "8 pensiones vencen el 31/07 · 1 tardanza de personal hoy · caja abierta desde 7:45.")}><Ic.Bell /></IconButton></Tooltip>
+            </>
+          }
+          user={{ name: userName, role: userRole, avatar: <Avatar name={userName} size="sm" color={userColor} />, onClick: () => window.SGEToast("info", "Cuenta", `${userName} · ${userRole} · sesión iniciada a las 07:40.`) }} />
+        {anio !== "2026" && (
+          <div style={{ background: "var(--warning-soft)", borderBottom: "1px solid var(--border-subtle)", padding: "8px 20px", display: "flex", alignItems: "center", gap: 10, font: "var(--type-label)", color: "var(--warning-soft-fg)", flexShrink: 0 }}>
+            <Ic.Lock style={{ width: 15, height: 15, flexShrink: 0 }} />
+            <span style={{ flex: 1 }}>Año académico <b>{anio}</b> cerrado — estás consultando el histórico en modo solo lectura. Notas, pagos y asistencia de ese año no se pueden modificar.</span>
+            <Button size="sm" variant="secondary" onClick={() => setAnio("2026")}>Volver a 2026</Button>
+          </div>
+        )}
+        <div className="app__content">
+          <div className="app__pagehead">
+            <div>
+              <div className="app__crumb"><Breadcrumb items={meta.crumbs.map((c, i) => ({ label: c, href: i < meta.crumbs.length - 1 ? "#" : undefined, icon: i === 0 ? <Ic.Home /> : undefined }))} /></div>
+              <h1 className="app__title">{meta.title}</h1>
+            </div>
+          </div>
+          {meta.render()}
+        </div>
+      </div>
+      <ToastStack position="bottom-right">
+        {toasts.map(t => (
+          <Toast key={t.id} tone={t.tone} title={t.title} message={t.message}
+            onClose={() => setToasts(ts => ts.filter(x => x.id !== t.id))} />
+        ))}
+      </ToastStack>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!-- @dsCard group="Type" viewport="700x230" name="Body, labels & figures" subtitle="UI body, labels, captions and IBM Plex Mono for numbers" -->
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body{ margin:0; padding:22px; background:var(--surface-card); }
+  .row{ display:flex; align-items:baseline; justify-content:space-between; gap:16px; padding:8px 0; border-bottom:1px solid var(--border-subtle); }
+  .row:last-child{ border-bottom:none; }
+  .meta{ font:var(--type-mono); color:var(--text-subtle); white-space:nowrap; }
+  .eyb{ font:var(--type-caption); text-transform:uppercase; letter-spacing:var(--tracking-caps); font-weight:600; color:var(--text-muted); }
+</style></head>
+<body>
+  <div class="row"><span style="font:var(--type-body-md);color:var(--text-body)">Texto de lectura cómoda para fichas y formularios del sistema.</span><span class="meta">body-md · 16/400</span></div>
+  <div class="row"><span style="font:var(--type-body);color:var(--text-body)">Texto base de interfaz — el tamaño por defecto en tablas y paneles.</span><span class="meta">body · 14/400</span></div>
+  <div class="row"><span style="font:var(--type-label);color:var(--text-strong)">Etiqueta de campo</span><span class="meta">label · 13/500</span></div>
+  <div class="row"><span class="eyb">Eyebrow · sección</span><span class="meta">caption · 12/600</span></div>
+  <div class="row"><span style="font:var(--type-mono);color:var(--text-body)">S/ 1,284.00 · DNI 70 481 559 · 2026-06-30</span><span class="meta">mono · figuras</span></div>
+</body></html>

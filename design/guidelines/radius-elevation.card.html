@@ -1,0 +1,28 @@
+<!-- @dsCard group="Spacing" viewport="700x160" name="Radius & elevation" subtitle="Corner radii and the cool blue-tinted shadow scale" -->
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body{ margin:0; padding:22px; background:var(--surface-app); display:flex; flex-direction:column; gap:18px; }
+  .group{ display:flex; align-items:flex-end; gap:18px; }
+  .item{ display:flex; flex-direction:column; gap:7px; align-items:center; }
+  .box{ width:62px; height:46px; background:var(--surface-card); border:1px solid var(--border-default); }
+  .sbox{ width:74px; height:46px; background:var(--surface-card); border-radius:var(--radius-lg); }
+  .t{ font:var(--type-mono); color:var(--text-muted); font-size:var(--text-2xs); }
+  .t b{ color:var(--text-strong); }
+</style></head>
+<body>
+  <div class="group">
+    <div class="item"><div class="box" style="border-radius:var(--radius-sm)"></div><div class="t"><b>sm</b> 5px</div></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-md)"></div><div class="t"><b>md</b> 8px</div></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-lg)"></div><div class="t"><b>lg</b> 12px</div></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-xl)"></div><div class="t"><b>xl</b> 16px</div></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-pill)"></div><div class="t"><b>pill</b></div></div>
+    <div style="width:1px;height:46px;background:var(--border-subtle)"></div>
+    <div class="item"><div class="sbox" style="box-shadow:var(--shadow-xs)"></div><div class="t"><b>xs</b></div></div>
+    <div class="item"><div class="sbox" style="box-shadow:var(--shadow-sm)"></div><div class="t"><b>sm</b></div></div>
+    <div class="item"><div class="sbox" style="box-shadow:var(--shadow-md)"></div><div class="t"><b>md</b></div></div>
+    <div class="item"><div class="sbox" style="box-shadow:var(--shadow-lg)"></div><div class="t"><b>lg</b></div></div>
+    <div class="item"><div class="sbox" style="box-shadow:var(--shadow-xl)"></div><div class="t"><b>xl</b></div></div>
+  </div>
+</body></html>

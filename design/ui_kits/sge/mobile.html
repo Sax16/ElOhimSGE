@@ -1,0 +1,178 @@
+<!-- @dsCard group="SGE Dashboard" viewport="860x760" name="SGE · Vistas móviles" subtitle="Referencia responsive — asistencia del docente y marcación de Portería" -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Elohim SGE — Vistas móviles</title>
+<link rel="stylesheet" href="../../styles.css" />
+<style>
+  body { margin: 0; padding: 28px; background: var(--surface-app); }
+  .stage { display: flex; gap: 32px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+  .phone {
+    width: 340px; border-radius: 34px; background: #0c1218; padding: 10px;
+    box-shadow: var(--shadow-xl);
+  }
+  .phone__screen {
+    border-radius: 26px; overflow: hidden; background: var(--surface-app);
+    height: 660px; display: flex; flex-direction: column; position: relative;
+  }
+  .phone__status {
+    height: 34px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 18px; font: var(--type-2xs); font-weight: 600; color: var(--text-strong); background: var(--surface-card);
+  }
+  .phone__label { text-align: center; margin-top: 12px; font: var(--type-caption); color: var(--text-muted); }
+  .phone__label b { color: var(--text-strong); }
+</style>
+</head>
+<body>
+<div id="root" class="stage"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel" src="icons.jsx" data-presets="react"></script>
+<script type="text/babel" data-presets="react">
+const { Badge, Avatar, Button, IconButton, Input } = window.ElohimSGEDesignSystem_956020;
+const Ic = window.SGEIcons;
+
+function Phone({ label, children }) {
+  return (
+    <div>
+      <div className="phone">
+        <div className="phone__screen">
+          <div className="phone__status"><span>08:12</span><span>▲ ▂ ▉</span></div>
+          {children}
+        </div>
+      </div>
+      <div className="phone__label" dangerouslySetInnerHTML={{ __html: label }} />
+    </div>
+  );
+}
+
+function MobileHeader({ title, sub }) {
+  return (
+    <div style={{ background: "var(--sidebar-bg)", color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", gap: 11, flexShrink: 0 }}>
+      <img src="../../assets/elohim-insignia.png" alt="" style={{ width: 30, height: 30, objectFit: "contain" }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ font: "var(--type-label)", fontWeight: 700, color: "#fff" }}>{title}</div>
+        <div style={{ font: "var(--type-2xs)", color: "var(--blue-200)" }}>{sub}</div>
+      </div>
+      <span style={{ display: "inline-flex", color: "var(--blue-200)", fontSize: 20 }}><Ic.Bell /></span>
+    </div>
+  );
+}
+
+/* ---------- Asistencia del docente (móvil) ---------- */
+const ALUMNOS = [
+  ["María Quispe Roca", "P", "var(--blue-500)"],
+  ["José Ramos Lía", "P", "var(--gold-500)"],
+  ["Ana Torres Inga", "T", "var(--green-500)"],
+  ["Luis Paz Cárdenas", "P", "var(--brown-400)"],
+  ["Rosa Lima Vega", "F", "var(--blue-400)"],
+  ["Hugo Vela Soto", "P", "var(--blue-600)"],
+  ["Carmen Ríos Paz", "P", "var(--gold-600)"],
+];
+const EST_OPTS = [
+  { id: "P", label: "P", color: "var(--success)", bg: "var(--success-soft)" },
+  { id: "T", label: "T", color: "var(--warning)", bg: "var(--warning-soft)" },
+  { id: "F", label: "F", color: "var(--danger)", bg: "var(--danger-soft)" },
+];
+
+function TeacherAttendanceMobile() {
+  const [marks, setMarks] = React.useState(() => Object.fromEntries(ALUMNOS.map(a => [a[0], a[1]])));
+  const set = (n, v) => setMarks(m => ({ ...m, [n]: v }));
+  const counts = Object.values(marks).reduce((a, v) => (a[v]++, a), { P: 0, T: 0, F: 0 });
+  return (
+    <React.Fragment>
+      <MobileHeader title="Asistencia · 3° A Primaria" sub="Matemática · Mié 08/07 · 08:00–09:30" />
+      <div style={{ padding: "10px 14px", display: "flex", gap: 8, alignItems: "center", background: "var(--surface-card)", borderBottom: "1px solid var(--border-subtle)", flexShrink: 0 }}>
+        <Badge tone="success" dot>{counts.P} presentes</Badge>
+        <Badge tone="warning" dot>{counts.T} tardanza</Badge>
+        <Badge tone="danger" dot>{counts.F} faltas</Badge>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {ALUMNOS.map(([n, _, c], i) => (
+          <div key={n} style={{ display: "flex", flexDirection: "column", gap: 8, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "10px 12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ font: "var(--type-2xs)", fontFamily: "var(--font-mono)", color: "var(--text-subtle)", width: 16 }}>{i + 1}</span>
+              <Avatar name={n} size="sm" color={c} />
+              <span style={{ flex: 1, font: "var(--type-label)", color: "var(--text-strong)", minWidth: 0 }}>{n}</span>
+            </div>
+            <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+              {EST_OPTS.map((o) => (
+                <button key={o.id} onClick={() => set(n, o.id)} aria-label={o.label} style={{
+                  width: 64, height: 44, borderRadius: "var(--radius-md)", cursor: "pointer",
+                  font: "var(--type-label)", fontWeight: 700,
+                  border: marks[n] === o.id ? `2px solid ${o.color}` : "1px solid var(--border-default)",
+                  background: marks[n] === o.id ? o.bg : "var(--surface-card)",
+                  color: marks[n] === o.id ? o.color : "var(--text-subtle)",
+                }}>{o.label}</button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: "10px 14px 16px", background: "var(--surface-card)", borderTop: "1px solid var(--border-subtle)", flexShrink: 0 }}>
+        <Button variant="primary" size="lg" block iconLeft={<Ic.Check />}>Guardar asistencia (7)</Button>
+      </div>
+    </React.Fragment>
+  );
+}
+
+/* ---------- Marcación de Portería (móvil) ---------- */
+const EMPLEADOS = [
+  ["Pedro Gómez Silva", "Docente", "07:42", null, "var(--blue-500)"],
+  ["Liliana Campos Paz", "Secretaría", "07:38", null, "var(--brown-400)"],
+  ["Iris Quinto Vega", "Docente", "08:12", "Tardanza", "var(--green-500)"],
+  ["Raúl Meza Campos", "Docente", null, null, "var(--blue-300)"],
+  ["Marta Quispe Rojas", "Auxiliar", null, null, "var(--gold-600)"],
+];
+
+function PorterMobile() {
+  const [rows, setRows] = React.useState(EMPLEADOS.map((e) => ({ nombre: e[0], cargo: e[1], hora: e[2], flag: e[3], color: e[4] })));
+  const marcar = (n) => setRows((rs) => rs.map((x) => x.nombre === n ? { ...x, hora: "08:12", flag: "Tardanza" } : x));
+  return (
+    <React.Fragment>
+      <MobileHeader title="Marcación de personal" sub="Sr. F. Huamán · Portería · Mié 08/07" />
+      <div style={{ padding: "12px 14px 8px", flexShrink: 0 }}>
+        <Input placeholder="Buscar empleado…" iconLeft={<Ic.Search />} />
+      </div>
+      <div style={{ padding: "0 14px 8px", display: "flex", gap: 8, flexShrink: 0 }}>
+        <Badge tone="success" dot>3 presentes</Badge>
+        <Badge tone="warning" dot>1 tardanza</Badge>
+        <Badge tone="neutral" dot>2 sin marcar</Badge>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "4px 12px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {rows.map((r) => (
+          <div key={r.nombre} style={{ display: "flex", flexDirection: "column", gap: 8, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "10px 12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Avatar name={r.nombre} size="sm" color={r.color} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ font: "var(--type-label)", color: "var(--text-strong)" }}>{r.nombre}</div>
+                <div style={{ font: "var(--type-2xs)", color: "var(--text-muted)" }}>{r.cargo}{r.hora ? ` · ingresó ${r.hora}` : " · sin marcar"}</div>
+              </div>
+              {r.hora && (r.flag
+                ? <Badge tone="warning" dot>Tardanza</Badge>
+                : <Badge tone="success" dot>Puntual</Badge>)}
+            </div>
+            {!r.hora && <Button size="lg" variant="primary" block onClick={() => marcar(r.nombre)}>Marcar ingreso</Button>}
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: "8px 14px 14px", font: "var(--type-2xs)", color: "var(--text-subtle)", textAlign: "center", flexShrink: 0 }}>
+        Tolerancia: Docentes 7:45 · Administrativo 8:00 · registra: F. Huamán
+      </div>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.Fragment>
+    <Phone label="<b>Asistencia del docente</b> — filas como tarjetas, targets de 44px, acción fija abajo"><TeacherAttendanceMobile /></Phone>
+    <Phone label="<b>Marcación de Portería</b> — búsqueda arriba, botón grande por empleado"><PorterMobile /></Phone>
+  </React.Fragment>
+);
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+/* ===========================================================================
+   Elohim SGE — Webfonts
+   IBM Plex Sans — professional, neutral, UI-grade (headings + body).
+   IBM Plex Mono — tabular figures for IDs, money, grades, dates in tables.
+   Loaded from Google Fonts. If you self-host, swap these @import lines for
+   local @font-face rules pointing at /assets/fonts.
+   =========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');

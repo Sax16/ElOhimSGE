@@ -1,0 +1,22 @@
+<!-- @dsCard group="Spacing" viewport="700x150" name="Spacing scale" subtitle="4px base unit — the rhythm of layouts and gaps" -->
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body{ margin:0; padding:22px; background:var(--surface-card); }
+  .row{ display:flex; align-items:center; gap:14px; }
+  .item{ display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
+  .bar{ background:var(--brand); height:18px; border-radius:var(--radius-xs); }
+  .t{ font:var(--type-mono); color:var(--text-muted); font-size:var(--text-2xs); }
+  .t b{ color:var(--text-strong); }
+</style></head>
+<body><div class="row">
+  <div class="item"><div class="bar" style="width:var(--space-1)"></div><div class="t"><b>1</b><br>4px</div></div>
+  <div class="item"><div class="bar" style="width:var(--space-2)"></div><div class="t"><b>2</b><br>8px</div></div>
+  <div class="item"><div class="bar" style="width:var(--space-3)"></div><div class="t"><b>3</b><br>12px</div></div>
+  <div class="item"><div class="bar" style="width:var(--space-4)"></div><div class="t"><b>4</b><br>16px</div></div>
+  <div class="item"><div class="bar" style="width:var(--space-6)"></div><div class="t"><b>6</b><br>24px</div></div>
+  <div class="item"><div class="bar" style="width:var(--space-8)"></div><div class="t"><b>8</b><br>32px</div></div>
+  <div class="item"><div class="bar" style="width:var(--space-12)"></div><div class="t"><b>12</b><br>48px</div></div>
+  <div class="item"><div class="bar" style="width:var(--space-16)"></div><div class="t"><b>16</b><br>64px</div></div>
+</div></body></html>

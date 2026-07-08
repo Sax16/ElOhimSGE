@@ -1,0 +1,36 @@
+<!-- @dsCard group="Colors" viewport="700x170" name="Dark mode" subtitle="The same surface & text tokens under [data-theme=dark]" -->
+<!DOCTYPE html>
+<html lang="es" data-theme="dark"><head><meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body{ margin:0; padding:20px; background:var(--surface-app); display:flex; gap:14px; }
+  .col{ flex:1; display:flex; flex-direction:column; gap:8px; }
+  .lbl{ font:var(--type-caption); text-transform:uppercase; letter-spacing:var(--tracking-caps); color:var(--text-muted); font-weight:600; }
+  .surf{ display:flex; flex-direction:column; gap:6px; }
+  .surf > div{ height:30px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); display:flex; align-items:center; padding:0 10px; font:var(--type-caption); color:var(--text-muted); }
+  .chips{ display:flex; gap:8px; flex-wrap:wrap; }
+  .chip{ height:26px; padding:0 10px; border-radius:var(--radius-pill); display:inline-flex; align-items:center; font:var(--type-caption); font-weight:600; }
+</style></head>
+<body>
+  <div class="col">
+    <div class="lbl">Surfaces (dark)</div>
+    <div class="surf">
+      <div style="background:var(--surface-app)">surface-app</div>
+      <div style="background:var(--surface-card)">surface-card</div>
+      <div style="background:var(--surface-raised)">surface-raised</div>
+      <div style="background:var(--surface-sunken)">surface-sunken</div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="lbl">Brand & state (dark)</div>
+    <div style="font:var(--type-h3);color:var(--text-strong)">Panel Elohim SGE</div>
+    <div style="font:var(--type-body);color:var(--text-muted);margin-bottom:4px">Texto de cuerpo y atenuado.</div>
+    <div class="chips">
+      <span class="chip" style="background:var(--brand);color:var(--brand-fg)">Acción</span>
+      <span class="chip" style="background:var(--accent);color:var(--accent-fg)">Acento</span>
+      <span class="chip" style="background:var(--success-soft);color:var(--success-soft-fg)">Pagado</span>
+      <span class="chip" style="background:var(--warning-soft);color:var(--warning-soft-fg)">Pendiente</span>
+      <span class="chip" style="background:var(--danger-soft);color:var(--danger-soft-fg)">Vencido</span>
+    </div>
+  </div>
+</body></html>
