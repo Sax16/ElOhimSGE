@@ -15,6 +15,9 @@ const DevKitPage = lazy(() => import('../features/dev/DevKitPage').then((m) => (
 const SettingsPage = lazy(() =>
   import('../features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
+const StructurePage = lazy(() =>
+  import('../features/structure/StructurePage').then((m) => ({ default: m.StructurePage })),
+);
 
 function Loading() {
   return (
@@ -49,7 +52,9 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
   path: id,
   element: (
     <RequireRole allowedRoles={roles}>
-      <Suspended>{id === 'config' ? <SettingsPage /> : <PlaceholderPage />}</Suspended>
+      <Suspended>
+        {id === 'config' ? <SettingsPage /> : id === 'estructura' ? <StructurePage /> : <PlaceholderPage />}
+      </Suspended>
     </RequireRole>
   ),
 }));

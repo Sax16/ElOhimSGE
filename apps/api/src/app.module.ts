@@ -6,7 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { InstitutionModule } from './institution/institution.module';
-import { AcademicYearsModule } from './academic-years/academic-years.module';
+import { AcademicStructureModule } from './academic-structure/academic-structure.module';
 
 @Module({
   imports: [
@@ -16,7 +16,7 @@ import { AcademicYearsModule } from './academic-years/academic-years.module';
     AuthModule,
     UsersModule,
     InstitutionModule,
-    AcademicYearsModule,
+    AcademicStructureModule,
     HealthModule,
   ],
 })

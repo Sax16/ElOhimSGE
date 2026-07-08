@@ -5,3 +5,4 @@ export * from './money/money';
 export * from './schemas/auth';
 export * from './schemas/users';
 export * from './schemas/institution';
+export * from './schemas/structure';
