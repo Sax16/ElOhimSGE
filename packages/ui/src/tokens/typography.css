@@ -1,0 +1,53 @@
+/* ===========================================================================
+   Elohim SGE — Typography Tokens
+   One family system: IBM Plex Sans for UI/text, IBM Plex Mono for figures.
+   Professional and quiet — never decorative. Type scale is a modest 1.20 ratio
+   tuned for dense administrative screens.
+   =========================================================================== */
+:root {
+  /* Families */
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Weights */
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* Font sizes — rem based (1rem = 16px) */
+  --text-2xs:  0.6875rem; /* 11px — table micro-labels, badges */
+  --text-xs:   0.75rem;   /* 12px — captions, meta */
+  --text-sm:   0.8125rem; /* 13px — secondary UI, table cells */
+  --text-base: 0.875rem;  /* 14px — default UI body */
+  --text-md:   1rem;      /* 16px — comfortable reading body */
+  --text-lg:   1.125rem;  /* 18px — section titles */
+  --text-xl:   1.375rem;  /* 22px — card titles, page sub */
+  --text-2xl:  1.75rem;   /* 28px — page titles */
+  --text-3xl:  2.25rem;   /* 36px — dashboard hero figures */
+  --text-4xl:  3rem;      /* 48px — login / marketing display */
+
+  /* Line heights */
+  --leading-tight:   1.2;
+  --leading-snug:    1.35;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.65;
+
+  /* Letter spacing */
+  --tracking-tight:  -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.02em;
+  --tracking-caps:   0.06em;  /* uppercase eyebrows / labels */
+
+  /* Semantic type roles (shorthand: weight size/line family) */
+  --type-display:  var(--weight-bold) var(--text-4xl)/var(--leading-tight) var(--font-sans);
+  --type-h1:       var(--weight-bold) var(--text-2xl)/var(--leading-tight) var(--font-sans);
+  --type-h2:       var(--weight-semibold) var(--text-xl)/var(--leading-snug) var(--font-sans);
+  --type-h3:       var(--weight-semibold) var(--text-lg)/var(--leading-snug) var(--font-sans);
+  --type-body:     var(--weight-regular) var(--text-base)/var(--leading-normal) var(--font-sans);
+  --type-body-md:  var(--weight-regular) var(--text-md)/var(--leading-relaxed) var(--font-sans);
+  --type-label:    var(--weight-medium) var(--text-sm)/var(--leading-snug) var(--font-sans);
+  --type-caption:  var(--weight-regular) var(--text-xs)/var(--leading-snug) var(--font-sans);
+  --type-2xs:      var(--weight-regular) var(--text-2xs)/var(--leading-snug) var(--font-sans);
+  --type-mono:     var(--weight-regular) var(--text-sm)/var(--leading-snug) var(--font-mono);
+}

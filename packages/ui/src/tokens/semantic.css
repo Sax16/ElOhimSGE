@@ -1,0 +1,168 @@
+/* ===========================================================================
+   Elohim SGE — Semantic Color Aliases
+   These are the tokens product UI and components should consume. They remap to
+   raw ramps and flip automatically between light (:root) and dark
+   ([data-theme="dark"]) modes. Naming: --{role}-{slot}.
+   =========================================================================== */
+:root {
+  color-scheme: light;
+
+  /* Surfaces — backgrounds, lowest → highest elevation */
+  --surface-app:      var(--neutral-50);   /* page canvas */
+  --surface-card:     var(--neutral-0);    /* cards, panels */
+  --surface-raised:   var(--neutral-0);    /* popovers, menus, dialogs */
+  --surface-sunken:   var(--neutral-100);  /* wells, table headers, inputs bg */
+  --surface-inverse:  var(--blue-900);     /* tooltips, dark chips */
+  --surface-hover:    var(--neutral-100);  /* row / item hover */
+  --surface-active:   var(--neutral-200);  /* pressed / selected bg */
+
+  /* Brand-tinted surfaces */
+  --surface-brand-soft:  var(--blue-50);   /* selected nav, info wells */
+  --surface-accent-soft: var(--gold-50);   /* highlight strips */
+
+  /* Text */
+  --text-strong:    var(--neutral-900);    /* headings */
+  --text-body:      var(--neutral-800);    /* default copy */
+  --text-muted:     var(--neutral-500);    /* secondary, captions */
+  --text-subtle:    var(--neutral-400);    /* placeholders, disabled */
+  --text-inverse:   var(--neutral-0);      /* on dark / brand fills */
+  --text-on-brand:  #ffffff;               /* on blue fills */
+  --text-on-accent: var(--brown-900);      /* on gold fills */
+  --text-link:      var(--blue-600);
+
+  /* Borders & dividers */
+  --border-subtle:  var(--neutral-200);    /* hairlines, dividers */
+  --border-default: var(--neutral-300);    /* inputs, cards */
+  --border-strong:  var(--neutral-400);    /* emphasized outlines */
+  --border-brand:   var(--blue-500);
+
+  /* Brand / primary action */
+  --brand:          var(--blue-600);
+  --brand-hover:    var(--blue-700);
+  --brand-active:   var(--blue-800);
+  --brand-fg:       #ffffff;
+
+  /* Accent (gold) — secondary emphasis, never large fills of body text */
+  --accent:         var(--gold-500);
+  --accent-hover:   var(--gold-600);
+  --accent-active:  var(--gold-700);
+  --accent-fg:      var(--brown-900);
+
+  /* Focus ring */
+  --ring:           var(--blue-400);
+  --ring-offset:    var(--surface-card);
+
+  /* Semantic states (paired fg / bg-soft / border) */
+  --success:        var(--green-600);
+  --success-fg:     #ffffff;
+  --success-soft:   var(--green-50);
+  --success-soft-fg:var(--green-700);
+
+  --danger:         var(--red-600);
+  --danger-fg:      #ffffff;
+  --danger-soft:    var(--red-50);
+  --danger-soft-fg: var(--red-700);
+
+  --warning:        var(--amber-500);
+  --warning-fg:     var(--brown-900);
+  --warning-soft:   var(--amber-50);
+  --warning-soft-fg:var(--amber-700);
+
+  --info:           var(--blue-500);
+  --info-fg:        #ffffff;
+  --info-soft:      var(--blue-50);
+  --info-soft-fg:   var(--blue-700);
+
+  /* Sidebar (dark-blue institutional rail in both modes) */
+  --sidebar-bg:        var(--blue-900);
+  --sidebar-fg:        var(--blue-100);
+  --sidebar-muted:     var(--blue-300);
+  --sidebar-item-hover:var(--blue-800);
+  --sidebar-item-active:var(--blue-700);
+  --sidebar-active-fg: #ffffff;
+  --sidebar-accent:    var(--gold-400);
+  --sidebar-border:    rgba(255,255,255,0.08);
+
+  /* Data-viz sequence */
+  --chart-1: var(--blue-500);
+  --chart-2: var(--gold-500);
+  --chart-3: var(--green-500);
+  --chart-4: var(--brown-400);
+  --chart-5: var(--blue-300);
+  --chart-6: var(--red-500);
+}
+
+/* ----------------------------- DARK MODE ----------------------------- */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-app:      var(--neutral-950);
+  --surface-card:     var(--neutral-900);
+  --surface-raised:   var(--neutral-800);
+  --surface-sunken:   #0c1116;
+  --surface-inverse:  var(--cream-200);
+  --surface-hover:    rgba(255,255,255,0.04);
+  --surface-active:   rgba(255,255,255,0.08);
+
+  --surface-brand-soft:  rgba(79,144,194,0.16);
+  --surface-accent-soft: rgba(192,137,42,0.16);
+
+  --text-strong:    var(--neutral-50);
+  --text-body:      var(--neutral-200);
+  --text-muted:     var(--neutral-400);
+  --text-subtle:    var(--neutral-500);
+  --text-inverse:   var(--neutral-900);
+  --text-on-brand:  #ffffff;
+  --text-on-accent: var(--brown-900);
+  --text-link:      var(--blue-300);
+
+  --border-subtle:  rgba(255,255,255,0.08);
+  --border-default: rgba(255,255,255,0.14);
+  --border-strong:  rgba(255,255,255,0.24);
+  --border-brand:   var(--blue-400);
+
+  --brand:          var(--blue-500);
+  --brand-hover:    var(--blue-400);
+  --brand-active:   var(--blue-300);
+  --brand-fg:       #ffffff;
+
+  --accent:         var(--gold-400);
+  --accent-hover:   var(--gold-300);
+  --accent-active:  var(--gold-200);
+  --accent-fg:      var(--brown-900);
+
+  --ring:           var(--blue-300);
+  --ring-offset:    var(--surface-card);
+
+  --success:        var(--green-500);
+  --success-soft:   rgba(31,146,84,0.16);
+  --success-soft-fg:var(--green-300);
+
+  --danger:         var(--red-500);
+  --danger-soft:    rgba(207,59,44,0.16);
+  --danger-soft-fg: var(--red-300);
+
+  --warning:        var(--amber-500);
+  --warning-soft:   rgba(219,148,31,0.16);
+  --warning-soft-fg:var(--amber-300);
+
+  --info:           var(--blue-400);
+  --info-soft:      rgba(79,144,194,0.16);
+  --info-soft-fg:   var(--blue-300);
+
+  --sidebar-bg:        #0c1a28;
+  --sidebar-fg:        var(--blue-100);
+  --sidebar-muted:     var(--blue-300);
+  --sidebar-item-hover:rgba(255,255,255,0.05);
+  --sidebar-item-active:var(--blue-700);
+  --sidebar-active-fg: #ffffff;
+  --sidebar-accent:    var(--gold-400);
+  --sidebar-border:    rgba(255,255,255,0.07);
+
+  --chart-1: var(--blue-400);
+  --chart-2: var(--gold-400);
+  --chart-3: var(--green-300);
+  --chart-4: var(--brown-300);
+  --chart-5: var(--blue-200);
+  --chart-6: var(--red-300);
+}

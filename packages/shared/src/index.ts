@@ -3,3 +3,5 @@ export * from './labels';
 export * from './permissions';
 export * from './money/money';
 export * from './schemas/auth';
+export * from './schemas/users';
+export * from './schemas/institution';

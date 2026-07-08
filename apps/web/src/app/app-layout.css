@@ -1,0 +1,41 @@
+/* Shell de la app — portado de <style> de design/ui_kits/sge/index.html. */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--content-pad);
+}
+
+.app__pagehead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.app__title {
+  font: var(--type-h1);
+}
+
+.app__crumb {
+  margin-bottom: 4px;
+}

@@ -1,0 +1,137 @@
+/* LoginPage — portado de design/ui_kits/sge/LoginScreen.jsx.
+   Split brand/formulario. Los valores crudos (#fff, opacidad de textura) son
+   los que el propio prototipo hardcodea sobre el gradiente azul. */
+
+.login {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  background: var(--surface-app);
+}
+
+/* --- Panel de marca (izquierda) --- */
+.login__brand {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px 52px;
+  color: #fff;
+  overflow: hidden;
+  background: linear-gradient(155deg, var(--blue-700), var(--blue-900) 70%);
+}
+
+.login__texture {
+  position: absolute;
+  inset: 0;
+  opacity: 0.12;
+  background-image: radial-gradient(circle at 1px 1px, #fff 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+.login__brand-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.login__insignia {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.login__brand-name {
+  font: var(--type-h3);
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+
+.login__brand-sub {
+  font: var(--type-caption);
+  color: var(--blue-200);
+}
+
+.login__brand-body {
+  position: relative;
+}
+
+.login__headline {
+  font: var(--type-display);
+  font-size: 2.4rem;
+  line-height: 1.15;
+  color: #fff;
+  max-width: 420px;
+}
+
+.login__lede {
+  font: var(--type-body-md);
+  color: var(--blue-100);
+  margin-top: 16px;
+  max-width: 400px;
+}
+
+.login__brand-foot {
+  position: relative;
+  font: var(--type-caption);
+  color: var(--blue-300);
+}
+
+/* --- Panel de formulario (derecha) --- */
+.login__form-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.login__form-wrap {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.login__intro-title {
+  font: var(--type-h1);
+}
+
+.login__intro-lede {
+  font: var(--type-body);
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login__options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.login__forgot {
+  font: var(--type-label);
+}
+
+.login__help {
+  font: var(--type-caption);
+  color: var(--text-subtle);
+  text-align: center;
+}
+
+/* Móvil: el panel de marca se oculta y el formulario ocupa todo el ancho. */
+@media (max-width: 767px) {
+  .login {
+    grid-template-columns: 1fr;
+  }
+  .login__brand {
+    display: none;
+  }
+}

@@ -1,0 +1,89 @@
+/* ===========================================================================
+   Elohim SGE — Base Palette
+   Raw color ramps derived from the Colegio Cristocéntrico Elohim badge:
+   institutional blue (field), gold (border/banner), brown (figures/book),
+   cream (lettering). These are RAW tokens — never reference them directly in
+   product UI; use the semantic aliases in semantic.css instead.
+   =========================================================================== */
+:root {
+  /* — Blue · primary brand (from the shield field) — */
+  --blue-50:  #eaf2f9;
+  --blue-100: #d3e4f2;
+  --blue-200: #aacce7;
+  --blue-300: #7db2d8;
+  --blue-400: #4f90c2;
+  --blue-500: #2e72a8;
+  --blue-600: #1f5c8c;
+  --blue-700: #1a4c75;
+  --blue-800: #173e5f;
+  --blue-900: #15334d;
+  --blue-950: #0d2234;
+
+  /* — Gold · accent (from the border + ELOHIM banner) — */
+  --gold-50:  #fbf4e1;
+  --gold-100: #f6e8bf;
+  --gold-200: #ecd089;
+  --gold-300: #e0b556;
+  --gold-400: #d29e33;
+  --gold-500: #c0892a;
+  --gold-600: #a37121;
+  --gold-700: #82591c;
+  --gold-800: #66461a;
+  --gold-900: #4f3817;
+
+  /* — Brown · warm grounding (from the family + open book) — */
+  --brown-50:  #f3ece3;
+  --brown-100: #e3d4c1;
+  --brown-200: #c9ac8b;
+  --brown-300: #a98255;
+  --brown-400: #836032;
+  --brown-500: #6b4a24;
+  --brown-600: #573a1c;
+  --brown-700: #4a3115;
+  --brown-800: #392611;
+  --brown-900: #2a1c0d;
+
+  /* — Cream · warm paper (badge lettering) — */
+  --cream-50:  #fdfaf2;
+  --cream-100: #f9f1de;
+  --cream-200: #f4ecd8;
+  --cream-300: #ecdfbf;
+
+  /* — Neutral · cool blue-gray (UI scaffolding) — */
+  --neutral-0:   #ffffff;
+  --neutral-50:  #f6f8fa;
+  --neutral-100: #edf1f5;
+  --neutral-200: #dce3eb;
+  --neutral-300: #c2cdd9;
+  --neutral-400: #9aa8b8;
+  --neutral-500: #6e7d8e;
+  --neutral-600: #515f6e;
+  --neutral-700: #3b4753;
+  --neutral-800: #28323c;
+  --neutral-900: #1a222a;
+  --neutral-950: #111820;
+
+  /* — Green · success — */
+  --green-50:  #e8f5ee;
+  --green-100: #c8e7d4;
+  --green-300: #6cc28d;
+  --green-500: #1f9254;
+  --green-600: #178045;
+  --green-700: #136638;
+
+  /* — Red · danger — */
+  --red-50:  #fcebe9;
+  --red-100: #f7cfca;
+  --red-300: #e8867c;
+  --red-500: #cf3b2c;
+  --red-600: #b52e21;
+  --red-700: #93251b;
+
+  /* — Amber · warning (kin to gold but hotter for alerts) — */
+  --amber-50:  #fdf2e0;
+  --amber-100: #fadeb4;
+  --amber-300: #f0b54f;
+  --amber-500: #db941f;
+  --amber-600: #b97916;
+  --amber-700: #92600f;
+}
