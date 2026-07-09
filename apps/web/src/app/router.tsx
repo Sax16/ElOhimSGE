@@ -18,6 +18,12 @@ const SettingsPage = lazy(() =>
 const StructurePage = lazy(() =>
   import('../features/structure/StructurePage').then((m) => ({ default: m.StructurePage })),
 );
+const StudentsPage = lazy(() =>
+  import('../features/students/StudentsPage').then((m) => ({ default: m.StudentsPage })),
+);
+const GuardiansPage = lazy(() =>
+  import('../features/guardians/GuardiansPage').then((m) => ({ default: m.GuardiansPage })),
+);
 
 function Loading() {
   return (
@@ -53,7 +59,17 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
   element: (
     <RequireRole allowedRoles={roles}>
       <Suspended>
-        {id === 'config' ? <SettingsPage /> : id === 'estructura' ? <StructurePage /> : <PlaceholderPage />}
+        {id === 'config' ? (
+          <SettingsPage />
+        ) : id === 'estructura' ? (
+          <StructurePage />
+        ) : id === 'est' ? (
+          <StudentsPage />
+        ) : id === 'apoderados' ? (
+          <GuardiansPage />
+        ) : (
+          <PlaceholderPage />
+        )}
       </Suspended>
     </RequireRole>
   ),

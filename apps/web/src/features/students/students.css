@@ -1,0 +1,44 @@
+/* Impresión del carnet estudiantil en formato CR80 (85.6mm × 54mm).
+   Al imprimir se oculta todo salvo el carnet, que se ajusta al tamaño físico. */
+
+.esge-carnet {
+  width: 340px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+}
+
+@media print {
+  /* Oculta toda la app; solo el carnet queda visible. */
+  body * {
+    visibility: hidden;
+  }
+  #esge-carnet-print,
+  #esge-carnet-print * {
+    visibility: visible;
+  }
+  #esge-carnet-print {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+  #esge-carnet-print .esge-carnet {
+    width: 85.6mm;
+    height: 54mm;
+    border-radius: 3mm;
+    box-shadow: none;
+    border: 1px solid #d0d0d0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  @page {
+    size: 85.6mm 54mm;
+    margin: 0;
+  }
+}

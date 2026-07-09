@@ -4,6 +4,7 @@ import { seedUsers } from './02-users';
 import { seedBilling } from './03-billing';
 import { seedAcademicYears } from './04-academic-years';
 import { seedStructure2026 } from './05-structure-2026';
+import { seedStudentsGuardians } from './06-students-guardians';
 
 const prisma = new PrismaClient();
 
@@ -14,6 +15,7 @@ async function main() {
   await seedBilling(prisma);
   await seedAcademicYears(prisma);
   await seedStructure2026(prisma);
+  await seedStudentsGuardians(prisma);
   console.log('Seed Elohim SGE — completado');
 }
 

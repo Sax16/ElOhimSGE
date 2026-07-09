@@ -6,3 +6,5 @@ export * from './schemas/auth';
 export * from './schemas/users';
 export * from './schemas/institution';
 export * from './schemas/structure';
+export * from './schemas/students';
+export * from './schemas/guardians';
