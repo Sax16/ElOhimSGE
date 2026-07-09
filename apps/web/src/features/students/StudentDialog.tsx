@@ -23,7 +23,7 @@ import {
   formatPEN,
 } from '@elohim/shared';
 import { ApiError } from '../../lib/api';
-import { useStudent, useUnlinkGuardian, useUploadStudentPhoto } from './api';
+import { useLinkGuardian, useStudent, useUnlinkGuardian, useUploadStudentPhoto } from './api';
 import { STUDENT_STATUS_TONE, avatarColor, fullName } from './bits';
 import { CardDialog } from './CardDialog';
 import { LinkGuardianDialog } from './LinkGuardianDialog';
@@ -48,7 +48,10 @@ export function StudentDialog({ studentId, onClose, fallbackDebtCents = 0, readO
   const { data: student, isLoading } = useStudent(studentId ?? undefined);
   const uploadPhoto = useUploadStudentPhoto();
   const unlink = useUnlinkGuardian();
+  const link = useLinkGuardian();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const MAX_GUARDIANS = 3;
 
   const [sub, setSub] = useState<Sub>(null);
   const [unlinkTarget, setUnlinkTarget] = useState<StudentGuardianLink | null>(null);
@@ -75,6 +78,19 @@ export function StudentDialog({ studentId, onClose, fallbackDebtCents = 0, readO
         onSuccess: () => toast('success', 'Foto actualizada', 'La foto se usará en la ficha y el carnet.'),
         onError: (err) =>
           toast('danger', 'No se pudo subir la foto', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.'),
+      },
+    );
+  };
+
+  const makePrimary = (g: StudentGuardianLink) => {
+    if (!student || g.isPrimary) return;
+    link.mutate(
+      { studentId: student.id, guardianId: g.guardian.id, relation: g.relation, isPrimary: true },
+      {
+        onSuccess: () =>
+          toast('success', 'Contacto principal actualizado', `${g.guardian.fullName} recibirá los avisos y el estado de cuenta.`),
+        onError: (err) =>
+          toast('danger', 'No se pudo actualizar', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.'),
       },
     );
   };
@@ -225,13 +241,22 @@ export function StudentDialog({ studentId, onClose, fallbackDebtCents = 0, readO
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-strong)' }}>
-                  Apoderados ({student.guardians.length})
+                  Apoderados ({student.guardians.length}/{MAX_GUARDIANS})
                 </span>
-                {!readOnly && (
-                  <Button size="sm" variant="secondary" iconLeft={<Icons.Plus />} onClick={() => setSub('link')}>
-                    Vincular apoderado
-                  </Button>
-                )}
+                {!readOnly &&
+                  (student.guardians.length >= MAX_GUARDIANS ? (
+                    <Tooltip content={`Máximo ${MAX_GUARDIANS} apoderados. Quita uno para agregar otro.`}>
+                      <span>
+                        <Button size="sm" variant="secondary" iconLeft={<Icons.Plus />} disabled>
+                          Vincular apoderado
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  ) : (
+                    <Button size="sm" variant="secondary" iconLeft={<Icons.Plus />} onClick={() => setSub('link')}>
+                      Vincular apoderado
+                    </Button>
+                  ))}
               </div>
               {student.guardians.length === 0 ? (
                 <EmptyState
@@ -264,10 +289,23 @@ export function StudentDialog({ studentId, onClose, fallbackDebtCents = 0, readO
                         </div>
                       </div>
                       <Badge tone="neutral">{GUARDIAN_RELATION_LABELS[g.relation]}</Badge>
-                      {g.isPrimary && (
+                      {g.isPrimary ? (
                         <Badge tone="brand" dot>
                           Contacto principal
                         </Badge>
+                      ) : (
+                        !readOnly && (
+                          <Tooltip content="Este apoderado recibirá los avisos y el estado de cuenta">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={link.isPending}
+                              onClick={() => makePrimary(g)}
+                            >
+                              Hacer principal
+                            </Button>
+                          </Tooltip>
+                        )
                       )}
                       {!readOnly && (
                         <Tooltip content="Quitar apoderado">
@@ -418,9 +456,9 @@ export function StudentDialog({ studentId, onClose, fallbackDebtCents = 0, readO
         }
       >
         <div style={{ paddingTop: 4 }}>
-          {unlinkTarget?.isPrimary ? (
+          {unlinkTarget?.isPrimary && student && student.guardians.length > 1 ? (
             <Alert tone="warning" title="Es el contacto principal">
-              Al quitarlo, el estudiante quedará sin contacto principal. Designa otro apoderado como principal.
+              Al quitarlo, otro apoderado vinculado pasará a ser el contacto principal automáticamente.
             </Alert>
           ) : (
             <p style={{ font: 'var(--type-body)', color: 'var(--text-body)', margin: 0 }}>

@@ -11,6 +11,9 @@ import { AuditService } from '../common/audit/audit.service';
 import { nextCode } from '../common/code-counter.util';
 import { debtCentsByStudent } from '../common/debt.util';
 
+// Máximo de apoderados vinculados por estudiante.
+const MAX_GUARDIANS = 3;
+
 const childPlacementSelect = {
   section: {
     select: {
@@ -248,20 +251,36 @@ export class GuardiansService {
     if (!guardian) throw new NotFoundException('Apoderado no encontrado');
 
     return this.prisma.$transaction(async (tx) => {
+      const activeCount = await tx.studentGuardian.count({ where: { studentId, active: true } });
+      const current = await tx.studentGuardian.findUnique({
+        where: { studentId_guardianId: { studentId, guardianId } },
+      });
+      const addsNewActive = !current || !current.active;
+
+      // Máximo 3 apoderados por estudiante (madre + padre + un tercero).
+      if (addsNewActive && activeCount >= MAX_GUARDIANS) {
+        throw new ConflictException(
+          `Un estudiante puede tener hasta ${MAX_GUARDIANS} apoderados. Quita uno antes de agregar otro.`,
+        );
+      }
+
+      // El primer apoderado siempre queda como contacto principal.
+      const makePrimary = input.isPrimary || (addsNewActive && activeCount === 0);
+
       const link = await tx.studentGuardian.upsert({
         where: { studentId_guardianId: { studentId, guardianId } },
         create: {
           studentId,
           guardianId,
           relation: input.relation,
-          isPrimary: input.isPrimary,
+          isPrimary: makePrimary,
           active: true,
         },
-        update: { relation: input.relation, isPrimary: input.isPrimary, active: true },
+        update: { relation: input.relation, isPrimary: makePrimary, active: true },
       });
 
       // Un solo apoderado principal por estudiante.
-      if (input.isPrimary) {
+      if (makePrimary) {
         await tx.studentGuardian.updateMany({
           where: { studentId, guardianId: { not: guardianId } },
           data: { isPrimary: false },
@@ -274,7 +293,7 @@ export class GuardiansService {
           action: 'student.guardian_link',
           entity: 'StudentGuardian',
           entityId: `${studentId}:${guardianId}`,
-          payload: { studentId, guardianId, relation: input.relation, isPrimary: input.isPrimary },
+          payload: { studentId, guardianId, relation: input.relation, isPrimary: makePrimary },
         },
         tx,
       );
@@ -291,19 +310,38 @@ export class GuardiansService {
     return this.prisma.$transaction(async (tx) => {
       await tx.studentGuardian.update({
         where: { studentId_guardianId: { studentId, guardianId } },
-        data: { active: false },
+        data: { active: false, isPrimary: false },
       });
+
+      // Si se quita al contacto principal y quedan otros, se promueve al siguiente
+      // (nunca queda un estudiante con apoderados pero sin principal).
+      let promotedGuardianId: string | null = null;
+      if (link.isPrimary) {
+        const next = await tx.studentGuardian.findFirst({
+          where: { studentId, active: true, guardianId: { not: guardianId } },
+          orderBy: { guardian: { code: 'asc' } },
+          select: { guardianId: true },
+        });
+        if (next) {
+          await tx.studentGuardian.update({
+            where: { studentId_guardianId: { studentId, guardianId: next.guardianId } },
+            data: { isPrimary: true },
+          });
+          promotedGuardianId = next.guardianId;
+        }
+      }
+
       await this.audit.log(
         {
           userId: actorId,
           action: 'student.guardian_unlink',
           entity: 'StudentGuardian',
           entityId: `${studentId}:${guardianId}`,
-          payload: { studentId, guardianId, wasPrimary: link.isPrimary },
+          payload: { studentId, guardianId, wasPrimary: link.isPrimary, promotedGuardianId },
         },
         tx,
       );
-      return { studentId, guardianId, active: false };
+      return { studentId, guardianId, active: false, promotedGuardianId };
     });
   }
 

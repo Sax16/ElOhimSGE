@@ -132,6 +132,7 @@ export function StudentFormDialog({
     };
 
     if (edit) {
+      // null (no undefined) para que al vaciar un campo opcional se limpie en la BD.
       const body: StudentUpdateBody = {
         firstNames: firstNames.trim(),
         lastNames: lastNames.trim(),
@@ -139,12 +140,12 @@ export function StudentFormDialog({
         birthDate,
         sex,
         address: address.trim(),
-        previousSchool: previousSchool.trim() || undefined,
-        shift: shift || undefined,
-        allergies: allergies.trim() || undefined,
+        previousSchool: previousSchool.trim() || null,
+        shift: shift || null,
+        allergies: allergies.trim() || null,
         insuranceType,
-        emergencyContactName: emergencyName.trim() || undefined,
-        emergencyContactPhone: emergencyPhone.trim() || undefined,
+        emergencyContactName: emergencyName.trim() || null,
+        emergencyContactPhone: emergencyPhone.trim() || null,
         authorizedPickups: cleanPickups,
         ...(showStatusField ? { status } : {}),
       };

@@ -126,12 +126,13 @@ export interface StudentCreateBody {
   birthDate: string;
   sex: Sex;
   address: string;
-  previousSchool?: string;
-  shift?: Shift;
-  allergies?: string;
+  // Campos opcionales: null los limpia explícitamente (undefined no los toca en PATCH).
+  previousSchool?: string | null;
+  shift?: Shift | null;
+  allergies?: string | null;
   insuranceType: InsuranceType;
-  emergencyContactName?: string;
-  emergencyContactPhone?: string;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
   authorizedPickups: AuthorizedPickup[];
 }
 

@@ -19,19 +19,26 @@
   #esge-carnet-print * {
     visibility: visible;
   }
+  /* Página CR80 exacta; la tarjeta se centra y se escala para entrar completa
+     (su proporción no es exactamente CR80, por eso se escala en vez de recortar). */
   #esge-carnet-print {
     position: fixed;
     inset: 0;
     margin: 0;
     padding: 0;
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-  }
-  #esge-carnet-print .esge-carnet {
     width: 85.6mm;
     height: 54mm;
-    border-radius: 3mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  #esge-carnet-print .esge-carnet {
+    width: 340px; /* tamaño de diseño fijo: evita reflujo al imprimir */
+    height: auto; /* altura natural ~216px; a escala 0.9 ≈ 51.5mm, entra en los 54mm */
+    transform: scale(0.9);
+    transform-origin: center;
+    border-radius: 10px;
     box-shadow: none;
     border: 1px solid #d0d0d0;
     -webkit-print-color-adjust: exact;
