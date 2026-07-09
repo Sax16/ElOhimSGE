@@ -8,10 +8,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Estado actual del repositorio
 
-**Todavía no hay código de aplicación.** Solo existe `design/`: el paquete de handoff con el design system, el prototipo interactivo y la documentación de decisiones. El código de producción se construirá desde cero siguiendo lo ya decidido en `design/docs/stack-tecnico.md`.
+**R1 (núcleo administrativo) está completo y funcional**: identity (login por usuario o correo, usuarios/roles/permisos), estructura académica (años/niveles/grados/secciones/plan/programas, año cerrado = 409 a nivel API), estudiantes y apoderados (N:M, máx. 3 por estudiante, contacto principal único con auto-promoción), matrícula con asistente de 5 pasos, cronograma de pagos (reglas puras en `packages/shared/src/money/` con tests), tarifario/descuentos (HERMANOS −10% automático al 2° hijo del firmante) y dashboard mínimo. Siguiente: R2 (dinero: caja, pensiones, mora, tesorería).
 
-- Ver el prototipo: abrir `design/ui_kits/sge/index.html` en el navegador (corre standalone; login con selector de rol Administrador/Docente/Portería). Vistas móviles en `design/ui_kits/sge/mobile.html`.
-- No hay `package.json`, ni build, ni tests aún. Cuando se cree el monorepo, actualizar esta sección con los comandos reales.
+`design/` es el paquete de handoff: los `.jsx` de `design/ui_kits/sge/` siguen siendo la especificación de las pantallas que faltan. Prototipo standalone: `design/ui_kits/sge/index.html`.
+
+### Comandos
+
+```bash
+pnpm db:up          # PostgreSQL 16 en Docker (elohim-sge-db)
+pnpm db:migrate     # prisma migrate dev (apps/api/.env ← copiar de .env.example)
+pnpm db:seed        # seed idempotente (institución, usuarios, estructura 2026, 40 estudiantes, cronogramas)
+pnpm dev            # shared watch + API :3000 + web :5173 (proxy /api)
+pnpm lint / typecheck / test / build   # gates (test = Vitest de reglas de dinero en shared)
+pnpm db:studio      # Prisma Studio
+```
+
+- Login demo: `admin` / `Elohim2026!` (también `secretaria`, `docente`, `porteria`).
+- OJO: `pnpm build` borra `dist/` de la API y tumba el watch — relanzar `pnpm --filter @elohim/api start:dev` después.
+- Kit visual para QA del design system: http://localhost:5173/dev/kit (solo dev).
+- En PowerShell 5.1, los mensajes de commit con comillas dobles internas rompen `git commit -m @'…'@` — evitarlas.
 
 ## Documentos fuente (leer antes de implementar cualquier módulo)
 
