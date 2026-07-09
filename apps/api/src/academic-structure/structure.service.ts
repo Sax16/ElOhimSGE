@@ -36,6 +36,7 @@ export class StructureService {
         grades: {
           orderBy: { order: 'asc' },
           include: {
+            _count: { select: { courses: true } },
             sections: {
               orderBy: [{ name: 'asc' }, { shift: 'asc' }],
               include: {
@@ -57,6 +58,7 @@ export class StructureService {
         id: grade.id,
         name: grade.name,
         order: grade.order,
+        coursesCount: grade._count.courses,
         sections: grade.sections.map((section) => ({
           id: section.id,
           name: section.name,
@@ -133,6 +135,37 @@ export class StructureService {
     }
   }
 
+  async deleteLevel(id: string, actorId: string) {
+    await this.access.assertYearOpenByLevel(id);
+    const level = await this.prisma.level.findUnique({
+      where: { id },
+      include: { _count: { select: { grades: true } } },
+    });
+    if (!level) throw new NotFoundException('Nivel no encontrado');
+    if (level._count.grades > 0) {
+      throw new ConflictException(
+        `No se puede eliminar: el nivel tiene ${level._count.grades} ${level._count.grades === 1 ? 'grado' : 'grados'}. Elimínalos primero.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // La tarifa del nivel (LevelFee) se elimina con él en la misma transacción.
+      await tx.levelFee.deleteMany({ where: { levelId: id } });
+      await tx.level.delete({ where: { id } });
+      await this.audit.log(
+        {
+          userId: actorId,
+          action: 'level.delete',
+          entity: 'Level',
+          entityId: id,
+          payload: { name: level.name, academicYearId: level.academicYearId },
+        },
+        tx,
+      );
+      return { id };
+    });
+  }
+
   // ===== Grados =====
 
   async createGrade(input: GradeCreateInput, actorId: string) {
@@ -183,6 +216,39 @@ export class StructureService {
     } catch (error) {
       throw this.mapConflict(error, 'Ya existe un grado con ese nombre en el nivel');
     }
+  }
+
+  async deleteGrade(id: string, actorId: string) {
+    await this.access.assertYearOpenByGrade(id);
+    const grade = await this.prisma.gradeLevel.findUnique({
+      where: { id },
+      include: { _count: { select: { sections: true, courses: true } } },
+    });
+    if (!grade) throw new NotFoundException('Grado no encontrado');
+    const { sections, courses } = grade._count;
+    if (sections > 0 || courses > 0) {
+      const parts: string[] = [];
+      if (sections > 0) parts.push(`${sections} ${sections === 1 ? 'sección' : 'secciones'}`);
+      if (courses > 0) parts.push(`${courses} ${courses === 1 ? 'curso' : 'cursos'}`);
+      throw new ConflictException(
+        `No se puede eliminar: el grado tiene ${parts.join(' y ')}. Elimínalos primero.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.gradeLevel.delete({ where: { id } });
+      await this.audit.log(
+        {
+          userId: actorId,
+          action: 'grade.delete',
+          entity: 'GradeLevel',
+          entityId: id,
+          payload: { name: grade.name, levelId: grade.levelId },
+        },
+        tx,
+      );
+      return { id };
+    });
   }
 
   // ===== Secciones =====
@@ -259,6 +325,38 @@ export class StructureService {
     } catch (error) {
       throw this.mapConflict(error, 'Ya existe una sección con ese nombre y turno en el grado');
     }
+  }
+
+  async deleteSection(id: string, actorId: string) {
+    await this.access.assertYearOpenBySection(id);
+    const section = await this.prisma.section.findUnique({
+      where: { id },
+      include: { _count: { select: { enrollments: true } } },
+    });
+    if (!section) throw new NotFoundException('Sección no encontrada');
+    // Ninguna matrícula, ni siquiera anuladas (son historial): _count cuenta todas.
+    if (section._count.enrollments > 0) {
+      throw new ConflictException(
+        `No se puede eliminar: la sección tiene ${section._count.enrollments} ${
+          section._count.enrollments === 1 ? 'estudiante matriculado' : 'estudiantes matriculados'
+        }.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.section.delete({ where: { id } });
+      await this.audit.log(
+        {
+          userId: actorId,
+          action: 'section.delete',
+          entity: 'Section',
+          entityId: id,
+          payload: { name: section.name, shift: section.shift, gradeLevelId: section.gradeLevelId },
+        },
+        tx,
+      );
+      return { id };
+    });
   }
 
   async roster(sectionId: string) {
@@ -347,6 +445,27 @@ export class StructureService {
     } catch (error) {
       throw this.mapConflict(error, 'Ya existe un curso con ese nombre en el grado');
     }
+  }
+
+  async deleteCourse(id: string, actorId: string) {
+    await this.access.assertYearOpenByCourse(id);
+    const course = await this.prisma.course.findUnique({ where: { id } });
+    if (!course) throw new NotFoundException('Curso no encontrado');
+    // R1: el curso no tiene dependientes → se elimina siempre (en años abiertos).
+    return this.prisma.$transaction(async (tx) => {
+      await tx.course.delete({ where: { id } });
+      await this.audit.log(
+        {
+          userId: actorId,
+          action: 'course.delete',
+          entity: 'Course',
+          entityId: id,
+          payload: { name: course.name, gradeLevelId: course.gradeLevelId },
+        },
+        tx,
+      );
+      return { id };
+    });
   }
 
   async copyCourses(input: CoursesCopyInput, actorId: string) {

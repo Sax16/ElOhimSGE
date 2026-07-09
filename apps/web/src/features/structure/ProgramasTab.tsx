@@ -25,8 +25,9 @@ import {
   type ProgramType,
 } from '@elohim/shared';
 import { ApiError } from '../../lib/api';
-import { useCreateProgram, usePrograms, useUpdateProgram } from './api';
+import { useCreateProgram, useDeleteProgram, usePrograms, useUpdateProgram } from './api';
 import { VacBar } from './bits';
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import type { ApiProgram } from './types';
 
 const TYPE_TONE: Record<ProgramType, BadgeTone> = {
@@ -42,10 +43,27 @@ export interface ProgramasTabProps {
 
 export function ProgramasTab({ yearId, readOnly }: ProgramasTabProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const programsQuery = usePrograms(yearId);
   const programs = programsQuery.data ?? [];
   const [dlg, setDlg] = useState<{ program?: ApiProgram } | null>(null);
   const [ver, setVer] = useState<ApiProgram | null>(null);
+  const [borrar, setBorrar] = useState<ApiProgram | null>(null);
+
+  const deleteProgram = useDeleteProgram(yearId);
+
+  const confirmDelete = () => {
+    if (!borrar) return;
+    const prog = borrar;
+    deleteProgram.mutate(prog.id, {
+      onSuccess: () => {
+        toast('success', 'Programa eliminado', `${prog.name} se eliminó correctamente.`);
+        setBorrar(null);
+      },
+      onError: (err) =>
+        toast('danger', 'No se pudo eliminar', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.'),
+    });
+  };
 
   const columns = [
     {
@@ -104,6 +122,25 @@ export function ProgramasTab({ yearId, readOnly }: ProgramasTabProps) {
               </IconButton>
             </Tooltip>
           )}
+          {!readOnly && (
+            <Tooltip
+              content={
+                r.enrolled > 0
+                  ? `Tiene ${r.enrolled} ${r.enrolled === 1 ? 'matriculado' : 'matriculados'}`
+                  : 'Eliminar programa'
+              }
+            >
+              <IconButton
+                label="Eliminar programa"
+                size="sm"
+                variant="danger"
+                disabled={r.enrolled > 0}
+                onClick={() => setBorrar(r)}
+              >
+                <Icons.Trash />
+              </IconButton>
+            </Tooltip>
+          )}
           <Tooltip content="Ver matriculados">
             <IconButton label="Ver matriculados" size="sm" onClick={() => setVer(r)}>
               <Icons.Users />
@@ -138,6 +175,24 @@ export function ProgramasTab({ yearId, readOnly }: ProgramasTabProps) {
       </Card>
 
       <ProgramaDialog yearId={yearId} ctx={dlg} onClose={() => setDlg(null)} />
+      <ConfirmDeleteDialog
+        open={!!borrar}
+        onClose={() => setBorrar(null)}
+        onConfirm={confirmDelete}
+        title="Eliminar programa"
+        confirmLabel="Eliminar programa"
+        description={
+          borrar ? (
+            <>
+              Se eliminará el programa <strong>{borrar.name}</strong> y su tarifa. Esta acción no se
+              puede deshacer.
+            </>
+          ) : (
+            ''
+          )
+        }
+        loading={deleteProgram.isPending}
+      />
       {ver && (
         <Dialog
           open

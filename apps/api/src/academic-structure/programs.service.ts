@@ -94,6 +94,37 @@ export class ProgramsService {
     }
   }
 
+  async delete(id: string, actorId: string) {
+    await this.access.assertYearOpenByProgram(id);
+    const program = await this.prisma.program.findUnique({
+      where: { id },
+      include: { _count: { select: { enrollmentPrograms: true } } },
+    });
+    if (!program) throw new NotFoundException('Programa no encontrado');
+    if (program._count.enrollmentPrograms > 0) {
+      throw new ConflictException(
+        `No se puede eliminar: el programa tiene ${program._count.enrollmentPrograms} ${
+          program._count.enrollmentPrograms === 1 ? 'matriculado' : 'matriculados'
+        }.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.program.delete({ where: { id } });
+      await this.audit.log(
+        {
+          userId: actorId,
+          action: 'program.delete',
+          entity: 'Program',
+          entityId: id,
+          payload: { name: program.name, type: program.type, academicYearId: program.academicYearId },
+        },
+        tx,
+      );
+      return { id };
+    });
+  }
+
   // ===== Periodos =====
 
   async periods(yearId: string) {

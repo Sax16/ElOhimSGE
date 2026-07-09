@@ -15,18 +15,29 @@ import {
   useToast,
 } from '@elohim/ui';
 import { ApiError } from '../../lib/api';
-import { useCopyCourses, useCourses, useCreateCourse, useTeachers, useUpdateCourse } from './api';
+import {
+  useCopyCourses,
+  useCourses,
+  useCreateCourse,
+  useDeleteCourse,
+  useTeachers,
+  useUpdateCourse,
+} from './api';
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import type { ApiCourse, ApiGrade, ApiLevel } from './types';
 
 export interface PlanTabProps {
+  yearId: string;
   levels: ApiLevel[];
   readOnly: boolean;
 }
 
-export function PlanTab({ levels, readOnly }: PlanTabProps) {
+export function PlanTab({ yearId, levels, readOnly }: PlanTabProps) {
+  const { toast } = useToast();
   const [levelId, setLevelId] = useState('');
   const [gradeId, setGradeId] = useState('');
   const [cursoDlg, setCursoDlg] = useState<{ course?: ApiCourse } | null>(null);
+  const [borrarCurso, setBorrarCurso] = useState<ApiCourse | null>(null);
   const [copiar, setCopiar] = useState(false);
 
   // Selección inicial: primer nivel con grados, su primer grado.
@@ -47,6 +58,21 @@ export function PlanTab({ levels, readOnly }: PlanTabProps) {
   const coursesQuery = useCourses(effectiveGradeId);
   const courses = coursesQuery.data ?? [];
   const totalHours = courses.reduce((a, c) => a + c.weeklyHours, 0);
+
+  const deleteCourse = useDeleteCourse(effectiveGradeId ?? '', yearId);
+
+  const confirmDeleteCourse = () => {
+    if (!borrarCurso) return;
+    const curso = borrarCurso;
+    deleteCourse.mutate(curso.id, {
+      onSuccess: () => {
+        toast('success', 'Curso eliminado', `${curso.name} se eliminó del plan.`);
+        setBorrarCurso(null);
+      },
+      onError: (err) =>
+        toast('danger', 'No se pudo eliminar', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.'),
+    });
+  };
 
   const columns = [
     {
@@ -76,11 +102,18 @@ export function PlanTab({ levels, readOnly }: PlanTabProps) {
             header: '',
             align: 'right' as const,
             render: (_v: unknown, r: ApiCourse) => (
-              <Tooltip content="Editar">
-                <IconButton label="Editar" size="sm" onClick={() => setCursoDlg({ course: r })}>
-                  <Icons.Pencil />
-                </IconButton>
-              </Tooltip>
+              <div style={{ display: 'inline-flex', gap: 2, justifyContent: 'flex-end' }}>
+                <Tooltip content="Editar">
+                  <IconButton label="Editar" size="sm" onClick={() => setCursoDlg({ course: r })}>
+                    <Icons.Pencil />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip content="Eliminar curso">
+                  <IconButton label="Eliminar curso" size="sm" variant="danger" onClick={() => setBorrarCurso(r)}>
+                    <Icons.Trash />
+                  </IconButton>
+                </Tooltip>
+              </div>
             ),
           },
         ]),
@@ -170,6 +203,25 @@ export function PlanTab({ levels, readOnly }: PlanTabProps) {
           />
         </>
       )}
+
+      <ConfirmDeleteDialog
+        open={!!borrarCurso}
+        onClose={() => setBorrarCurso(null)}
+        onConfirm={confirmDeleteCourse}
+        title="Eliminar curso"
+        confirmLabel="Eliminar curso"
+        description={
+          borrarCurso ? (
+            <>
+              Se eliminará el curso <strong>{borrarCurso.name}</strong> del plan de {levelLabel} {gradeLabel}.
+              Esta acción no se puede deshacer.
+            </>
+          ) : (
+            ''
+          )
+        }
+        loading={deleteCourse.isPending}
+      />
     </div>
   );
 }

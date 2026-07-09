@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import {
   startNextYearSchema,
   yearCreateSchema,
@@ -41,6 +41,12 @@ export class YearsController {
     @CurrentUser() actor: JwtUser,
   ) {
     return this.years.update(id, body, actor.sub);
+  }
+
+  @Delete(':id')
+  @RequirePermission('estructura', 'editar')
+  delete(@Param('id') id: string, @CurrentUser() actor: JwtUser) {
+    return this.years.delete(id, actor.sub);
   }
 
   @Post(':id/close')

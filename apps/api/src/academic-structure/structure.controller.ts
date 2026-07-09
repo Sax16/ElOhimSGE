@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import {
   courseCreateSchema,
   coursesCopySchema,
@@ -46,6 +46,12 @@ export class StructureController {
     return this.structure.updateLevel(id, body, actor.sub);
   }
 
+  @Delete('levels/:id')
+  @RequirePermission('estructura', 'editar')
+  deleteLevel(@Param('id') id: string, @CurrentUser() actor: JwtUser) {
+    return this.structure.deleteLevel(id, actor.sub);
+  }
+
   // ===== Grados =====
 
   @Post('grade-levels')
@@ -62,6 +68,12 @@ export class StructureController {
     @CurrentUser() actor: JwtUser,
   ) {
     return this.structure.updateGrade(id, body, actor.sub);
+  }
+
+  @Delete('grade-levels/:id')
+  @RequirePermission('estructura', 'editar')
+  deleteGrade(@Param('id') id: string, @CurrentUser() actor: JwtUser) {
+    return this.structure.deleteGrade(id, actor.sub);
   }
 
   @Get('grade-levels/:id/courses')
@@ -89,6 +101,12 @@ export class StructureController {
     @CurrentUser() actor: JwtUser,
   ) {
     return this.structure.updateSection(id, body, actor.sub);
+  }
+
+  @Delete('sections/:id')
+  @RequirePermission('estructura', 'editar')
+  deleteSection(@Param('id') id: string, @CurrentUser() actor: JwtUser) {
+    return this.structure.deleteSection(id, actor.sub);
   }
 
   @Get('sections/:id/roster')
@@ -127,5 +145,11 @@ export class StructureController {
     @CurrentUser() actor: JwtUser,
   ) {
     return this.structure.updateCourse(id, body, actor.sub);
+  }
+
+  @Delete('courses/:id')
+  @RequirePermission('estructura', 'editar')
+  deleteCourse(@Param('id') id: string, @CurrentUser() actor: JwtUser) {
+    return this.structure.deleteCourse(id, actor.sub);
   }
 }

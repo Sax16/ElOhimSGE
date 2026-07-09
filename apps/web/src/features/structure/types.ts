@@ -20,6 +20,8 @@ export interface ApiYear {
   endDate: string;
   periodType: PeriodType;
   enrollmentStart: string;
+  /** Matrículas del año (incluye anuladas) — bloquea la eliminación del año si > 0. */
+  enrollmentsCount: number;
 }
 
 /** Docente — GET /api/teachers. */
@@ -44,6 +46,8 @@ export interface ApiGrade {
   id: string;
   name: string;
   order: number;
+  /** Cursos del plan del grado — bloquea la eliminación del grado si > 0. */
+  coursesCount: number;
   sections: ApiSection[];
 }
 

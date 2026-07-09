@@ -17,8 +17,8 @@ export class YearsService {
     private readonly access: YearAccessService,
   ) {}
 
-  findAll() {
-    return this.prisma.academicYear.findMany({
+  async findAll() {
+    const years = await this.prisma.academicYear.findMany({
       select: {
         id: true,
         name: true,
@@ -27,9 +27,11 @@ export class YearsService {
         endDate: true,
         periodType: true,
         enrollmentStart: true,
+        _count: { select: { enrollments: true } },
       },
       orderBy: { name: 'desc' },
     });
+    return years.map(({ _count, ...year }) => ({ ...year, enrollmentsCount: _count.enrollments }));
   }
 
   async create(input: YearCreateInput, actorId: string) {
@@ -108,6 +110,48 @@ export class YearsService {
         tx,
       );
       return updated;
+    });
+  }
+
+  async delete(id: string, actorId: string) {
+    const year = await this.prisma.academicYear.findUnique({
+      where: { id },
+      include: { _count: { select: { enrollments: true } } },
+    });
+    if (!year) throw new NotFoundException('Año académico no encontrado');
+    if (year.status === 'CERRADO') {
+      throw new ConflictException('El año académico está cerrado — solo lectura');
+    }
+    if (year._count.enrollments > 0) {
+      throw new ConflictException(
+        `No se puede eliminar: el año tiene ${year._count.enrollments} ${
+          year._count.enrollments === 1 ? 'matrícula' : 'matrículas'
+        }.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Cascada: hijos antes que padres para respetar las FKs.
+      // periodos → cursos → secciones → grados → tarifas → niveles → programas → año.
+      await tx.period.deleteMany({ where: { academicYearId: id } });
+      await tx.course.deleteMany({ where: { gradeLevel: { level: { academicYearId: id } } } });
+      await tx.section.deleteMany({ where: { gradeLevel: { level: { academicYearId: id } } } });
+      await tx.gradeLevel.deleteMany({ where: { level: { academicYearId: id } } });
+      await tx.levelFee.deleteMany({ where: { level: { academicYearId: id } } });
+      await tx.level.deleteMany({ where: { academicYearId: id } });
+      await tx.program.deleteMany({ where: { academicYearId: id } });
+      await tx.academicYear.delete({ where: { id } });
+      await this.audit.log(
+        {
+          userId: actorId,
+          action: 'year.delete',
+          entity: 'AcademicYear',
+          entityId: id,
+          payload: { name: year.name, status: year.status },
+        },
+        tx,
+      );
+      return { id };
     });
   }
 

@@ -112,6 +112,14 @@ export function useUpdateLevel(yearId: string) {
   });
 }
 
+export function useDeleteLevel(yearId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/levels/${id}`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: structureKeys.levels(yearId) }),
+  });
+}
+
 export function useCreateGrade(yearId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -125,6 +133,14 @@ export function useUpdateGrade(yearId: string) {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: GradeUpdateBody }) =>
       apiFetch(`/grade-levels/${id}`, { method: 'PATCH', body }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: structureKeys.levels(yearId) }),
+  });
+}
+
+export function useDeleteGrade(yearId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/grade-levels/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: structureKeys.levels(yearId) }),
   });
 }
@@ -146,6 +162,14 @@ export function useUpdateSection(yearId: string) {
   });
 }
 
+export function useDeleteSection(yearId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/sections/${id}`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: structureKeys.levels(yearId) }),
+  });
+}
+
 export function useCreateCourse(gradeLevelId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -160,6 +184,18 @@ export function useUpdateCourse(gradeLevelId: string) {
     mutationFn: ({ id, body }: { id: string; body: CourseUpdateBody }) =>
       apiFetch<ApiCourse>(`/courses/${id}`, { method: 'PATCH', body }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: structureKeys.courses(gradeLevelId) }),
+  });
+}
+
+export function useDeleteCourse(gradeLevelId: string, yearId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/courses/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: structureKeys.courses(gradeLevelId) });
+      // coursesCount vive en el árbol: refréscalo para que el grado vuelva a ser eliminable.
+      void qc.invalidateQueries({ queryKey: structureKeys.levels(yearId) });
+    },
   });
 }
 
@@ -189,12 +225,28 @@ export function useUpdateProgram(yearId: string) {
   });
 }
 
+export function useDeleteProgram(yearId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/programs/${id}`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: structureKeys.programs(yearId) }),
+  });
+}
+
 export function useUpdatePeriod(yearId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: PeriodUpdateBody }) =>
       apiFetch<ApiPeriod>(`/periods/${id}`, { method: 'PATCH', body }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: structureKeys.periods(yearId) }),
+  });
+}
+
+export function useDeleteYear() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/academic-years/${id}`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: structureKeys.years }),
   });
 }
 

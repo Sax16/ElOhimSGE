@@ -1,10 +1,25 @@
 // Pantalla Estructura académica (Etapa 3): año activo, tabs y asistente de apertura.
-import { useState } from 'react';
-import { Badge, Button, Card, EmptyState, Icons, Select, Tabs } from '@elohim/ui';
+import { useEffect, useState } from 'react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  EmptyState,
+  Icons,
+  Input,
+  Select,
+  Tabs,
+  Tooltip,
+  useToast,
+} from '@elohim/ui';
 import { PERIOD_TYPE_LABELS, YEAR_STATUS_LABELS } from '@elohim/shared';
+import { ApiError } from '../../lib/api';
 import { useYearStore } from '../../stores/year.store';
-import { useLevelsTree, usePeriods, usePrograms, useYears } from './api';
+import { useDeleteYear, useLevelsTree, usePeriods, usePrograms, useYears } from './api';
 import { fmtDate, yearNumberFrom } from './bits';
+import type { ApiYear } from './types';
 import { EstructuraTab } from './EstructuraTab';
 import { PlanTab } from './PlanTab';
 import { ProgramasTab } from './ProgramasTab';
@@ -16,6 +31,7 @@ type TabId = 'estructura' | 'plan' | 'prog' | 'per';
 export function StructurePage() {
   const [tab, setTab] = useState<TabId>('estructura');
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [borrarAnioOpen, setBorrarAnioOpen] = useState(false);
 
   const selectedYearName = useYearStore((s) => s.selectedYearName);
   const setSelectedYear = useYearStore((s) => s.setSelectedYear);
@@ -128,6 +144,27 @@ export function StructurePage() {
               Iniciar año {nextYearNumber}
             </Button>
           )}
+          {!readOnly && (
+            <Tooltip
+              content={
+                selectedYear.enrollmentsCount > 0
+                  ? `Tiene ${selectedYear.enrollmentsCount} ${
+                      selectedYear.enrollmentsCount === 1 ? 'matrícula' : 'matrículas'
+                    } — no se puede eliminar`
+                  : 'Elimina el año y toda su estructura'
+              }
+            >
+              <Button
+                variant="ghost"
+                iconLeft={<Icons.Trash />}
+                disabled={selectedYear.enrollmentsCount > 0}
+                onClick={() => setBorrarAnioOpen(true)}
+                style={{ color: 'var(--danger)' }}
+              >
+                Eliminar año
+              </Button>
+            </Tooltip>
+          )}
         </div>
       </Card>
 
@@ -145,7 +182,7 @@ export function StructurePage() {
       {tab === 'estructura' && yearId && (
         <EstructuraTab yearId={yearId} levels={levels} loading={levelsQuery.isLoading} readOnly={readOnly} />
       )}
-      {tab === 'plan' && <PlanTab levels={levels} readOnly={readOnly} />}
+      {tab === 'plan' && yearId && <PlanTab yearId={yearId} levels={levels} readOnly={readOnly} />}
       {tab === 'prog' && yearId && <ProgramasTab yearId={yearId} readOnly={readOnly} />}
       {tab === 'per' && yearId && <PeriodosTab yearId={yearId} periods={periods} readOnly={readOnly} />}
 
@@ -158,6 +195,87 @@ export function StructurePage() {
           treeCounts={treeCounts}
         />
       )}
+
+      <DeleteYearDialog
+        open={borrarAnioOpen}
+        onClose={() => setBorrarAnioOpen(false)}
+        year={selectedYear}
+      />
     </div>
+  );
+}
+
+// ---- Eliminar año académico (doble confirmación) ---------------------------
+function DeleteYearDialog({
+  open,
+  onClose,
+  year,
+}: {
+  open: boolean;
+  onClose: () => void;
+  year: ApiYear;
+}) {
+  const { toast } = useToast();
+  const selectedYearName = useYearStore((s) => s.selectedYearName);
+  const setSelectedYear = useYearStore((s) => s.setSelectedYear);
+  const deleteYear = useDeleteYear();
+  const [confirmName, setConfirmName] = useState('');
+
+  useEffect(() => {
+    if (open) setConfirmName('');
+  }, [open]);
+
+  const matches = confirmName.trim() === year.name;
+
+  const submit = () => {
+    if (!matches) return;
+    deleteYear.mutate(year.id, {
+      onSuccess: () => {
+        toast('success', 'Año eliminado', `El año ${year.name} y toda su estructura se eliminaron.`);
+        if (selectedYearName === year.name) setSelectedYear(null);
+        onClose();
+      },
+      onError: (err) =>
+        toast('danger', 'No se pudo eliminar', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.'),
+    });
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={`Eliminar año ${year.name}`}
+      icon={<Icons.Trash />}
+      iconTone="danger"
+      description="Esta acción es permanente y no se puede deshacer"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={deleteYear.isPending}>
+            Cancelar
+          </Button>
+          <Button
+            variant="danger"
+            iconLeft={<Icons.Trash />}
+            disabled={!matches || deleteYear.isPending}
+            onClick={submit}
+          >
+            Eliminar año {year.name}
+          </Button>
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
+        <Alert tone="danger" title="Se borrará toda la estructura del año">
+          Niveles, grados, secciones, cursos, programas, periodos y tarifas del año {year.name} se
+          eliminarán de forma permanente.
+        </Alert>
+        <Input
+          label={`Escribe “${year.name}” para confirmar`}
+          placeholder={year.name}
+          value={confirmName}
+          onChange={(e) => setConfirmName(e.target.value)}
+        />
+      </div>
+    </Dialog>
   );
 }

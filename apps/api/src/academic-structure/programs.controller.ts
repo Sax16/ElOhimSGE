@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   periodUpdateSchema,
   programCreateSchema,
@@ -39,6 +39,12 @@ export class ProgramsController {
     @CurrentUser() actor: JwtUser,
   ) {
     return this.programs.update(id, body, actor.sub);
+  }
+
+  @Delete('programs/:id')
+  @RequirePermission('estructura', 'editar')
+  delete(@Param('id') id: string, @CurrentUser() actor: JwtUser) {
+    return this.programs.delete(id, actor.sub);
   }
 
   // ===== Periodos =====

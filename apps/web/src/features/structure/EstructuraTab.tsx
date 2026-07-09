@@ -25,12 +25,16 @@ import {
   useCreateGrade,
   useCreateLevel,
   useCreateSection,
+  useDeleteGrade,
+  useDeleteLevel,
+  useDeleteSection,
   useRoster,
   useTeachers,
   useUpdateLevel,
   useUpdateSection,
 } from './api';
 import { isInicial, VacBar } from './bits';
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import type { ApiGrade, ApiLevel, ApiSection } from './types';
 
 // Paleta de acentos por nivel (según orden en el árbol) — fiel al prototipo.
@@ -57,6 +61,10 @@ interface GradoCtx {
 interface NivelCtx {
   level?: ApiLevel;
 }
+type BorrarCtx =
+  | { kind: 'level'; level: ApiLevel }
+  | { kind: 'grade'; level: ApiLevel; grade: ApiGrade }
+  | { kind: 'section'; level: ApiLevel; grade: ApiGrade; section: ApiSection };
 
 export interface EstructuraTabProps {
   yearId: string;
@@ -70,6 +78,7 @@ export function EstructuraTab({ yearId, levels, loading, readOnly }: EstructuraT
   const [gradoDlg, setGradoDlg] = useState<GradoCtx | null>(null);
   const [seccionDlg, setSeccionDlg] = useState<SeccionCtx | null>(null);
   const [rosterDlg, setRosterDlg] = useState<RosterCtx | null>(null);
+  const [borrarDlg, setBorrarDlg] = useState<BorrarCtx | null>(null);
 
   if (!loading && levels.length === 0) {
     return (
@@ -110,9 +119,12 @@ export function EstructuraTab({ yearId, levels, loading, readOnly }: EstructuraT
           accent={PALETTE[i % PALETTE.length]!}
           readOnly={readOnly}
           onEditLevel={() => setNivelDlg({ level })}
+          onDeleteLevel={() => setBorrarDlg({ kind: 'level', level })}
           onAddGrado={() => setGradoDlg({ level })}
+          onDeleteGrado={(grade) => setBorrarDlg({ kind: 'grade', level, grade })}
           onAddSeccion={(grade) => setSeccionDlg({ level, grade })}
           onEditSeccion={(grade, section) => setSeccionDlg({ level, grade, section })}
+          onDeleteSeccion={(grade, section) => setBorrarDlg({ kind: 'section', level, grade, section })}
           onViewSeccion={(grade, section) => setRosterDlg({ level, grade, section })}
         />
       ))}
@@ -121,6 +133,7 @@ export function EstructuraTab({ yearId, levels, loading, readOnly }: EstructuraT
       <GradoDialog yearId={yearId} ctx={gradoDlg} onClose={() => setGradoDlg(null)} />
       <SeccionDialog yearId={yearId} ctx={seccionDlg} onClose={() => setSeccionDlg(null)} />
       <RosterDialog ctx={rosterDlg} onClose={() => setRosterDlg(null)} />
+      <BorrarDialog yearId={yearId} ctx={borrarDlg} onClose={() => setBorrarDlg(null)} />
     </div>
   );
 }
@@ -131,18 +144,24 @@ function NivelCard({
   accent,
   readOnly,
   onEditLevel,
+  onDeleteLevel,
   onAddGrado,
+  onDeleteGrado,
   onAddSeccion,
   onEditSeccion,
+  onDeleteSeccion,
   onViewSeccion,
 }: {
   level: ApiLevel;
   accent: { color: string; soft: string };
   readOnly: boolean;
   onEditLevel: () => void;
+  onDeleteLevel: () => void;
   onAddGrado: () => void;
+  onDeleteGrado: (grade: ApiGrade) => void;
   onAddSeccion: (grade: ApiGrade) => void;
   onEditSeccion: (grade: ApiGrade, section: ApiSection) => void;
+  onDeleteSeccion: (grade: ApiGrade, section: ApiSection) => void;
   onViewSeccion: (grade: ApiGrade, section: ApiSection) => void;
 }) {
   const [open, setOpen] = useState(true);
@@ -194,6 +213,23 @@ function NivelCard({
                 <Icons.Pencil />
               </IconButton>
             </Tooltip>
+            <Tooltip
+              content={
+                level.grades.length > 0
+                  ? `Tiene ${level.grades.length} ${level.grades.length === 1 ? 'grado' : 'grados'} — elimínalos primero`
+                  : 'Eliminar nivel'
+              }
+            >
+              <IconButton
+                label="Eliminar nivel"
+                size="sm"
+                variant="danger"
+                disabled={level.grades.length > 0}
+                onClick={(e) => { e.stopPropagation(); onDeleteLevel(); }}
+              >
+                <Icons.Trash />
+              </IconButton>
+            </Tooltip>
             <Button size="sm" variant="secondary" iconLeft={<Icons.Plus />} onClick={(e) => { e.stopPropagation(); onAddGrado(); }}>
               Grado
             </Button>
@@ -230,7 +266,9 @@ function NivelCard({
               inicial={inicial}
               readOnly={readOnly}
               onAddSeccion={() => onAddSeccion(grade)}
+              onDeleteGrado={() => onDeleteGrado(grade)}
               onEditSeccion={(section) => onEditSeccion(grade, section)}
+              onDeleteSeccion={(section) => onDeleteSeccion(grade, section)}
               onViewSeccion={(section) => onViewSeccion(grade, section)}
             />
           ))}
@@ -245,19 +283,34 @@ function GradoBlock({
   inicial,
   readOnly,
   onAddSeccion,
+  onDeleteGrado,
   onEditSeccion,
+  onDeleteSeccion,
   onViewSeccion,
 }: {
   grade: ApiGrade;
   inicial: boolean;
   readOnly: boolean;
   onAddSeccion: () => void;
+  onDeleteGrado: () => void;
   onEditSeccion: (section: ApiSection) => void;
+  onDeleteSeccion: (section: ApiSection) => void;
   onViewSeccion: (section: ApiSection) => void;
 }) {
   const [open, setOpen] = useState(true);
   const enrolled = grade.sections.reduce((a, s) => a + s.enrolled, 0);
   const capacity = grade.sections.reduce((a, s) => a + s.capacity, 0);
+
+  const seccCount = grade.sections.length;
+  const cursCount = grade.coursesCount;
+  const gradeBlocked = seccCount > 0 || cursCount > 0;
+  const gradeTip = (() => {
+    if (!gradeBlocked) return 'Eliminar grado';
+    const parts: string[] = [];
+    if (seccCount > 0) parts.push(`${seccCount} ${seccCount === 1 ? 'sección' : 'secciones'}`);
+    if (cursCount > 0) parts.push(`${cursCount} ${cursCount === 1 ? 'curso' : 'cursos'}`);
+    return `Tiene ${parts.join(' y ')} — elimínalos primero`;
+  })();
 
   return (
     <div>
@@ -285,9 +338,22 @@ function GradoBlock({
         </span>
         <span style={{ flex: 1 }} />
         {!readOnly && (
-          <Button size="sm" variant="ghost" iconLeft={<Icons.Plus />} onClick={(e) => { e.stopPropagation(); onAddSeccion(); }}>
-            Sección
-          </Button>
+          <>
+            <Button size="sm" variant="ghost" iconLeft={<Icons.Plus />} onClick={(e) => { e.stopPropagation(); onAddSeccion(); }}>
+              Sección
+            </Button>
+            <Tooltip content={gradeTip}>
+              <IconButton
+                label="Eliminar grado"
+                size="sm"
+                variant="danger"
+                disabled={gradeBlocked}
+                onClick={(e) => { e.stopPropagation(); onDeleteGrado(); }}
+              >
+                <Icons.Trash />
+              </IconButton>
+            </Tooltip>
+          </>
         )}
       </div>
       {open &&
@@ -298,6 +364,7 @@ function GradoBlock({
             inicial={inicial}
             readOnly={readOnly}
             onEdit={() => onEditSeccion(section)}
+            onDelete={() => onDeleteSeccion(section)}
             onView={() => onViewSeccion(section)}
           />
         ))}
@@ -310,19 +377,21 @@ function SeccionRow({
   inicial,
   readOnly,
   onEdit,
+  onDelete,
   onView,
 }: {
   section: ApiSection;
   inicial: boolean;
   readOnly: boolean;
   onEdit: () => void;
+  onDelete: () => void;
   onView: () => void;
 }) {
   return (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'minmax(150px,1.2fr) 90px 1.4fr minmax(180px,1fr) 76px',
+        gridTemplateColumns: 'minmax(150px,1.2fr) 90px 1.4fr minmax(180px,1fr) 110px',
         alignItems: 'center',
         gap: 14,
         padding: '9px 16px 9px 46px',
@@ -383,6 +452,25 @@ function SeccionRow({
           <Tooltip content="Editar sección">
             <IconButton label="Editar" size="sm" onClick={onEdit}>
               <Icons.Pencil />
+            </IconButton>
+          </Tooltip>
+        )}
+        {!readOnly && (
+          <Tooltip
+            content={
+              section.enrolled > 0
+                ? `Tiene ${section.enrolled} ${section.enrolled === 1 ? 'estudiante matriculado' : 'estudiantes matriculados'}`
+                : 'Eliminar sección'
+            }
+          >
+            <IconButton
+              label="Eliminar sección"
+              size="sm"
+              variant="danger"
+              disabled={section.enrolled > 0}
+              onClick={onDelete}
+            >
+              <Icons.Trash />
             </IconButton>
           </Tooltip>
         )}
@@ -784,5 +872,102 @@ function RosterDialog({ ctx, onClose }: { ctx: RosterCtx | null; onClose: () => 
         </div>
       </div>
     </Dialog>
+  );
+}
+
+// ---- Eliminación (nivel / grado / sección) ---------------------------------
+function BorrarDialog({
+  yearId,
+  ctx,
+  onClose,
+}: {
+  yearId: string;
+  ctx: BorrarCtx | null;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const deleteLevel = useDeleteLevel(yearId);
+  const deleteGrade = useDeleteGrade(yearId);
+  const deleteSection = useDeleteSection(yearId);
+
+  const pending = deleteLevel.isPending || deleteGrade.isPending || deleteSection.isPending;
+
+  const meta = (() => {
+    if (!ctx) return null;
+    if (ctx.kind === 'level') {
+      return {
+        title: 'Eliminar nivel',
+        confirmLabel: 'Eliminar nivel',
+        description: (
+          <>
+            Se eliminará el nivel <strong>{ctx.level.name}</strong> y su tarifa asociada. Esta acción
+            no se puede deshacer.
+          </>
+        ),
+        run: () =>
+          deleteLevel.mutate(ctx.level.id, {
+            onSuccess: () => {
+              toast('success', 'Nivel eliminado', `${ctx.level.name} se eliminó correctamente.`);
+              onClose();
+            },
+            onError: (err) =>
+              toast('danger', 'No se pudo eliminar', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.'),
+          }),
+      };
+    }
+    if (ctx.kind === 'grade') {
+      return {
+        title: 'Eliminar grado',
+        confirmLabel: 'Eliminar grado',
+        description: (
+          <>
+            Se eliminará el grado <strong>{ctx.grade.name}</strong> de {ctx.level.name}. Esta acción
+            no se puede deshacer.
+          </>
+        ),
+        run: () =>
+          deleteGrade.mutate(ctx.grade.id, {
+            onSuccess: () => {
+              toast('success', 'Grado eliminado', `${ctx.grade.name} · ${ctx.level.name} se eliminó correctamente.`);
+              onClose();
+            },
+            onError: (err) =>
+              toast('danger', 'No se pudo eliminar', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.'),
+          }),
+      };
+    }
+    const inicial = isInicial(ctx.level.name);
+    const label = inicial ? `“${ctx.section.name}”` : `Sección ${ctx.section.name}`;
+    return {
+      title: 'Eliminar sección',
+      confirmLabel: 'Eliminar sección',
+      description: (
+        <>
+          Se eliminará la sección <strong>{label}</strong> de {ctx.grade.name} {ctx.level.name}. Esta
+          acción no se puede deshacer.
+        </>
+      ),
+      run: () =>
+        deleteSection.mutate(ctx.section.id, {
+          onSuccess: () => {
+            toast('success', 'Sección eliminada', `${label} · ${ctx.grade.name} se eliminó correctamente.`);
+            onClose();
+          },
+          onError: (err) =>
+            toast('danger', 'No se pudo eliminar', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.'),
+        }),
+    };
+  })();
+
+  return (
+    <ConfirmDeleteDialog
+      open={!!ctx}
+      onClose={onClose}
+      onConfirm={() => meta?.run()}
+      title={meta?.title ?? 'Eliminar'}
+      confirmLabel={meta?.confirmLabel}
+      description={meta?.description ?? ''}
+      loading={pending}
+    />
   );
 }
