@@ -6,7 +6,7 @@ import { ApiError } from '../../lib/api';
 import { useGuardianSearch } from '../guardians/api';
 import { GuardianFormDialog } from '../guardians/GuardianFormDialog';
 import type { GuardianListItem } from '../guardians/types';
-import { useLinkGuardian } from './api';
+import { useLinkGuardian, useStudent } from './api';
 import { avatarColor } from './bits';
 
 export interface LinkGuardianDialogProps {
@@ -27,6 +27,10 @@ export function LinkGuardianDialog({ studentId, onClose, readOnly = false }: Lin
 
   const { data, isFetching } = useGuardianSearch(term);
   const results = data?.items ?? [];
+
+  // Apoderados ya vinculados a este estudiante (para no permitir agregarlos de nuevo).
+  const { data: student } = useStudent(studentId ?? undefined);
+  const linkedIds = new Set(student?.guardians.map((g) => g.guardian.id) ?? []);
 
   useEffect(() => {
     if (!studentId) return;
@@ -120,12 +124,15 @@ export function LinkGuardianDialog({ studentId, onClose, readOnly = false }: Lin
               </div>
             ) : (
               results.map((r) => {
+                const alreadyLinked = linkedIds.has(r.id);
                 const active = selected?.id === r.id;
                 return (
                   <button
                     key={r.id}
                     type="button"
-                    onClick={() => setSelected(r)}
+                    disabled={alreadyLinked}
+                    title={alreadyLinked ? 'Este apoderado ya está asignado a este estudiante' : undefined}
+                    onClick={() => !alreadyLinked && setSelected(r)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -135,7 +142,8 @@ export function LinkGuardianDialog({ studentId, onClose, readOnly = false }: Lin
                       background: active ? 'var(--surface-brand-soft)' : 'transparent',
                       border: `1px solid ${active ? 'var(--border-brand)' : 'transparent'}`,
                       borderRadius: 'var(--radius-md)',
-                      cursor: 'pointer',
+                      cursor: alreadyLinked ? 'not-allowed' : 'pointer',
+                      opacity: alreadyLinked ? 0.6 : 1,
                     }}
                   >
                     <Avatar name={r.fullName} size="sm" color={avatarColor(r.code)} />
@@ -145,11 +153,13 @@ export function LinkGuardianDialog({ studentId, onClose, readOnly = false }: Lin
                         {r.code} · DNI {r.dni}
                       </div>
                     </div>
-                    {active && (
+                    {alreadyLinked ? (
+                      <Badge tone="neutral">Ya asignado</Badge>
+                    ) : active ? (
                       <Badge tone="brand" dot>
                         Seleccionado
                       </Badge>
-                    )}
+                    ) : null}
                   </button>
                 );
               })
