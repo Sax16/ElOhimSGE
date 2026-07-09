@@ -24,6 +24,13 @@ const StudentsPage = lazy(() =>
 const GuardiansPage = lazy(() =>
   import('../features/guardians/GuardiansPage').then((m) => ({ default: m.GuardiansPage })),
 );
+const FeesPage = lazy(() => import('../features/fees/FeesPage').then((m) => ({ default: m.FeesPage })));
+const EnrollmentPage = lazy(() =>
+  import('../features/enrollment/EnrollmentPage').then((m) => ({ default: m.EnrollmentPage })),
+);
+const DashboardPage = lazy(() =>
+  import('../features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })),
+);
 
 function Loading() {
   return (
@@ -67,6 +74,12 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
           <StudentsPage />
         ) : id === 'apoderados' ? (
           <GuardiansPage />
+        ) : id === 'tarifario' ? (
+          <FeesPage />
+        ) : id === 'matricula' ? (
+          <EnrollmentPage />
+        ) : id === 'dash' ? (
+          <DashboardPage />
         ) : (
           <PlaceholderPage />
         )}
