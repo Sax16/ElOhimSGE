@@ -286,7 +286,7 @@ export async function seedStudentsGuardians(prisma: PrismaClient) {
         : null;
 
       await prisma.enrollment.upsert({
-        where: { studentId_academicYearId: { studentId: student.id, academicYearId: year2026.id } },
+        where: { code: enrollmentCode },
         update: {},
         create: {
           code: enrollmentCode,

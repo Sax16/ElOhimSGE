@@ -75,6 +75,33 @@ export class EnrollmentService {
   }
 
   /**
+   * Valida la fecha de ingreso y la devuelve como ISO yyyy-mm-dd. Rango válido:
+   * [enrollmentStart del año académico, hoy]. Fuera de rango → 400 con mensaje claro.
+   * Esta fecha define desde cuándo se cobran las pensiones (prorrateo universal).
+   */
+  private async resolveEntryDate(
+    client: DbClient,
+    academicYearId: string,
+    entryDate: Date,
+  ): Promise<string> {
+    const year = await client.academicYear.findUnique({
+      where: { id: academicYearId },
+      select: { enrollmentStart: true },
+    });
+    if (!year) throw new NotFoundException('Año académico no encontrado');
+    const entryISO = dateToISO(entryDate);
+    const startISO = dateToISO(year.enrollmentStart);
+    const today = todayISO();
+    // Comparación lexicográfica sobre yyyy-mm-dd (equivale a comparar fechas civiles).
+    if (entryISO < startISO || entryISO > today) {
+      throw new BadRequestException(
+        'La fecha de ingreso debe estar entre el inicio de matrícula y hoy',
+      );
+    }
+    return entryISO;
+  }
+
+  /**
    * Resuelve el cronograma server-side (nunca se confía en montos del cliente):
    * tarifario del nivel de la sección, configuración, programas y descuento
    * (explícito o regla automática de HERMANOS). Devuelve las cuotas en centavos.
@@ -215,10 +242,9 @@ export class EnrollmentService {
       }
     }
 
-    const transfer =
-      input.type === 'TRASLADO' && input.transfer
-        ? { entryDate: dateToISO(input.transfer.entryDate), cutoffDay: settings.transferCutoffDay }
-        : undefined;
+    // Prorrateo universal: la fecha de ingreso (opts.enrollmentDate) define desde cuándo se
+    // cobran las pensiones, con el mismo día de corte que antes solo se usaba en traslados.
+    const transfer = { entryDate: opts.enrollmentDate, cutoffDay: settings.transferCutoffDay };
 
     const items = buildEnrollmentSchedule({
       enrollmentDate: opts.enrollmentDate,
@@ -263,8 +289,13 @@ export class EnrollmentService {
 
   // POST /api/enrollment/preview — cronograma sin persistir.
   async preview(input: EnrollmentWizardInput) {
+    const entryDate = await this.resolveEntryDate(
+      this.prisma,
+      input.academicYearId,
+      input.entryDate,
+    );
     const resolved = await this.resolveSchedule(this.prisma, input, {
-      enrollmentDate: todayISO(),
+      enrollmentDate: entryDate,
       currentStudentId: input.studentId,
     });
 
@@ -305,6 +336,12 @@ export class EnrollmentService {
     try {
       return await this.prisma.$transaction(async (tx) => {
         const warnings: string[] = [];
+        let reenrollment = false;
+
+        // (0) Fecha de ingreso: valida el rango y define el prorrateo de pensiones.
+        const entryDate = await this.resolveEntryDate(tx, input.academicYearId, input.entryDate);
+        // Tipo derivado: alumno nuevo → NUEVA, alumno existente → RATIFICADA (ya no lo elige el usuario).
+        const enrollmentType = input.newStudent ? 'NUEVA' : 'RATIFICADA';
 
         // (2) Sección: existe, del año correcto, con vacantes.
         const section = await tx.section.findUnique({
@@ -341,10 +378,7 @@ export class EnrollmentService {
               birthDate: ns.birthDate,
               sex: ns.sex,
               address: ns.address,
-              previousSchool:
-                input.type === 'TRASLADO' && input.transfer
-                  ? input.transfer.originSchool
-                  : (ns.previousSchool ?? null),
+              previousSchool: ns.previousSchool ?? null,
               shift: section.shift,
               allergies: ns.allergies ?? null,
               insuranceType: ns.insuranceType,
@@ -374,10 +408,14 @@ export class EnrollmentService {
             select: { id: true, status: true },
           });
           if (!student) throw new NotFoundException('Estudiante no encontrado');
-          if (!['ACTIVO', 'BECADO', 'RESERVADO'].includes(student.status)) {
-            throw new BadRequestException('El estudiante no está activo para matricular');
+          // Un egresado no vuelve a matricularse; el resto sí (un retirado/trasladado se re-activa).
+          if (student.status === 'EGRESADO') {
+            throw new BadRequestException('Un estudiante egresado no puede volver a matricularse');
           }
           studentId = student.id;
+          // Re-matrícula de un retiro: se re-activa y se limpian los datos de baja (el historial
+          // queda en AuditLog). BECADO conserva su condición; ACTIVO/RESERVADO no aportan baja.
+          reenrollment = student.status === 'RETIRADO' || student.status === 'TRASLADADO';
 
           // (4) El apoderado firmante debe estar vinculado activo al estudiante.
           const link = await tx.studentGuardian.findUnique({
@@ -392,30 +430,32 @@ export class EnrollmentService {
             );
           }
 
-          // Turno ← turno de la sección; una matrícula reservada que se concreta pasa a ACTIVO.
+          // Turno ← turno de la sección. Reserva/retiro/traslado que se concreta pasa a ACTIVO;
+          // BECADO conserva su condición. Un retiro limpia sus datos de baja al re-matricular.
+          const reactivates = ['RESERVADO', 'RETIRADO', 'TRASLADADO'].includes(student.status);
           await tx.student.update({
             where: { id: studentId },
             data: {
               shift: section.shift,
-              ...(student.status === 'RESERVADO' ? { status: 'ACTIVO' as const } : {}),
+              ...(reactivates ? { status: 'ACTIVO' as const } : {}),
+              ...(reenrollment ? { withdrawalReason: null, withdrawnAt: null } : {}),
             },
           });
         }
 
-        // (3) Unicidad estudiante+año.
-        const existing = await tx.enrollment.findUnique({
-          where: {
-            studentId_academicYearId: { studentId, academicYearId: input.academicYearId },
-          },
+        // (3) Unicidad: solo bloquea una matrícula VIGENTE del año (las anuladas no cuentan, para
+        // permitir re-matricular a quien se retiró/trasladó). Refuerzo en BD: índice único parcial.
+        const existing = await tx.enrollment.findFirst({
+          where: { studentId, academicYearId: input.academicYearId, canceledAt: null },
           select: { id: true },
         });
         if (existing) {
           throw new ConflictException('El estudiante ya tiene matrícula en este año');
         }
 
-        // (5) Cronograma server-side.
+        // (5) Cronograma server-side (la fecha de ingreso define el prorrateo de pensiones).
         const resolved = await this.resolveSchedule(tx, input, {
-          enrollmentDate: todayISO(),
+          enrollmentDate: entryDate,
           currentStudentId: studentId,
         });
 
@@ -427,17 +467,13 @@ export class EnrollmentService {
             studentId,
             sectionId: input.sectionId,
             academicYearId: input.academicYearId,
-            type: input.type,
+            type: enrollmentType,
             status: 'PENDIENTE_PAGO',
             signingGuardianId: input.signingGuardianId,
             registeredById: actorId,
             discountId: resolved.discount?.id ?? null,
-            originSchool:
-              input.type === 'TRASLADO' && input.transfer ? input.transfer.originSchool : null,
-            siagieCode:
-              input.type === 'TRASLADO' && input.transfer ? input.transfer.siagieCode : null,
-            entryDate:
-              input.type === 'TRASLADO' && input.transfer ? input.transfer.entryDate : null,
+            // originSchool/siagieCode quedan null en matrículas nuevas (histórico de traslados).
+            entryDate: isoToDate(entryDate),
           },
         });
 
@@ -504,10 +540,12 @@ export class EnrollmentService {
               code: enrollment.code,
               studentId,
               sectionId: input.sectionId,
-              type: input.type,
+              type: enrollmentType,
+              entryDate,
               discountId: resolved.discount?.id ?? null,
               installments: resolved.items.length,
               totalCents,
+              ...(reenrollment ? { reenrollment: true } : {}),
             },
           },
           tx,

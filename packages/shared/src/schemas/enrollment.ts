@@ -12,34 +12,24 @@ const decimalString = z.string().regex(/^\d+(\.\d{1,2})?$/, 'Monto inválido');
 
 // ===== Wizard de matrícula =====
 
-// Traslado entrante: aprobado antes en SIAGIE. Define desde cuándo se cobran pensiones.
-const transferSchema = z.object({
-  originSchool: z.string().min(2),
-  siagieCode: z.string().regex(/^\d{14}$/, 'Código SIAGIE de 14 dígitos'),
-  entryDate: z.coerce.date(),
-});
-
+// El tipo de matrícula se DERIVA en la API (nuevo → NUEVA, existente → RATIFICADA); ya no lo
+// elige el usuario. La fecha de ingreso define desde cuándo se cobran las pensiones en TODOS los
+// casos (prorrateo universal con el día de corte): edítala hacia atrás si el ingreso fue días antes.
 export const enrollmentWizardSchema = z
   .object({
     academicYearId: z.string(),
     sectionId: z.string(),
-    type: z.enum(ENROLLMENT_TYPES),
+    entryDate: z.coerce.date(),
     studentId: z.string().optional(),
     newStudent: studentCreateSchema.optional(),
     signingGuardianId: z.string(),
     discountId: z.string().optional().nullable(),
     programIds: z.array(z.string()).default([]),
-    transfer: transferSchema.optional(),
   })
   // El estudiante viene por id (existente) o por objeto (nuevo), nunca ambos ni ninguno.
   .refine((d) => Boolean(d.studentId) !== Boolean(d.newStudent), {
     message: 'Indica el estudiante o registra uno nuevo',
     path: ['studentId'],
-  })
-  // Un traslado exige sus datos de origen.
-  .refine((d) => d.type !== 'TRASLADO' || Boolean(d.transfer), {
-    message: 'Los datos de traslado son obligatorios',
-    path: ['transfer'],
   });
 export type EnrollmentWizardInput = z.infer<typeof enrollmentWizardSchema>;
 

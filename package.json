@@ -17,6 +17,7 @@
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @elohim/api db:migrate",
+    "db:deploy": "pnpm --filter @elohim/api db:deploy",
     "db:seed": "pnpm --filter @elohim/shared build && pnpm --filter @elohim/api db:seed",
     "db:studio": "pnpm --filter @elohim/api db:studio"
   },

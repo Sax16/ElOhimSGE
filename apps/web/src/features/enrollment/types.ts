@@ -90,23 +90,18 @@ export interface NewStudentInput {
   insuranceType: InsuranceType;
 }
 
-export interface TransferInput {
-  originSchool: string;
-  siagieCode: string;
-  entryDate: string;
-}
-
 /** Cuerpo del asistente — POST /api/enrollment/preview y POST /api/enrollments. */
 export interface EnrollmentWizardBody {
   academicYearId: string;
   sectionId: string;
-  type: EnrollmentType;
+  /** Fecha de ingreso yyyy-mm-dd: define desde cuándo se cobran las pensiones. El tipo de
+   *  matrícula (NUEVA/RATIFICADA) lo deriva la API según sea alumno nuevo o existente. */
+  entryDate: string;
   studentId?: string;
   newStudent?: NewStudentInput;
   signingGuardianId: string;
   discountId?: string;
   programIds: string[];
-  transfer?: TransferInput;
 }
 
 /** Fila del cronograma calculado — POST /api/enrollment/preview. */

@@ -26,19 +26,19 @@ import {
   INSURANCE_TYPE_LABELS,
   SEX_LABELS,
   SHIFT_LABELS,
+  STUDENT_STATUS_LABELS,
   formatPEN,
   toCents,
-  type EnrollmentType,
   type InsuranceType,
   type Sex,
 } from '@elohim/shared';
 import { ApiError } from '../../lib/api';
 import { useFees } from '../fees/api';
-import { useLevelsTree, usePrograms } from '../structure/api';
+import { useLevelsTree, usePrograms, useYears } from '../structure/api';
 import { vigenciaState, vigenciaText } from '../structure/bits';
 import type { ApiSection } from '../structure/types';
 import { useStudents, useStudent, useUnlinkGuardian } from '../students/api';
-import { avatarColor, fullName } from '../students/bits';
+import { avatarColor, fullName, STUDENT_STATUS_TONE } from '../students/bits';
 import type { StudentGuardianLink } from '../students/types';
 import { GuardianFormDialog } from '../guardians/GuardianFormDialog';
 import { LinkGuardianDialog } from '../students/LinkGuardianDialog';
@@ -50,18 +50,41 @@ import type {
   EnrollmentWizardBody,
   NewStudentInput,
   PreviewResponse,
-  TransferInput,
 } from './types';
 
 const STEPS = ['Estudiante', 'Apoderados', 'Ubicación', 'Tarifa y cronograma', 'Confirmación'];
-type Mode = 'nuevo' | 'exist' | 'traslado';
-const MODE_TO_TYPE: Record<Mode, EnrollmentType> = { nuevo: 'NUEVA', exist: 'RATIFICADA', traslado: 'TRASLADO' };
+type Mode = 'nuevo' | 'exist';
+// La API deriva el tipo (nuevo → NUEVA, existente → RATIFICADA); aquí solo se muestra la etiqueta.
+const MODE_TYPE_LABEL: Record<Mode, string> = { nuevo: 'Nueva', exist: 'Ratificación' };
+
+// Fecha civil de hoy (yyyy-mm-dd) usando componentes locales — sin corrimiento por TZ.
+function todayISO(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+}
+
+// Nombre del mes (1..12) para el aviso de ingreso a mitad de año.
+const MONTH_NAMES = [
+  '',
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
 
 interface WizardState {
   mode: Mode;
   studentId: string | null;
   newStudent: NewStudentInput;
-  transfer: TransferInput;
+  entryDate: string;
   signingGuardianId: string | null;
   levelId: string;
   gradeLevelId: string;
@@ -80,13 +103,11 @@ const emptyNewStudent = (): NewStudentInput => ({
   previousSchool: '',
   insuranceType: 'SIS',
 });
-const emptyTransfer = (): TransferInput => ({ originSchool: '', siagieCode: '', entryDate: '' });
-
 const initialState = (): WizardState => ({
   mode: 'exist',
   studentId: null,
   newStudent: emptyNewStudent(),
-  transfer: emptyTransfer(),
+  entryDate: todayISO(),
   signingGuardianId: null,
   levelId: '',
   gradeLevelId: '',
@@ -99,7 +120,7 @@ function buildBody(s: WizardState, yearId: string | undefined): EnrollmentWizard
   const base: EnrollmentWizardBody = {
     academicYearId: yearId ?? '',
     sectionId: s.sectionId,
-    type: MODE_TO_TYPE[s.mode],
+    entryDate: s.entryDate,
     signingGuardianId: s.signingGuardianId ?? '',
     discountId: s.discountId || undefined,
     programIds: s.programIds,
@@ -113,21 +134,19 @@ function buildBody(s: WizardState, yearId: string | undefined): EnrollmentWizard
     address: s.newStudent.address.trim(),
     previousSchool: s.newStudent.previousSchool?.trim() || undefined,
   };
-  if (s.mode === 'traslado') return { ...base, newStudent, transfer: { ...s.transfer } };
   return { ...base, newStudent };
 }
 
 function studentStepValid(s: WizardState): boolean {
+  if (!s.entryDate) return false;
   if (s.mode === 'exist') return !!s.studentId;
   const n = s.newStudent;
-  const coreOk =
-    !!n.firstNames.trim() && !!n.lastNames.trim() && /^\d{8}$/.test(n.dni.trim()) && !!n.birthDate && !!n.address.trim();
-  if (s.mode === 'nuevo') return coreOk;
   return (
-    coreOk &&
-    !!s.transfer.originSchool.trim() &&
-    /^\d{14}$/.test(s.transfer.siagieCode.trim()) &&
-    !!s.transfer.entryDate
+    !!n.firstNames.trim() &&
+    !!n.lastNames.trim() &&
+    /^\d{8}$/.test(n.dni.trim()) &&
+    !!n.birthDate &&
+    !!n.address.trim()
   );
 }
 
@@ -148,6 +167,9 @@ export function EnrollmentWizard({
   const [errorMsg, setErrorMsg] = useState('');
 
   const fees = useFees(yearId).data;
+  const years = useYears().data ?? [];
+  // Inicio de matrícula del año: piso del rango válido de la fecha de ingreso (yyyy-mm-dd).
+  const enrollmentStart = (years.find((y) => y.id === yearId)?.enrollmentStart ?? '').slice(0, 10);
   const createEnrollment = useCreateEnrollment();
   const set = (patch: Partial<WizardState>) => setState((s) => ({ ...s, ...patch }));
 
@@ -204,7 +226,7 @@ export function EnrollmentWizard({
       <Card flush>
         <Stepper step={step} />
         <div style={{ padding: 22 }}>
-          {step === 0 && <StepStudent state={state} set={set} />}
+          {step === 0 && <StepStudent state={state} set={set} enrollmentStart={enrollmentStart} />}
           {step === 1 && <StepGuardians state={state} set={set} />}
           {step === 2 && <StepPlacement state={state} set={set} yearId={yearId} />}
           {step === 3 && (
@@ -212,6 +234,7 @@ export function EnrollmentWizard({
               state={state}
               set={set}
               yearId={yearId}
+              enrollmentStart={enrollmentStart}
               transferCutoffDay={fees?.settings.transferCutoffDay}
             />
           )}
@@ -323,72 +346,46 @@ function Stepper({ step }: { step: number }) {
 }
 
 // ============================== Paso 1 · Estudiante =========================
-function StepStudent({ state, set }: { state: WizardState; set: (p: Partial<WizardState>) => void }) {
+function StepStudent({
+  state,
+  set,
+  enrollmentStart,
+}: {
+  state: WizardState;
+  set: (p: Partial<WizardState>) => void;
+  enrollmentStart: string;
+}) {
   const setNew = (p: Partial<NewStudentInput>) => set({ newStudent: { ...state.newStudent, ...p } });
-  const setTransfer = (p: Partial<TransferInput>) => set({ transfer: { ...state.transfer, ...p } });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <RadioGroup
-        name="tipo-estudiante"
-        value={state.mode}
-        onChange={(e) => set({ mode: e.target.value as Mode, studentId: null, signingGuardianId: null })}
-        row
-      >
-        <Radio value="nuevo" label="Estudiante nuevo" description="Primera vez en la institución" />
-        <Radio value="exist" label="Estudiante existente" description="Ratificación o pre-matrícula" />
-        <Radio value="traslado" label="Traslado entrante" description="Viene de otro colegio a mitad de año" />
-      </RadioGroup>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 18, alignItems: 'end' }}>
+        <RadioGroup
+          name="tipo-estudiante"
+          value={state.mode}
+          onChange={(e) => set({ mode: e.target.value as Mode, studentId: null, signingGuardianId: null })}
+          row
+        >
+          <Radio value="nuevo" label="Estudiante nuevo" description="Primera vez en la institución" />
+          <Radio value="exist" label="Estudiante existente" description="Ratificación o pre-matrícula" />
+        </RadioGroup>
+        <Input
+          label="Fecha de ingreso"
+          type="date"
+          required
+          value={state.entryDate}
+          min={enrollmentStart || undefined}
+          max={todayISO()}
+          onChange={(e) => set({ entryDate: e.target.value })}
+          hint="Define desde cuándo se cobran pensiones. Edítala si el ingreso fue días atrás."
+          containerStyle={{ width: 220 }}
+        />
+      </div>
 
       {state.mode === 'exist' ? (
         <ExistingStudentPicker state={state} set={set} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {state.mode === 'traslado' && (
-            <Alert tone="info" title="Primero el SIAGIE">
-              El traslado se aprueba primero en el SIAGIE. Aquí lo registras para el control interno: pensiones solo
-              por los meses restantes y notas de origen del colegio anterior.
-            </Alert>
-          )}
-          <NewStudentFields value={state.newStudent} onChange={setNew} />
-          {state.mode === 'traslado' && (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr',
-                gap: 14,
-                borderTop: '1px solid var(--border-subtle)',
-                paddingTop: 14,
-              }}
-            >
-              <Input
-                label="Colegio de origen"
-                required
-                value={state.transfer.originSchool}
-                onChange={(e) => setTransfer({ originSchool: e.target.value })}
-                placeholder="I.E. 30001 Satipo"
-              />
-              <Input
-                label="Código de estudiante SIAGIE"
-                required
-                value={state.transfer.siagieCode}
-                onChange={(e) => setTransfer({ siagieCode: e.target.value.replace(/\D/g, '').slice(0, 14) })}
-                hint="14 dígitos"
-                style={{ fontFamily: 'var(--font-mono)' }}
-                inputMode="numeric"
-                placeholder="00000000000000"
-              />
-              <Input
-                label="Fecha de ingreso"
-                type="date"
-                required
-                value={state.transfer.entryDate}
-                onChange={(e) => setTransfer({ entryDate: e.target.value })}
-                hint="Define desde cuándo se cobran pensiones"
-              />
-            </div>
-          )}
-        </div>
+        <NewStudentFields value={state.newStudent} onChange={setNew} />
       )}
     </div>
   );
@@ -579,6 +576,9 @@ function ExistingStudentPicker({
                       {r.code} · DNI {r.dni}
                     </div>
                   </div>
+                  {r.status !== 'ACTIVO' && (
+                    <Badge tone={STUDENT_STATUS_TONE[r.status]}>{STUDENT_STATUS_LABELS[r.status]}</Badge>
+                  )}
                   {enrolled && <Badge tone="neutral">Ya matriculado</Badge>}
                 </button>
               );
@@ -1073,11 +1073,13 @@ function StepFees({
   state,
   set,
   yearId,
+  enrollmentStart,
   transferCutoffDay,
 }: {
   state: WizardState;
   set: (p: Partial<WizardState>) => void;
   yearId: string | undefined;
+  enrollmentStart: string;
   transferCutoffDay?: number;
 }) {
   const preview = usePreview();
@@ -1091,7 +1093,7 @@ function StepFees({
     newStudent: body.newStudent,
     discountId: body.discountId,
     programIds: body.programIds,
-    transfer: body.transfer,
+    entryDate: body.entryDate,
   });
 
   // Recalcula el cronograma al entrar y cuando cambian descuento/programas.
@@ -1116,14 +1118,20 @@ function StepFees({
 
   const pensiones = data ? data.items.filter((i) => i.type === 'PENSION').length : 0;
 
+  // Ingreso a mitad de año: la fecha de ingreso es posterior al inicio de matrícula del año.
+  const firstPension = data?.items.find((i) => i.type === 'PENSION');
+  const midYearMonth =
+    enrollmentStart && state.entryDate > enrollmentStart && firstPension
+      ? MONTH_NAMES[Number(firstPension.dueDate.slice(5, 7))]
+      : '';
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: 18, alignItems: 'start' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {state.mode === 'traslado' && (
-          <Alert tone="warning" title="Cronograma de traslado">
-            Solo se generan las pensiones de los meses restantes del año. El mes de ingreso se cobra completo si el
-            estudiante entra antes del día de corte (día {transferCutoffDay ?? 20} — configurable en Tarifario y becas);
-            si entra después, ese mes es gratis. La matrícula se cobra completa.
+        {midYearMonth && (
+          <Alert tone="info" title="Ingreso a mitad de año">
+            Se cobran las pensiones desde {midYearMonth}, según el día de corte (día {transferCutoffDay ?? 20}). La
+            matrícula se cobra completa y vence en la fecha de ingreso.
           </Alert>
         )}
 
@@ -1278,9 +1286,11 @@ function StepConfirm({
         : '—'
       : `${state.newStudent.lastNames} ${state.newStudent.firstNames}`.trim() || '—';
 
+  const entryDateLabel = state.entryDate ? state.entryDate.split('-').reverse().join('/') : '—';
   const fields: [string, string][] = [
     ['Estudiante', studentName],
-    ['Tipo de matrícula', { NUEVA: 'Nueva', RATIFICADA: 'Ratificación', TRASLADO: 'Traslado' }[MODE_TO_TYPE[state.mode]]],
+    ['Tipo de matrícula', MODE_TYPE_LABEL[state.mode]],
+    ['Fecha de ingreso', entryDateLabel],
     ['Año académico', yearName],
     ['Programas', state.programIds.length ? `${state.programIds.length} seleccionado(s)` : 'Ninguno'],
   ];

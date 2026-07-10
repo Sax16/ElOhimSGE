@@ -430,7 +430,7 @@ model Enrollment {
   discountId String?
   discount   Discount? @relation(fields: [discountId], references: [id])
 
-  // Traslado entrante (primero se aprueba en SIAGIE)
+  // originSchool/siagieCode: histórico de traslados (ya no se capturan en el flujo actual).
   originSchool String?
   siagieCode   String?   @db.Char(14)
   entryDate    DateTime? @db.Date // define desde cuándo se cobran pensiones
@@ -441,7 +441,9 @@ model Enrollment {
 
   installments Installment[]
 
-  @@unique([studentId, academicYearId])
+  // Unicidad estudiante+año SOLO para matrículas vigentes: índice único parcial WHERE canceledAt
+  // IS NULL (creado por migración SQL, no representable en el schema Prisma). Permite re-matricular
+  // a quien se retiró/trasladó (su matrícula previa quedó anulada).
 }
 
 // Una cuota pertenece a una matrícula ESCOLAR (enrollmentId) o a una inscripción de PROGRAMA

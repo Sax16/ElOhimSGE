@@ -24,6 +24,7 @@ pnpm db:studio      # Prisma Studio
 ```
 
 - Login demo: `admin` / `Elohim2026!` (también `secretaria`, `docente`, `porteria`).
+- OJO Prisma: la unicidad de matrícula es un **índice único parcial** (`WHERE canceledAt IS NULL`, no representable en schema.prisma). Para aplicar migraciones usa `pnpm db:deploy`; `db:migrate` (migrate dev) puede detectar drift e intentar borrarlo — revisar el SQL generado antes de aceptar.
 - OJO: `pnpm build` borra `dist/` de la API y tumba el watch — relanzar `pnpm --filter @elohim/api start:dev` después.
 - Kit visual para QA del design system: http://localhost:5173/dev/kit (solo dev).
 - En PowerShell 5.1, los mensajes de commit con comillas dobles internas rompen `git commit -m @'…'@` — evitarlas.
