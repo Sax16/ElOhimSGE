@@ -306,13 +306,21 @@ export async function seedStudentsGuardians(prisma: PrismaClient) {
   }
 
   // ----- Secuencias de códigos (marca de agua para que la API continúe la numeración) -----
+  // Solo SUBEN: un re-seed nunca debe retroceder un contador que ya avanzó por uso real
+  // de la API (retrocederlo produce colisiones "Registro duplicado" en los correlativos).
   const counters: [string, number][] = [
     ['student', 1000 + STUDENTS.length],
     ['guardian', 200 + GUARDIANS.length],
     [`enrollment:${year2026.name}`, enrollSeq],
   ];
   for (const [key, value] of counters) {
-    await prisma.codeCounter.upsert({ where: { key }, update: { value }, create: { key, value } });
+    const current = await prisma.codeCounter.findUnique({ where: { key } });
+    const next = Math.max(current?.value ?? 0, value);
+    await prisma.codeCounter.upsert({
+      where: { key },
+      update: { value: next },
+      create: { key, value: next },
+    });
   }
 
   console.log(
