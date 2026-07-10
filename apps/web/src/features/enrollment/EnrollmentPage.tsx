@@ -161,7 +161,7 @@ function EnrollmentList({
           value={stats ? String(stats.byType.RATIFICADA) : '—'}
           iconTone="success"
           icon={<Icons.Check />}
-          caption={stats ? `+${stats.byType.TRASLADO} traslados` : ''}
+          caption="renovaciones del año"
         />
         <StatCard
           label="Vacantes libres"
@@ -185,7 +185,11 @@ function EnrollmentList({
         <Select
           aria-label="Tipo"
           placeholder="Tipo"
-          options={ENROLLMENT_TYPES.map((t) => ({ value: t, label: ENROLLMENT_TYPE_LABELS[t] }))}
+          // TRASLADO ya no se genera (la fecha de ingreso cubre ese caso); solo queda en histórico.
+          options={ENROLLMENT_TYPES.filter((t) => t !== 'TRASLADO').map((t) => ({
+            value: t,
+            label: ENROLLMENT_TYPE_LABELS[t],
+          }))}
           value={type}
           onChange={(e) => patch(() => setType(e.target.value))}
           containerStyle={{ width: 150 }}

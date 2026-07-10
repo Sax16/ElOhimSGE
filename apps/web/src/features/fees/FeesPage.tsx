@@ -269,12 +269,11 @@ function MoraCard({ settings, readOnly }: { settings: BillingSettings; readOnly:
           containerStyle={{ width: 150 }}
         />
         <Input
-          label="Día de corte · traslados"
+          label="Día de corte · ingresos"
           value={cutoffDay}
           onChange={(e) => setCutoffDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
           suffix="del mes"
           inputMode="numeric"
-          hint="Ingresa antes: paga el mes; después: gratis"
           disabled={readOnly}
           containerStyle={{ width: 190 }}
         />
@@ -301,6 +300,10 @@ function MoraCard({ settings, readOnly }: { settings: BillingSettings; readOnly:
           </Button>
         )}
       </div>
+      <p style={{ margin: '10px 0 0', font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
+        Día de corte: quien ingresa hasta ese día paga el mes completo; después, ese mes no se
+        cobra. Aplica a todo ingreso a mitad de año (traslados incluidos).
+      </p>
     </Card>
   );
 }
