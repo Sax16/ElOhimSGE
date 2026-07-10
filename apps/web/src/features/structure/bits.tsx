@@ -25,6 +25,34 @@ export function VacBar({ enrolled, capacity }: { enrolled: number; capacity: num
   );
 }
 
+// Abreviaturas de mes (1=Ene..12=Dic). Los programas usan 2=Feb..12=Dic.
+const MONTH_ABBR = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+/** Número de mes (2..12) → abreviatura ("Ago"). */
+export function monthLabel(m: number | null | undefined): string {
+  return m != null && MONTH_ABBR[m] ? MONTH_ABBR[m] : '—';
+}
+
+/** Vigencia de un programa → "Ago – Sep". */
+export function vigenciaText(startMonth?: number | null, endMonth?: number | null): string {
+  if (startMonth == null || endMonth == null) return '—';
+  return `${monthLabel(startMonth)} – ${monthLabel(endMonth)}`;
+}
+
+export type VigenciaState = 'vigente' | 'proximo' | 'finalizado';
+
+/** Estado derivado de la vigencia según el mes actual (1..12). */
+export function vigenciaState(
+  startMonth?: number | null,
+  endMonth?: number | null,
+  currentMonth: number = new Date().getMonth() + 1,
+): VigenciaState | null {
+  if (startMonth == null || endMonth == null) return null;
+  if (currentMonth < startMonth) return 'proximo';
+  if (currentMonth > endMonth) return 'finalizado';
+  return 'vigente';
+}
+
 /** ISO (YYYY-MM-DD o datetime) → "dd/mm/aaaa". */
 export function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '—';

@@ -125,12 +125,31 @@ export interface PreviewItem {
   amount: string;
 }
 
+/** Cuota de un cronograma de programa dentro del preview. */
+export interface ProgramScheduleItem {
+  concept: string;
+  dueDate: string;
+  totalCents: number;
+  sequence?: number;
+  type?: string;
+}
+
+/** Cronograma independiente de un programa elegido en la matrícula. */
+export interface ProgramSchedule {
+  programId: string;
+  name: string;
+  items: ProgramScheduleItem[];
+  totalCents: number;
+}
+
 export interface PreviewResponse {
   items: PreviewItem[];
   totalCents: number;
   total: string;
   discount: { id: string; name: string; percent: string; auto: boolean } | null;
   warnings: string[];
+  /** Cronogramas por programa (backend nuevo). Ausente con backend anterior. */
+  programSchedules?: ProgramSchedule[];
 }
 
 /** Resultado de POST /api/enrollments. */

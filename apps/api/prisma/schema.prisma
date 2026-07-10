@@ -145,10 +145,11 @@ model User {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  tutorOf               Section[]    @relation("SectionTutor")
-  courses               Course[]     @relation("CourseTeacher")
-  enrollmentsRegistered Enrollment[] @relation("RegisteredBy")
-  auditLogs             AuditLog[]
+  tutorOf                      Section[]           @relation("SectionTutor")
+  courses                      Course[]            @relation("CourseTeacher")
+  enrollmentsRegistered        Enrollment[]        @relation("RegisteredBy")
+  programEnrollmentsRegistered ProgramEnrollment[] @relation("ProgramEnrollmentRegisteredBy")
+  auditLogs                    AuditLog[]
 }
 
 // Singleton (id = 1): datos institucionales de la pestaña Configuración > Institución.
@@ -285,13 +286,37 @@ model Program {
   type           ProgramType
   scheduleText   String // "Sáb 9:00–11:00"
   capacity       Int
+  startMonth     Int // mes de inicio de la vigencia (2..12)
+  endMonth       Int // mes de fin de la vigencia (2..12, >= startMonth)
   enrollmentFee  Decimal       @db.Decimal(10, 2) // matrícula del programa (0 = sin pago)
   monthlyFee     Decimal       @db.Decimal(10, 2)
   status         ProgramStatus @default(ACTIVO)
 
-  enrollmentPrograms EnrollmentProgram[]
+  programEnrollments ProgramEnrollment[]
 
-  @@unique([academicYearId, name])
+  // Reapertura = nueva edición: el mismo nombre puede repetirse si el periodo (startMonth) difiere.
+  @@unique([academicYearId, name, startMonth])
+}
+
+// Inscripción de un estudiante a una edición de programa (independiente de la matrícula escolar).
+// Genera sus propias cuotas (Installment con programEnrollmentId); nada se borra (cancelación con motivo).
+model ProgramEnrollment {
+  id                    String    @id @default(cuid())
+  programId             String
+  program               Program   @relation(fields: [programId], references: [id])
+  studentId             String
+  student               Student   @relation(fields: [studentId], references: [id])
+  registeredById        String
+  registeredBy          User      @relation("ProgramEnrollmentRegisteredBy", fields: [registeredById], references: [id])
+  enrolledAt            DateTime  @default(now())
+  monthlyFeeSnapshot    Decimal   @db.Decimal(10, 2) // congelado al inscribir
+  enrollmentFeeSnapshot Decimal   @default(0) @db.Decimal(10, 2)
+  canceledAt            DateTime?
+  cancelReason          String?
+
+  installments Installment[]
+
+  @@unique([programId, studentId])
 }
 
 // Tarifario por nivel: alimenta la generación automática del cronograma.
@@ -348,8 +373,9 @@ model Student {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  guardians   StudentGuardian[]
-  enrollments Enrollment[]
+  guardians          StudentGuardian[]
+  enrollments        Enrollment[]
+  programEnrollments ProgramEnrollment[]
 }
 
 model Guardian {
@@ -413,41 +439,35 @@ model Enrollment {
   canceledAt   DateTime?
   cancelReason String?
 
-  programs     EnrollmentProgram[]
   installments Installment[]
 
   @@unique([studentId, academicYearId])
 }
 
-model EnrollmentProgram {
-  enrollmentId       String
-  programId          String
-  enrollment         Enrollment @relation(fields: [enrollmentId], references: [id])
-  program            Program    @relation(fields: [programId], references: [id])
-  monthlyFeeSnapshot Decimal    @db.Decimal(10, 2) // congelado al matricular
-
-  @@id([enrollmentId, programId])
-}
-
+// Una cuota pertenece a una matrícula ESCOLAR (enrollmentId) o a una inscripción de PROGRAMA
+// (programEnrollmentId) — exactamente una de las dos (CHECK en la BD).
 model Installment {
-  id           String            @id @default(cuid())
-  enrollmentId String
-  enrollment   Enrollment        @relation(fields: [enrollmentId], references: [id])
-  type         InstallmentType
-  concept      String // "Matrícula" | "Pensión Marzo"
-  sequence     Int // 0 = matrícula, 1..11 = pensiones
-  dueDate      DateTime          @db.Date
-  baseAmount   Decimal           @db.Decimal(10, 2) // snapshot del tarifario
-  discountAmount Decimal         @default(0) @db.Decimal(10, 2)
-  programsAmount Decimal         @default(0) @db.Decimal(10, 2)
-  amount       Decimal           @db.Decimal(10, 2) // total = base - descuento + programas
-  status       InstallmentStatus @default(PENDIENTE)
+  id                  String            @id @default(cuid())
+  enrollmentId        String?
+  enrollment          Enrollment?       @relation(fields: [enrollmentId], references: [id])
+  programEnrollmentId String?
+  programEnrollment   ProgramEnrollment? @relation(fields: [programEnrollmentId], references: [id])
+  type                InstallmentType
+  concept             String // "Matrícula" | "Pensión Marzo" | "Programa · Taller de Danza · Marzo"
+  sequence            Int // 0 = matrícula, 1..N = cuotas
+  dueDate             DateTime          @db.Date
+  baseAmount          Decimal           @db.Decimal(10, 2) // snapshot del tarifario
+  discountAmount      Decimal           @default(0) @db.Decimal(10, 2)
+  programsAmount      Decimal           @default(0) @db.Decimal(10, 2)
+  amount              Decimal           @db.Decimal(10, 2) // total = base - descuento + programas
+  status              InstallmentStatus @default(PENDIENTE)
 
   canceledAt   DateTime?
   cancelReason String?
   canceledById String?
 
   @@unique([enrollmentId, sequence])
+  @@unique([programEnrollmentId, sequence])
 }
 
 // Secuencias de códigos legibles: "student" → E-####, "guardian" → A-####, "enrollment:2026" → M-2026-####

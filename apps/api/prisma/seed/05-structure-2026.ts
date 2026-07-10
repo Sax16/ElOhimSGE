@@ -94,12 +94,16 @@ const LEVELS_2026: LevelSeed[] = [
   },
 ];
 
+// Vigencia por defecto de los talleres anuales: marzo–diciembre (3..12). Coincide con el backfill
+// de la migración, para que el upsert por (year, name, startMonth) no duplique los existentes.
 const PROGRAMS_2026 = [
   {
     name: 'Taller de Danza',
     type: 'TALLER' as const,
     scheduleText: 'Sáb 9:00–11:00',
     capacity: 25,
+    startMonth: 3,
+    endMonth: 12,
     enrollmentFee: '0.00',
     monthlyFee: '60.00',
     status: 'ACTIVO' as const,
@@ -109,6 +113,8 @@ const PROGRAMS_2026 = [
     type: 'TALLER' as const,
     scheduleText: 'Vie 15:30–17:00',
     capacity: 20,
+    startMonth: 3,
+    endMonth: 12,
     enrollmentFee: '0.00',
     monthlyFee: '70.00',
     status: 'ACTIVO' as const,
@@ -118,6 +124,8 @@ const PROGRAMS_2026 = [
     type: 'REFORZAMIENTO' as const,
     scheduleText: 'Lun y Mié 15:00–16:30',
     capacity: 30,
+    startMonth: 3,
+    endMonth: 12,
     enrollmentFee: '0.00',
     monthlyFee: '80.00',
     status: 'ACTIVO' as const,
@@ -125,8 +133,10 @@ const PROGRAMS_2026 = [
   {
     name: 'Academia Pre verano',
     type: 'ACADEMIA' as const,
-    scheduleText: 'Ene–Feb 8:00–12:00',
+    scheduleText: 'Feb–Dic 8:00–12:00',
     capacity: 40,
+    startMonth: 3,
+    endMonth: 12,
     enrollmentFee: '100.00',
     monthlyFee: '150.00',
     status: 'CERRADO' as const,
@@ -258,9 +268,16 @@ export async function seedStructure2026(prisma: PrismaClient) {
   }
 
   // ----- Programas 2026 -----
+  // Unique nuevo: (year, name, startMonth) — una edición por periodo. Idempotente sobre lo existente.
   for (const program of PROGRAMS_2026) {
     await prisma.program.upsert({
-      where: { academicYearId_name: { academicYearId: year2026.id, name: program.name } },
+      where: {
+        academicYearId_name_startMonth: {
+          academicYearId: year2026.id,
+          name: program.name,
+          startMonth: program.startMonth,
+        },
+      },
       update: {},
       create: { academicYearId: year2026.id, ...program },
     });

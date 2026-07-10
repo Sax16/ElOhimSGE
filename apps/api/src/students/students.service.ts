@@ -15,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { nextCode } from '../common/code-counter.util';
 import { debtCentsByStudent } from '../common/debt.util';
+import { decimalToCents } from '../common/money.util';
 
 // Placement = ubicación del estudiante según su matrícula del año activo (no cancelada).
 const placementSelect = {
@@ -225,6 +226,40 @@ export class StudentsService {
     });
     if (!student) throw new NotFoundException('Estudiante no encontrado');
 
+    // Programas complementarios: inscripciones ACTIVAS del año activo (cuotas propias del programa).
+    const programEnrollments = await this.prisma.programEnrollment.findMany({
+      where: {
+        studentId: id,
+        canceledAt: null,
+        program: { academicYearId: yearId },
+      },
+      orderBy: { enrolledAt: 'asc' },
+      select: {
+        id: true,
+        canceledAt: true,
+        program: { select: { id: true, name: true, scheduleText: true } },
+        installments: { select: { status: true, amount: true, dueDate: true } },
+      },
+    });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const programs = programEnrollments.map((pe) => {
+      let debtCents = 0;
+      for (const inst of pe.installments) {
+        const overdue =
+          inst.status === 'VENCIDO' || (inst.status === 'PENDIENTE' && inst.dueDate < today);
+        if (overdue) debtCents += decimalToCents(inst.amount);
+      }
+      return {
+        programEnrollmentId: pe.id,
+        programId: pe.program.id,
+        name: pe.program.name,
+        scheduleText: pe.program.scheduleText,
+        canceledAt: pe.canceledAt,
+        debtCents,
+      };
+    });
+
     const enrollment = student.enrollments[0] ?? null;
     const { enrollments: _drop, guardians, ...rest } = student;
 
@@ -235,6 +270,7 @@ export class StudentsService {
         isPrimary: g.isPrimary,
         guardian: g.guardian,
       })),
+      programs,
       enrollment: enrollment
         ? {
             id: enrollment.id,

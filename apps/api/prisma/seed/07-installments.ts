@@ -1,5 +1,5 @@
 import { type InstallmentStatus, type PrismaClient } from '@prisma/client';
-import { buildEnrollmentSchedule, toCents } from '@elohim/shared';
+import { buildEnrollmentSchedule, buildProgramSchedule, toCents } from '@elohim/shared';
 
 // Fecha calendario de hoy (yyyy-mm-dd, local): comparación de vencimientos por string (TZ-independiente).
 function todayISO(): string {
@@ -48,6 +48,8 @@ export async function seedInstallments(prisma: PrismaClient) {
     select: {
       id: true,
       code: true,
+      studentId: true,
+      registeredById: true,
       enrolledAt: true,
       signingGuardianId: true,
       student: { select: { status: true } },
@@ -105,10 +107,6 @@ export async function seedInstallments(prisma: PrismaClient) {
       discountPercent = 10;
     }
 
-    // 3 matrículas llevan además el Taller de Danza (programa con snapshot).
-    const withDanza = i === 3 || i === 9 || i === 17;
-    const programs = withDanza ? [{ name: danza.name, monthlyFeeCents: danzaCents }] : [];
-
     const items = buildEnrollmentSchedule({
       enrollmentDate: dateToISO(e.enrolledAt),
       yearName: 2026,
@@ -118,7 +116,6 @@ export async function seedInstallments(prisma: PrismaClient) {
         installmentsCount: fee.installmentsCount as 10 | 11,
       },
       discountPercent,
-      programs,
       dueDayOfMonth: settings.dueDayOfMonth,
     });
 
@@ -148,18 +145,6 @@ export async function seedInstallments(prisma: PrismaClient) {
       });
     }
 
-    if (withDanza) {
-      await prisma.enrollmentProgram.upsert({
-        where: { enrollmentId_programId: { enrollmentId: e.id, programId: danza.id } },
-        update: {},
-        create: {
-          enrollmentId: e.id,
-          programId: danza.id,
-          monthlyFeeSnapshot: danza.monthlyFee.toFixed(2),
-        },
-      });
-    }
-
     // Matrícula pagada al día → COMPLETA; con deuda vencida → PENDIENTE_PAGO. Fija el descuento aplicado.
     await prisma.enrollment.update({
       where: { id: e.id },
@@ -169,7 +154,72 @@ export async function seedInstallments(prisma: PrismaClient) {
     created += 1;
   }
 
+  // ----- Inscripciones al Taller de Danza (cuotas propias del programa) -----
+  // Separado de las pensiones (el programa genera su cronograma). Idempotente por (programa, estudiante):
+  // si ya existe (creado por la migración o una corrida previa), se salta.
+  const DANZA_INDICES = [3, 9, 17];
+  const danzaEnrollFeeCents = toCents(danza.enrollmentFee.toString());
+  let programEnrolls = 0;
+  let programSkipped = 0;
+  for (const idx of DANZA_INDICES) {
+    const e = enrollments[idx];
+    if (!e) continue;
+    const exists = await prisma.programEnrollment.findUnique({
+      where: { programId_studentId: { programId: danza.id, studentId: e.studentId } },
+    });
+    if (exists) {
+      programSkipped += 1;
+      continue;
+    }
+
+    const paysPast = idx % 10 < 7;
+    const progItems = buildProgramSchedule({
+      enrollmentDate: dateToISO(e.enrolledAt),
+      yearName: 2026,
+      startMonth: danza.startMonth,
+      endMonth: danza.endMonth,
+      enrollmentFeeCents: danzaEnrollFeeCents,
+      monthlyFeeCents: danzaCents,
+      dueDayOfMonth: settings.dueDayOfMonth,
+      cutoffDay: settings.transferCutoffDay,
+    });
+
+    const pe = await prisma.programEnrollment.create({
+      data: {
+        programId: danza.id,
+        studentId: e.studentId,
+        registeredById: e.registeredById,
+        enrolledAt: e.enrolledAt,
+        monthlyFeeSnapshot: danza.monthlyFee,
+        enrollmentFeeSnapshot: danza.enrollmentFee,
+      },
+    });
+
+    for (const item of progItems) {
+      const isPast = item.dueDate < today;
+      const status: InstallmentStatus = isPast && paysPast ? 'PAGADO' : 'PENDIENTE';
+      await prisma.installment.create({
+        data: {
+          programEnrollmentId: pe.id,
+          type: item.type,
+          concept:
+            item.type === 'MATRICULA'
+              ? item.concept
+              : item.concept.replace('Programa · ', `Programa · ${danza.name} · `),
+          sequence: item.sequence,
+          dueDate: isoToDate(item.dueDate),
+          baseAmount: (item.baseCents / 100).toFixed(2),
+          discountAmount: (item.discountCents / 100).toFixed(2),
+          programsAmount: (item.programsCents / 100).toFixed(2),
+          amount: (item.totalCents / 100).toFixed(2),
+          status,
+        },
+      });
+    }
+    programEnrolls += 1;
+  }
+
   console.log(
-    `  ✓ Cronogramas: ${created} matrículas (${skipped} ya tenían cuotas) · ${payers} al día / ${created - payers} con deuda · ${paidCuotas} cuotas PAGADO, ${pendingCuotas} PENDIENTE · ${hermanoIds.size} con HERMANOS, ${becaId ? 1 : 0} BECA_COMPLETA`,
+    `  ✓ Cronogramas: ${created} matrículas (${skipped} ya tenían cuotas) · ${payers} al día / ${created - payers} con deuda · ${paidCuotas} cuotas PAGADO, ${pendingCuotas} PENDIENTE · ${hermanoIds.size} con HERMANOS, ${becaId ? 1 : 0} BECA_COMPLETA · Danza: ${programEnrolls} inscritos (${programSkipped} ya existían)`,
   );
 }

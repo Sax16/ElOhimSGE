@@ -81,6 +81,15 @@ export interface StudentEnrollment {
   installments?: StudentInstallment[];
 }
 
+/** Programa en el que está inscrito el estudiante (ficha). */
+export interface StudentProgram {
+  programEnrollmentId: string;
+  programId: string;
+  name: string;
+  scheduleText: string;
+  canceledAt: string | null;
+}
+
 /** Cuota de la ficha (estructura mínima; el módulo de dinero llega en R2). */
 export interface StudentInstallment {
   id: string;
@@ -111,6 +120,8 @@ export interface StudentDetail {
   authorizedPickups: AuthorizedPickup[];
   guardians: StudentGuardianLink[];
   enrollment: StudentEnrollment | null;
+  /** Programas en los que está inscrito (backend nuevo; ausente con backend anterior). */
+  programs?: StudentProgram[];
   /** Cuotas a nivel de ficha (opcional; la API las anida en `enrollment`). */
   installments?: StudentInstallment[];
   /** Puede venir en la ficha; si no, se usa la deuda de la fila del listado. */

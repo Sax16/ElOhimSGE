@@ -31,6 +31,7 @@ import {
 } from '@elohim/shared';
 import { ApiError } from '../../lib/api';
 import { useSelectedYear } from '../../lib/useSelectedYear';
+import { vigenciaText } from '../structure/bits';
 import {
   useCreateDiscount,
   useFees,
@@ -134,6 +135,12 @@ function TarifasTab({
       key: 'name',
       header: 'Programa',
       render: (v) => <span style={{ font: 'var(--type-label)', color: 'var(--text-strong)' }}>{v}</span>,
+    },
+    {
+      key: 'vigencia',
+      header: 'Vigencia',
+      mono: true,
+      render: (_v, r) => vigenciaText(r.startMonth, r.endMonth),
     },
     {
       key: 'enrollmentFee',

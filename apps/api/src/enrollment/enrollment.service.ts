@@ -16,6 +16,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { nextCode } from '../common/code-counter.util';
 import { centsToDecimal, decimalToCents } from '../common/money.util';
+import { programInstallmentConcept, programScheduleItems } from './program-schedule.util';
 
 type DbClient = Prisma.TransactionClient | PrismaService;
 
@@ -38,13 +39,22 @@ function isoToDate(iso: string): Date {
   return new Date(`${iso}T00:00:00.000Z`);
 }
 
+// Cronograma resuelto de un programa elegido en el wizard (cuotas separadas de la pensión).
+interface ResolvedProgramSchedule {
+  programId: string;
+  name: string;
+  monthlyFee: Prisma.Decimal;
+  enrollmentFee: Prisma.Decimal;
+  items: ScheduleItem[];
+}
+
 // Resultado de resolver el cronograma (compartido por preview y create).
 interface ResolvedSchedule {
   yearName: string;
   section: { id: string; shift: 'MANANA' | 'TARDE'; capacity: number };
-  items: ScheduleItem[];
+  items: ScheduleItem[]; // solo pensiones escolares + matrícula (los programas van aparte)
   discount: { id: string; name: string; percent: number; auto: boolean } | null;
-  programs: { id: string; name: string; monthlyFee: Prisma.Decimal }[];
+  programSchedules: ResolvedProgramSchedule[];
   warnings: string[];
 }
 
@@ -111,15 +121,21 @@ export class EnrollmentService {
 
     const warnings: string[] = [];
 
-    // Programas elegidos: deben ser ACTIVO, del mismo año, con vacantes.
-    const programs: { id: string; name: string; monthlyFee: Prisma.Decimal }[] = [];
-    for (const programId of input.programIds) {
+    // Programas elegidos: deben ser ACTIVO, del mismo año, con vacantes y con vigencia cobrable.
+    // Cada uno genera su PROPIO cronograma (cuotas separadas de la pensión escolar).
+    const programSchedules: ResolvedProgramSchedule[] = [];
+    // Dedup por si el wizard repite un programId.
+    const programIds = [...new Set(input.programIds)];
+    for (const programId of programIds) {
       const program = await client.program.findUnique({
         where: { id: programId },
         select: {
           id: true,
           name: true,
           monthlyFee: true,
+          enrollmentFee: true,
+          startMonth: true,
+          endMonth: true,
           capacity: true,
           status: true,
           academicYearId: true,
@@ -132,13 +148,30 @@ export class EnrollmentService {
       if (program.status !== 'ACTIVO') {
         throw new BadRequestException(`El programa ${program.name} no está activo`);
       }
-      const enrolled = await client.enrollmentProgram.count({
-        where: { programId, enrollment: { canceledAt: null } },
+      const enrolled = await client.programEnrollment.count({
+        where: { programId, canceledAt: null },
       });
       if (enrolled >= program.capacity) {
         throw new ConflictException(`El programa ${program.name} está lleno`);
       }
-      programs.push({ id: program.id, name: program.name, monthlyFee: program.monthlyFee });
+
+      const items = programScheduleItems(program, {
+        enrollmentDate: opts.enrollmentDate,
+        yearName: Number(section.gradeLevel.level.academicYear.name),
+        dueDayOfMonth: settings.dueDayOfMonth,
+        cutoffDay: settings.transferCutoffDay,
+      });
+      // Sin cuotas cobrables = la vigencia ya pasó: no se puede inscribir al programa.
+      if (!items.some((i) => i.type === 'PENSION')) {
+        throw new BadRequestException(`El programa ${program.name} ya finalizó`);
+      }
+      programSchedules.push({
+        programId: program.id,
+        name: program.name,
+        monthlyFee: program.monthlyFee,
+        enrollmentFee: program.enrollmentFee,
+        items,
+      });
     }
 
     // Descuento: explícito (ACTIVO) o regla automática de HERMANOS.
@@ -196,10 +229,6 @@ export class EnrollmentService {
         installmentsCount: level.fee.installmentsCount as 10 | 11,
       },
       discountPercent: discount ? discount.percent : 0,
-      programs: programs.map((p) => ({
-        name: p.name,
-        monthlyFeeCents: decimalToCents(p.monthlyFee),
-      })),
       dueDayOfMonth: settings.dueDayOfMonth,
       transfer,
     });
@@ -209,7 +238,7 @@ export class EnrollmentService {
       section: { id: section.id, shift: section.shift, capacity: section.capacity },
       items,
       discount,
-      programs,
+      programSchedules,
       warnings,
     };
   }
@@ -247,9 +276,23 @@ export class EnrollmentService {
       resolved.warnings.push('La sección está llena');
     }
 
-    const totalCents = resolved.items.reduce((sum, i) => sum + i.totalCents, 0);
+    const schoolCents = resolved.items.reduce((sum, i) => sum + i.totalCents, 0);
+    const programSchedules = resolved.programSchedules.map((ps) => {
+      const psTotalCents = ps.items.reduce((sum, i) => sum + i.totalCents, 0);
+      return {
+        programId: ps.programId,
+        name: ps.name,
+        items: ps.items.map((i) => this.serializeItem(i)),
+        totalCents: psTotalCents,
+        total: fromCents(psTotalCents),
+      };
+    });
+    const programsCents = programSchedules.reduce((sum, ps) => sum + ps.totalCents, 0);
+    // Gran total = escolar + todos los programas.
+    const totalCents = schoolCents + programsCents;
     return {
       items: resolved.items.map((i) => this.serializeItem(i)),
+      programSchedules,
       totalCents,
       total: fromCents(totalCents),
       discount: resolved.discount,
@@ -398,16 +441,7 @@ export class EnrollmentService {
           },
         });
 
-        for (const program of resolved.programs) {
-          await tx.enrollmentProgram.create({
-            data: {
-              enrollmentId: enrollment.id,
-              programId: program.id,
-              monthlyFeeSnapshot: program.monthlyFee,
-            },
-          });
-        }
-
+        // Cuotas escolares (matrícula + pensiones).
         for (const item of resolved.items) {
           await tx.installment.create({
             data: {
@@ -425,7 +459,39 @@ export class EnrollmentService {
           });
         }
 
-        const totalCents = resolved.items.reduce((sum, i) => sum + i.totalCents, 0);
+        // Inscripciones a programas: cada una con su ProgramEnrollment + cuotas propias.
+        let programsCents = 0;
+        for (const ps of resolved.programSchedules) {
+          const programEnrollment = await tx.programEnrollment.create({
+            data: {
+              programId: ps.programId,
+              studentId,
+              registeredById: actorId,
+              monthlyFeeSnapshot: ps.monthlyFee,
+              enrollmentFeeSnapshot: ps.enrollmentFee,
+            },
+          });
+          for (const item of ps.items) {
+            await tx.installment.create({
+              data: {
+                programEnrollmentId: programEnrollment.id,
+                type: item.type,
+                concept: programInstallmentConcept(item, ps.name),
+                sequence: item.sequence,
+                dueDate: isoToDate(item.dueDate),
+                baseAmount: centsToDecimal(item.baseCents),
+                discountAmount: centsToDecimal(item.discountCents),
+                programsAmount: centsToDecimal(item.programsCents),
+                amount: centsToDecimal(item.totalCents),
+                status: 'PENDIENTE',
+              },
+            });
+            programsCents += item.totalCents;
+          }
+        }
+
+        const schoolCents = resolved.items.reduce((sum, i) => sum + i.totalCents, 0);
+        const totalCents = schoolCents + programsCents;
 
         // (7) Auditoría.
         await this.audit.log(
@@ -450,6 +516,11 @@ export class EnrollmentService {
         return {
           enrollment: { id: enrollment.id, code: enrollment.code },
           schedule: resolved.items.map((i) => this.serializeItem(i)),
+          programSchedules: resolved.programSchedules.map((ps) => ({
+            programId: ps.programId,
+            name: ps.name,
+            schedule: ps.items.map((i) => this.serializeItem(i)),
+          })),
           total: fromCents(totalCents),
           discount: resolved.discount,
           warnings: [...resolved.warnings, ...warnings],
@@ -458,6 +529,10 @@ export class EnrollmentService {
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const target = (error.meta?.target as string[] | undefined)?.join(',') ?? '';
+        // La inscripción a programa es única por (programId, studentId): tiene prioridad sobre studentId.
+        if (target.includes('programId')) {
+          throw new ConflictException('El estudiante ya está inscrito en esa edición del programa');
+        }
         if (target.includes('studentId')) {
           throw new ConflictException('El estudiante ya tiene matrícula en este año');
         }
@@ -645,13 +720,6 @@ export class EnrollmentService {
         },
         signingGuardian: { select: { id: true, code: true, fullName: true } },
         discount: { select: { id: true, name: true, percent: true } },
-        programs: {
-          select: {
-            programId: true,
-            monthlyFeeSnapshot: true,
-            program: { select: { name: true, type: true } },
-          },
-        },
         installments: {
           orderBy: { sequence: 'asc' },
           select: {
@@ -670,6 +738,21 @@ export class EnrollmentService {
       },
     });
     if (!enrollment) throw new NotFoundException('Matrícula no encontrada');
+
+    // Programas del estudiante en el año de la matrícula (inscripciones ACTIVAS, cuotas propias).
+    const programEnrollments = await this.prisma.programEnrollment.findMany({
+      where: {
+        studentId: enrollment.student.id,
+        canceledAt: null,
+        program: { academicYearId: enrollment.academicYear.id },
+      },
+      orderBy: { enrolledAt: 'asc' },
+      select: {
+        id: true,
+        monthlyFeeSnapshot: true,
+        program: { select: { id: true, name: true, type: true } },
+      },
+    });
 
     return {
       id: enrollment.id,
@@ -704,11 +787,12 @@ export class EnrollmentService {
               entryDate: enrollment.entryDate,
             }
           : null,
-      programs: enrollment.programs.map((p) => ({
-        programId: p.programId,
-        name: p.program.name,
-        type: p.program.type,
-        monthlyFee: p.monthlyFeeSnapshot.toFixed(2),
+      programs: programEnrollments.map((pe) => ({
+        programEnrollmentId: pe.id,
+        programId: pe.program.id,
+        name: pe.program.name,
+        type: pe.program.type,
+        monthlyFee: pe.monthlyFeeSnapshot.toFixed(2),
       })),
       installments: enrollment.installments.map((i) => ({
         id: i.id,

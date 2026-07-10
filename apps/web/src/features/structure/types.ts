@@ -79,6 +79,37 @@ export interface ApiProgram {
   enrollmentFee: string;
   monthlyFee: string;
   status: ProgramStatus;
+  /** Mes de inicio (2=Feb..12=Dic). Puede faltar si el backend es anterior a la vigencia. */
+  startMonth?: number;
+  /** Mes de fin (2=Feb..12=Dic). */
+  endMonth?: number;
+}
+
+/** Inscripción a un programa — GET /api/programs/:id/enrollments. */
+export interface ApiProgramEnrollment {
+  id: string;
+  student: { id: string; code: string; firstNames: string; lastNames: string };
+  enrolledAt: string;
+  canceledAt: string | null;
+  paidCount: number;
+  totalCount: number;
+  debtCents: number;
+}
+
+/** Cuota calculada al inscribir a un programa. */
+export interface ProgramEnrollPreviewItem {
+  type: string;
+  concept: string;
+  sequence: number;
+  dueDate: string;
+  totalCents: number;
+}
+
+/** Preview de inscripción — POST /api/programs/:id/enrollments/preview. */
+export interface ProgramEnrollPreview {
+  items: ProgramEnrollPreviewItem[];
+  totalCents: number;
+  total: string;
 }
 
 /** Periodo académico — GET /api/academic-years/:yearId/periods. */
@@ -179,6 +210,8 @@ export interface ProgramCreateBody {
   enrollmentFee: string;
   monthlyFee: string;
   status: ProgramStatus;
+  startMonth: number;
+  endMonth: number;
 }
 export interface ProgramUpdateBody {
   name?: string;
@@ -188,6 +221,8 @@ export interface ProgramUpdateBody {
   enrollmentFee?: string;
   monthlyFee?: string;
   status?: ProgramStatus;
+  startMonth?: number;
+  endMonth?: number;
 }
 export interface PeriodUpdateBody {
   startDate?: string;

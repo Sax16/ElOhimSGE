@@ -8,6 +8,8 @@ import {
   Button,
   Card,
   Checkbox,
+  Dialog,
+  IconButton,
   Icons,
   Input,
   ProgressBar,
@@ -15,6 +17,7 @@ import {
   RadioGroup,
   Select,
   Table,
+  Tooltip,
   useToast,
 } from '@elohim/ui';
 import type { TableColumn } from '@elohim/ui';
@@ -32,9 +35,11 @@ import {
 import { ApiError } from '../../lib/api';
 import { useFees } from '../fees/api';
 import { useLevelsTree, usePrograms } from '../structure/api';
+import { vigenciaState, vigenciaText } from '../structure/bits';
 import type { ApiSection } from '../structure/types';
-import { useStudents, useStudent } from '../students/api';
+import { useStudents, useStudent, useUnlinkGuardian } from '../students/api';
 import { avatarColor, fullName } from '../students/bits';
+import type { StudentGuardianLink } from '../students/types';
 import { GuardianFormDialog } from '../guardians/GuardianFormDialog';
 import { LinkGuardianDialog } from '../students/LinkGuardianDialog';
 import { useGuardianSearch } from '../guardians/api';
@@ -602,24 +607,56 @@ function StepGuardians({ state, set }: { state: WizardState; set: (p: Partial<Wi
   );
 }
 
+const MAX_GUARDIANS = 3;
+
 function ExistingGuardians({ state, set }: { state: WizardState; set: (p: Partial<WizardState>) => void }) {
+  const { toast } = useToast();
   const { data: student } = useStudent(state.studentId ?? undefined);
+  const unlink = useUnlinkGuardian();
   const [linkOpen, setLinkOpen] = useState(false);
+  const [unlinkTarget, setUnlinkTarget] = useState<StudentGuardianLink | null>(null);
   const guardians = student?.guardians ?? [];
 
-  // Al cargar, propone al contacto principal como firmante.
+  // Mantiene un firmante válido: propone al contacto principal al cargar y
+  // re-selecciona automáticamente si el firmante actual fue quitado.
+  const guardiansKey = guardians.map((g) => `${g.guardian.id}:${g.isPrimary ? 1 : 0}`).join(',');
   useEffect(() => {
-    if (!state.signingGuardianId && guardians.length > 0) {
+    if (guardians.length === 0) {
+      if (state.signingGuardianId) set({ signingGuardianId: null });
+      return;
+    }
+    const stillPresent = guardians.some((g) => g.guardian.id === state.signingGuardianId);
+    if (!state.signingGuardianId || !stillPresent) {
       const primary = guardians.find((g) => g.isPrimary) ?? guardians[0];
       if (primary) set({ signingGuardianId: primary.guardian.id });
     }
-  }, [guardians.length]);
+  }, [guardiansKey]);
+
+  const confirmUnlink = () => {
+    if (!student || !unlinkTarget) return;
+    const target = unlinkTarget;
+    unlink.mutate(
+      { studentId: student.id, guardianId: target.guardian.id },
+      {
+        onSuccess: () => {
+          // Si el quitado era el firmante, deja que el efecto re-seleccione al nuevo principal.
+          if (state.signingGuardianId === target.guardian.id) set({ signingGuardianId: null });
+          toast('success', 'Apoderado desvinculado', `${target.guardian.fullName} ya no figura como apoderado.`);
+          setUnlinkTarget(null);
+        },
+        onError: (err) =>
+          toast('danger', 'No se pudo desvincular', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.'),
+      },
+    );
+  };
+
+  const atMax = guardians.length >= MAX_GUARDIANS;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {guardians.length === 0 ? (
-        <Alert tone="warning">
-          Este estudiante no tiene apoderados vinculados. Vincula al menos uno para elegir al firmante.
+        <Alert tone="warning" title="Vincula al menos un apoderado">
+          Este estudiante no tiene apoderados vinculados. Vincula al menos uno para elegir al firmante y continuar.
         </Alert>
       ) : (
         <RadioGroup
@@ -666,21 +703,75 @@ function ExistingGuardians({ state, set }: { state: WizardState; set: (p: Partia
                   Firmante
                 </Badge>
               )}
+              <Tooltip content="Quitar apoderado">
+                <IconButton
+                  label="Quitar apoderado"
+                  size="sm"
+                  variant="danger"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setUnlinkTarget(g);
+                  }}
+                >
+                  <Icons.Trash />
+                </IconButton>
+              </Tooltip>
             </label>
           ))}
         </RadioGroup>
       )}
-      <Button
-        variant="ghost"
-        iconLeft={<Icons.Plus />}
-        style={{ alignSelf: 'flex-start' }}
-        onClick={() => setLinkOpen(true)}
-      >
-        Vincular otro apoderado
-      </Button>
+      {atMax ? (
+        <Tooltip content={`Máximo ${MAX_GUARDIANS} apoderados`}>
+          <span style={{ alignSelf: 'flex-start' }}>
+            <Button variant="ghost" iconLeft={<Icons.Plus />} disabled>
+              Vincular otro apoderado
+            </Button>
+          </span>
+        </Tooltip>
+      ) : (
+        <Button
+          variant="ghost"
+          iconLeft={<Icons.Plus />}
+          style={{ alignSelf: 'flex-start' }}
+          onClick={() => setLinkOpen(true)}
+        >
+          Vincular otro apoderado
+        </Button>
+      )}
       {linkOpen && (
         <LinkGuardianDialog studentId={state.studentId} onClose={() => setLinkOpen(false)} />
       )}
+
+      <Dialog
+        open={!!unlinkTarget}
+        onClose={() => setUnlinkTarget(null)}
+        icon={<Icons.Trash />}
+        iconTone="danger"
+        title="Quitar apoderado"
+        description={unlinkTarget ? unlinkTarget.guardian.fullName : ''}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setUnlinkTarget(null)} disabled={unlink.isPending}>
+              Cancelar
+            </Button>
+            <Button variant="danger" iconLeft={<Icons.Check />} disabled={unlink.isPending} onClick={confirmUnlink}>
+              Quitar apoderado
+            </Button>
+          </>
+        }
+      >
+        <div style={{ paddingTop: 4 }}>
+          {unlinkTarget?.isPrimary && guardians.length > 1 ? (
+            <Alert tone="warning" title="Es el contacto principal">
+              Al quitarlo, otro apoderado vinculado pasará a ser el contacto principal automáticamente.
+            </Alert>
+          ) : (
+            <p style={{ font: 'var(--type-body)', color: 'var(--text-body)', margin: 0 }}>
+              Se quitará el vínculo con este apoderado. El apoderado no se elimina y puede volver a vincularse.
+            </p>
+          )}
+        </div>
+      </Dialog>
     </div>
   );
 }
@@ -819,7 +910,10 @@ function StepPlacement({
 }) {
   const levels = useLevelsTree(yearId).data ?? [];
   const programs = usePrograms(yearId).data ?? [];
-  const activePrograms = programs.filter((p) => p.status === 'ACTIVO');
+  // Solo programas activos y aún vigentes: se ocultan los cerrados y los ya finalizados.
+  const activePrograms = programs.filter(
+    (p) => p.status === 'ACTIVO' && vigenciaState(p.startMonth, p.endMonth) !== 'finalizado',
+  );
 
   const grades = levels.find((l) => l.id === state.levelId)?.grades ?? [];
   const sections = grades.find((g) => g.id === state.gradeLevelId)?.sections ?? [];
@@ -892,10 +986,12 @@ function StepPlacement({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {activePrograms.map((p) => {
               const free = Math.max(0, p.capacity - p.enrolled);
+              const vig = vigenciaText(p.startMonth, p.endMonth);
+              const vigPrefix = vig !== '—' ? `${vig} · ` : '';
               return (
                 <Checkbox
                   key={p.id}
-                  label={`${p.name} — ${formatPEN(toCents(p.monthlyFee))} /mes`}
+                  label={`${p.name} — ${vigPrefix}${formatPEN(toCents(p.monthlyFee))}/mes`}
                   description={`${p.scheduleText || 'Horario por confirmar'} · ${free} vacantes`}
                   checked={state.programIds.includes(p.id)}
                   disabled={free === 0 && !state.programIds.includes(p.id)}
@@ -1102,6 +1198,54 @@ function StepFees({
           emptyText={preview.isPending ? 'Calculando cronograma…' : 'Sin cronograma.'}
         />
       </Card>
+
+      {(data?.programSchedules ?? []).map((ps) => (
+        <Card
+          key={ps.programId}
+          flush
+          title={`Programa · ${ps.name}`}
+          subtitle="Cronograma independiente, con su propia tarifa"
+          style={{ gridColumn: '1 / -1' }}
+        >
+          <Table
+            columns={[
+              { key: 'concept', header: 'Concepto' },
+              {
+                key: 'dueDate',
+                header: 'Vence',
+                mono: true,
+                align: 'center',
+                width: 120,
+                render: (v) => shortDate(v as string),
+              },
+              {
+                key: 'totalCents',
+                header: 'Monto',
+                num: true,
+                mono: true,
+                render: (v) => formatPEN(v as number),
+              },
+            ]}
+            data={ps.items}
+            rowKey={(_r, i) => i}
+            compact
+            emptyText="Sin cuotas."
+          />
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              padding: '10px 14px',
+              borderTop: '1px solid var(--border-subtle)',
+              font: 'var(--type-label)',
+              color: 'var(--text-strong)',
+            }}
+          >
+            <span>Subtotal del programa</span>
+            <span style={{ fontFamily: 'var(--font-mono)' }}>{formatPEN(ps.totalCents)}</span>
+          </div>
+        </Card>
+      ))}
 
       {preview.isError && (
         <Alert tone="danger" title="No se pudo calcular el cronograma" style={{ gridColumn: '1 / -1' }}>

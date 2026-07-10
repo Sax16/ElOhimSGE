@@ -26,6 +26,9 @@ export interface FeeProgram {
   enrollmentFee: string;
   monthlyFee: string;
   status: ProgramStatus;
+  /** Vigencia (2=Feb..12=Dic). Puede faltar con backend anterior. */
+  startMonth?: number;
+  endMonth?: number;
 }
 
 /** Parámetros de facturación (mora, día de corte, vencimiento). */

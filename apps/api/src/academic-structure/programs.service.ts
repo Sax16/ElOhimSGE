@@ -22,13 +22,19 @@ export class ProgramsService {
   async findAll(yearId: string) {
     const programs = await this.prisma.program.findMany({
       where: { academicYearId: yearId },
-      orderBy: { name: 'asc' },
-      include: { _count: { select: { enrollmentPrograms: true } } },
+      orderBy: [{ name: 'asc' }, { startMonth: 'asc' }],
     });
-    return programs.map((program) => {
-      const { _count, ...rest } = program;
-      return { ...rest, enrolled: _count.enrollmentPrograms };
+    // enrolled = inscripciones ACTIVAS (no canceladas) por programa.
+    const counts = await this.prisma.programEnrollment.groupBy({
+      by: ['programId'],
+      where: { canceledAt: null, program: { academicYearId: yearId } },
+      _count: { _all: true },
     });
+    const enrolledByProgram = new Map(counts.map((c) => [c.programId, c._count._all]));
+    return programs.map((program) => ({
+      ...program,
+      enrolled: enrolledByProgram.get(program.id) ?? 0,
+    }));
   }
 
   async create(input: ProgramCreateInput, actorId: string) {
@@ -42,6 +48,8 @@ export class ProgramsService {
             type: input.type,
             scheduleText: input.scheduleText,
             capacity: input.capacity,
+            startMonth: input.startMonth,
+            endMonth: input.endMonth,
             enrollmentFee: input.enrollmentFee,
             monthlyFee: input.monthlyFee,
             status: input.status,
@@ -60,7 +68,10 @@ export class ProgramsService {
         return program;
       });
     } catch (error) {
-      throw this.mapConflict(error, 'Ya existe un programa con ese nombre en el año');
+      throw this.mapConflict(
+        error,
+        'Ya existe una edición de ese programa con el mismo inicio',
+      );
     }
   }
 
@@ -71,6 +82,8 @@ export class ProgramsService {
     if (input.type !== undefined) data.type = input.type;
     if (input.scheduleText !== undefined) data.scheduleText = input.scheduleText;
     if (input.capacity !== undefined) data.capacity = input.capacity;
+    if (input.startMonth !== undefined) data.startMonth = input.startMonth;
+    if (input.endMonth !== undefined) data.endMonth = input.endMonth;
     if (input.enrollmentFee !== undefined) data.enrollmentFee = input.enrollmentFee;
     if (input.monthlyFee !== undefined) data.monthlyFee = input.monthlyFee;
     if (input.status !== undefined) data.status = input.status;
@@ -90,7 +103,10 @@ export class ProgramsService {
         return program;
       });
     } catch (error) {
-      throw this.mapConflict(error, 'Ya existe un programa con ese nombre en el año');
+      throw this.mapConflict(
+        error,
+        'Ya existe una edición de ese programa con el mismo inicio',
+      );
     }
   }
 
@@ -98,14 +114,15 @@ export class ProgramsService {
     await this.access.assertYearOpenByProgram(id);
     const program = await this.prisma.program.findUnique({
       where: { id },
-      include: { _count: { select: { enrollmentPrograms: true } } },
+      include: { _count: { select: { programEnrollments: true } } },
     });
     if (!program) throw new NotFoundException('Programa no encontrado');
-    if (program._count.enrollmentPrograms > 0) {
+    // Bloquea si tiene inscripciones (incluidas las canceladas): son historial y nada se borra.
+    if (program._count.programEnrollments > 0) {
       throw new ConflictException(
-        `No se puede eliminar: el programa tiene ${program._count.enrollmentPrograms} ${
-          program._count.enrollmentPrograms === 1 ? 'matriculado' : 'matriculados'
-        }.`,
+        `No se puede eliminar: el programa tiene ${program._count.programEnrollments} ${
+          program._count.programEnrollments === 1 ? 'inscripción' : 'inscripciones'
+        } en su historial.`,
       );
     }
 

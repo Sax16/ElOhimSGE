@@ -6,6 +6,7 @@ import type {
   ApiLevel,
   ApiPeriod,
   ApiProgram,
+  ApiProgramEnrollment,
   ApiRosterRow,
   ApiTeacher,
   ApiYear,
@@ -19,6 +20,7 @@ import type {
   LevelUpdateBody,
   PeriodUpdateBody,
   ProgramCreateBody,
+  ProgramEnrollPreview,
   ProgramUpdateBody,
   SectionCreateBody,
   SectionUpdateBody,
@@ -35,6 +37,7 @@ export const structureKeys = {
   courses: (gradeLevelId: string) => ['courses', gradeLevelId] as const,
   programs: (yearId: string) => ['programs', yearId] as const,
   roster: (sectionId: string) => ['roster', sectionId] as const,
+  programRoster: (programId: string) => ['program-roster', programId] as const,
 };
 
 // ---- Consultas --------------------------------------------------------------
@@ -230,6 +233,63 @@ export function useDeleteProgram(yearId: string) {
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/programs/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: structureKeys.programs(yearId) }),
+  });
+}
+
+// ---- Inscripciones a programas ---------------------------------------------
+
+/** Roster real de un programa — GET /api/programs/:id/enrollments. */
+export function useProgramRoster(programId: string | undefined) {
+  return useQuery<ApiProgramEnrollment[]>({
+    queryKey: structureKeys.programRoster(programId ?? ''),
+    queryFn: () => apiFetch<ApiProgramEnrollment[]>(`/programs/${programId}/enrollments`),
+    enabled: !!programId,
+  });
+}
+
+/** Preview de cuotas al inscribir a un estudiante (no persiste). */
+export function useProgramEnrollPreview(programId: string) {
+  return useMutation({
+    mutationFn: (studentId: string) =>
+      apiFetch<ProgramEnrollPreview>(`/programs/${programId}/enrollments/preview`, {
+        method: 'POST',
+        body: { studentId },
+      }),
+  });
+}
+
+/** Invalida lo que cambia al inscribir/anular en un programa. */
+function invalidateProgramGraph(
+  qc: ReturnType<typeof useQueryClient>,
+  programId: string,
+  yearId: string,
+) {
+  void qc.invalidateQueries({ queryKey: structureKeys.programs(yearId) });
+  void qc.invalidateQueries({ queryKey: structureKeys.programRoster(programId) });
+  void qc.invalidateQueries({ queryKey: ['students'] });
+  void qc.invalidateQueries({ queryKey: ['guardians'] });
+  void qc.invalidateQueries({ queryKey: ['fees'] });
+  void qc.invalidateQueries({ queryKey: ['dashboard'] });
+}
+
+export function useEnrollInProgram(programId: string, yearId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (studentId: string) =>
+      apiFetch<{ id: string }>(`/programs/${programId}/enrollments`, {
+        method: 'POST',
+        body: { studentId },
+      }),
+    onSuccess: () => invalidateProgramGraph(qc, programId, yearId),
+  });
+}
+
+export function useCancelProgramEnrollment(programId: string, yearId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      apiFetch<void>(`/program-enrollments/${id}/cancel`, { method: 'POST', body: { reason } }),
+    onSuccess: () => invalidateProgramGraph(qc, programId, yearId),
   });
 }
 

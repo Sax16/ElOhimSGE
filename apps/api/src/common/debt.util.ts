@@ -8,8 +8,8 @@ type DbClient = PrismaClient | Prisma.TransactionClient;
  *
  * Definición única (compartida por estudiantes y apoderados): Σ de las cuotas
  * (Installment) con status VENCIDO, o PENDIENTE cuya fecha de vencimiento ya pasó,
- * sobre TODAS las matrículas del estudiante. Hoy devuelve 0 (aún no hay cuotas);
- * queda implementado para la Etapa 5 (reglas de dinero).
+ * sobre TODAS las matrículas ESCOLARES del estudiante y sus inscripciones ACTIVAS a
+ * programas complementarios (cuotas propias del programa).
  */
 export async function debtCentsByStudent(
   client: DbClient,
@@ -23,14 +23,24 @@ export async function debtCentsByStudent(
 
   const rows = await client.installment.findMany({
     where: {
-      enrollment: { studentId: { in: studentIds } },
       OR: [{ status: 'VENCIDO' }, { status: 'PENDIENTE', dueDate: { lt: today } }],
+      AND: {
+        OR: [
+          { enrollment: { studentId: { in: studentIds } } },
+          { programEnrollment: { studentId: { in: studentIds }, canceledAt: null } },
+        ],
+      },
     },
-    select: { amount: true, enrollment: { select: { studentId: true } } },
+    select: {
+      amount: true,
+      enrollment: { select: { studentId: true } },
+      programEnrollment: { select: { studentId: true } },
+    },
   });
 
   for (const row of rows) {
-    const sid = row.enrollment.studentId;
+    const sid = row.enrollment?.studentId ?? row.programEnrollment?.studentId;
+    if (!sid) continue;
     debt.set(sid, (debt.get(sid) ?? 0) + decimalToCents(row.amount));
   }
   return debt;

@@ -412,6 +412,31 @@ export function StudentDialog({ studentId, onClose, fallbackDebtCents = 0, readO
                   description="Matricula al estudiante desde el asistente de matrícula."
                 />
               )}
+              {(() => {
+                const activePrograms = (student.programs ?? []).filter((p) => !p.canceledAt);
+                if (activePrograms.length === 0) return null;
+                return (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      display: 'flex',
+                      alignItems: 'baseline',
+                      gap: 8,
+                      flexWrap: 'wrap',
+                      font: 'var(--type-caption)',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, color: 'var(--text-body)' }}>Programas:</span>
+                    {activePrograms.map((p, i) => (
+                      <span key={p.programEnrollmentId}>
+                        {p.name} ({p.scheduleText})
+                        {i < activePrograms.length - 1 ? ' · ' : ''}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}

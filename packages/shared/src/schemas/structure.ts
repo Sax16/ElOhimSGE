@@ -125,16 +125,26 @@ export type CoursesCopyInput = z.infer<typeof coursesCopySchema>;
 
 // ===== Programas =====
 
-export const programCreateSchema = z.object({
-  academicYearId: z.string(),
-  name: z.string().min(2),
-  type: z.enum(PROGRAM_TYPES),
-  scheduleText: z.string().default('Por definir'),
-  capacity: z.number().int().positive(),
-  enrollmentFee: decimalString,
-  monthlyFee: decimalString,
-  status: z.enum(PROGRAM_STATUSES).default('ACTIVO'),
-});
+// Vigencia del programa: meses 2..12 (marzo–diciembre; feb solo si el año lo abre) y fin >= inicio.
+const programMonth = z.number().int().min(2).max(12);
+
+export const programCreateSchema = z
+  .object({
+    academicYearId: z.string(),
+    name: z.string().min(2),
+    type: z.enum(PROGRAM_TYPES),
+    scheduleText: z.string().default('Por definir'),
+    capacity: z.number().int().positive(),
+    startMonth: programMonth,
+    endMonth: programMonth,
+    enrollmentFee: decimalString,
+    monthlyFee: decimalString,
+    status: z.enum(PROGRAM_STATUSES).default('ACTIVO'),
+  })
+  .refine((d) => d.endMonth >= d.startMonth, {
+    message: 'El mes de fin no puede ser anterior al de inicio',
+    path: ['endMonth'],
+  });
 export type ProgramCreateInput = z.infer<typeof programCreateSchema>;
 
 export const programUpdateSchema = z
@@ -143,11 +153,18 @@ export const programUpdateSchema = z
     type: z.enum(PROGRAM_TYPES),
     scheduleText: z.string(),
     capacity: z.number().int().positive(),
+    startMonth: programMonth,
+    endMonth: programMonth,
     enrollmentFee: decimalString,
     monthlyFee: decimalString,
     status: z.enum(PROGRAM_STATUSES),
   })
-  .partial();
+  .partial()
+  // Si vienen ambos meses en la edición, el fin no puede ser anterior al inicio.
+  .refine((d) => d.startMonth === undefined || d.endMonth === undefined || d.endMonth >= d.startMonth, {
+    message: 'El mes de fin no puede ser anterior al de inicio',
+    path: ['endMonth'],
+  });
 export type ProgramUpdateInput = z.infer<typeof programUpdateSchema>;
 
 // ===== Periodos =====

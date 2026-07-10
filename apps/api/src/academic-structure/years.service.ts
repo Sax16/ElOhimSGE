@@ -267,6 +267,8 @@ export class YearsService {
               type: program.type,
               scheduleText: program.scheduleText,
               capacity: program.capacity,
+              startMonth: program.startMonth,
+              endMonth: program.endMonth,
               enrollmentFee: program.enrollmentFee,
               monthlyFee: program.monthlyFee,
               status: 'ACTIVO',

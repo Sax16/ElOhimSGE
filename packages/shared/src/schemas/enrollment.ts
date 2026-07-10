@@ -43,6 +43,19 @@ export const enrollmentWizardSchema = z
   });
 export type EnrollmentWizardInput = z.infer<typeof enrollmentWizardSchema>;
 
+// ===== Inscripción a programas complementarios (independiente de la matrícula escolar) =====
+
+// El estudiante ya existe y debe tener matrícula escolar activa del año (se valida en la API).
+export const programEnrollSchema = z.object({
+  studentId: z.string().min(1),
+});
+export type ProgramEnrollInput = z.infer<typeof programEnrollSchema>;
+
+export const programEnrollmentCancelSchema = z.object({
+  reason: z.string().min(10, 'El motivo debe tener al menos 10 caracteres'),
+});
+export type ProgramEnrollmentCancelInput = z.infer<typeof programEnrollmentCancelSchema>;
+
 // ===== Anulaciones (nada se borra) =====
 
 export const enrollmentCancelSchema = z.object({
