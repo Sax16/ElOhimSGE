@@ -216,8 +216,10 @@ export class EnrollmentService {
         auto: false,
       };
     } else {
+      // Solo se propone solo si su aplicación es AUTOMATICO: configurado en MANUAL,
+      // queda como opción elegible pero nunca preseleccionado.
       const hermanos = await client.discount.findFirst({
-        where: { code: 'HERMANOS', status: 'ACTIVO' },
+        where: { code: 'HERMANOS', status: 'ACTIVO', application: 'AUTOMATICO' },
       });
       if (hermanos) {
         // ¿El apoderado firmante tiene otro hijo con matrícula activa este año?
