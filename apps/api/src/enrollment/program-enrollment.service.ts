@@ -256,7 +256,15 @@ export class ProgramEnrollmentService {
         id: true,
         enrolledAt: true,
         canceledAt: true,
-        student: { select: { id: true, code: true, firstNames: true, lastNames: true } },
+        student: {
+          select: {
+            id: true,
+            code: true,
+            firstNames: true,
+            paternalLastName: true,
+            maternalLastName: true,
+          },
+        },
         installments: { select: { status: true, amount: true, dueDate: true } },
       },
     });

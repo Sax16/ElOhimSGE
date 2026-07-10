@@ -29,9 +29,14 @@ export function avatarColor(seed: string): string {
   return AVATAR_COLORS[h] ?? 'var(--blue-500)';
 }
 
-/** "Apellidos, Nombres" — orden de listados escolares. */
-export function fullName(p: { firstNames: string; lastNames: string }): string {
-  return `${p.lastNames} ${p.firstNames}`.trim();
+/** "Apellidos Nombres" — orden de listados escolares (paterno + materno opcional + nombres). */
+export function fullName(p: {
+  firstNames: string;
+  paternalLastName: string;
+  maternalLastName?: string | null;
+}): string {
+  const apellidos = `${p.paternalLastName}${p.maternalLastName ? ` ${p.maternalLastName}` : ''}`;
+  return `${apellidos} ${p.firstNames}`.trim();
 }
 
 /**

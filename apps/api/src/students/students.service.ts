@@ -80,7 +80,8 @@ export class StudentsService {
         { code: { contains: term, mode: 'insensitive' } },
         { dni: { contains: term, mode: 'insensitive' } },
         { firstNames: { contains: term, mode: 'insensitive' } },
-        { lastNames: { contains: term, mode: 'insensitive' } },
+        { paternalLastName: { contains: term, mode: 'insensitive' } },
+        { maternalLastName: { contains: term, mode: 'insensitive' } },
       ];
     }
 
@@ -88,14 +89,19 @@ export class StudentsService {
       this.prisma.student.count({ where }),
       this.prisma.student.findMany({
         where,
-        orderBy: [{ lastNames: 'asc' }, { firstNames: 'asc' }],
+        orderBy: [
+          { paternalLastName: 'asc' },
+          { maternalLastName: 'asc' },
+          { firstNames: 'asc' },
+        ],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
         select: {
           id: true,
           code: true,
           firstNames: true,
-          lastNames: true,
+          paternalLastName: true,
+          maternalLastName: true,
           dni: true,
           status: true,
           shift: true,
@@ -123,7 +129,8 @@ export class StudentsService {
       id: s.id,
       code: s.code,
       firstNames: s.firstNames,
-      lastNames: s.lastNames,
+      paternalLastName: s.paternalLastName,
+      maternalLastName: s.maternalLastName,
       dni: s.dni,
       status: s.status,
       shift: s.shift,
@@ -146,7 +153,8 @@ export class StudentsService {
           data: {
             code,
             firstNames: input.firstNames,
-            lastNames: input.lastNames,
+            paternalLastName: input.paternalLastName,
+            maternalLastName: input.maternalLastName || null,
             dni: input.dni,
             birthDate: input.birthDate,
             sex: input.sex,
@@ -301,7 +309,12 @@ export class StudentsService {
       }
     };
     assign('firstNames');
-    assign('lastNames');
+    assign('paternalLastName');
+    // Apellido materno: '' del formulario limpia el campo (null en la BD).
+    if (input.maternalLastName !== undefined) {
+      data.maternalLastName = input.maternalLastName || null;
+      payload.maternalLastName = data.maternalLastName;
+    }
     assign('dni');
     assign('birthDate');
     assign('sex');

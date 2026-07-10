@@ -20,7 +20,13 @@ export interface EnrollmentPlacement {
 export interface EnrollmentListItem {
   id: string;
   code: string;
-  student: { id: string; code: string; firstNames: string; lastNames: string };
+  student: {
+    id: string;
+    code: string;
+    firstNames: string;
+    paternalLastName: string;
+    maternalLastName: string | null;
+  };
   placement: EnrollmentPlacement;
   type: EnrollmentType;
   status: EnrollmentStatus;
@@ -63,7 +69,13 @@ export interface EnrollmentInstallment {
 export interface EnrollmentDetail {
   id: string;
   code: string;
-  student: { id: string; code: string; firstNames: string; lastNames: string };
+  student: {
+    id: string;
+    code: string;
+    firstNames: string;
+    paternalLastName: string;
+    maternalLastName: string | null;
+  };
   placement: EnrollmentPlacement;
   type: EnrollmentType;
   status: EnrollmentStatus;
@@ -81,7 +93,8 @@ export interface EnrollmentDetail {
 /** Datos de un estudiante nuevo (matrícula NUEVA / TRASLADO). */
 export interface NewStudentInput {
   firstNames: string;
-  lastNames: string;
+  paternalLastName: string;
+  maternalLastName?: string;
   dni: string;
   birthDate: string;
   sex: Sex;

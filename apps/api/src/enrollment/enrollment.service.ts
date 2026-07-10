@@ -373,7 +373,8 @@ export class EnrollmentService {
             data: {
               code,
               firstNames: ns.firstNames,
-              lastNames: ns.lastNames,
+              paternalLastName: ns.paternalLastName,
+              maternalLastName: ns.maternalLastName || null,
               dni: ns.dni,
               birthDate: ns.birthDate,
               sex: ns.sex,
@@ -472,7 +473,7 @@ export class EnrollmentService {
             signingGuardianId: input.signingGuardianId,
             registeredById: actorId,
             discountId: resolved.discount?.id ?? null,
-            // originSchool/siagieCode quedan null en matrículas nuevas (histórico de traslados).
+            // siagieCode queda null en matrículas nuevas (histórico de traslados).
             entryDate: isoToDate(entryDate),
           },
         });
@@ -628,7 +629,8 @@ export class EnrollmentService {
       where.OR = [
         { code: { contains: term, mode: 'insensitive' } },
         { student: { firstNames: { contains: term, mode: 'insensitive' } } },
-        { student: { lastNames: { contains: term, mode: 'insensitive' } } },
+        { student: { paternalLastName: { contains: term, mode: 'insensitive' } } },
+        { student: { maternalLastName: { contains: term, mode: 'insensitive' } } },
         { student: { dni: { contains: term, mode: 'insensitive' } } },
       ];
     }
@@ -647,7 +649,15 @@ export class EnrollmentService {
           status: true,
           enrolledAt: true,
           canceledAt: true,
-          student: { select: { id: true, code: true, firstNames: true, lastNames: true } },
+          student: {
+            select: {
+              id: true,
+              code: true,
+              firstNames: true,
+              paternalLastName: true,
+              maternalLastName: true,
+            },
+          },
           section: {
             select: {
               name: true,
@@ -666,7 +676,8 @@ export class EnrollmentService {
         id: e.student.id,
         code: e.student.code,
         firstNames: e.student.firstNames,
-        lastNames: e.student.lastNames,
+        paternalLastName: e.student.paternalLastName,
+        maternalLastName: e.student.maternalLastName,
       },
       placement: {
         levelName: e.section.gradeLevel.level.name,
@@ -742,12 +753,18 @@ export class EnrollmentService {
         enrolledAt: true,
         canceledAt: true,
         cancelReason: true,
-        originSchool: true,
         siagieCode: true,
         entryDate: true,
         academicYear: { select: { id: true, name: true } },
         student: {
-          select: { id: true, code: true, firstNames: true, lastNames: true, dni: true },
+          select: {
+            id: true,
+            code: true,
+            firstNames: true,
+            paternalLastName: true,
+            maternalLastName: true,
+            dni: true,
+          },
         },
         section: {
           select: {
@@ -820,7 +837,6 @@ export class EnrollmentService {
       transfer:
         enrollment.type === 'TRASLADO'
           ? {
-              originSchool: enrollment.originSchool,
               siagieCode: enrollment.siagieCode,
               entryDate: enrollment.entryDate,
             }

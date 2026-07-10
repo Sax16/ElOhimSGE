@@ -58,7 +58,8 @@ type Placement = { level: string; grade: string; section: string };
 type GLink = { gi: number; relation: GuardianRelation; isPrimary: boolean };
 type StudentSeed = {
   firstNames: string;
-  lastNames: string;
+  paternalLastName: string;
+  maternalLastName?: string;
   dni: string;
   sex: Sex;
   birth: [number, number, number];
@@ -89,79 +90,79 @@ const P = (level: string, grade: string, section: string): Placement => ({ level
 
 const STUDENTS: StudentSeed[] = [
   // F1 · Rojas Quispe (María Quispe + José Rojas)
-  { firstNames: 'Diego', lastNames: 'Rojas Quispe', dni: '70100001', sex: 'M', birth: [2011, 5, 12], address: 'Jr. Los Cedros 120, Satipo', placement: P('Secundaria', '3°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', insuranceType: 'SIS', emergencyContactName: 'María Quispe Mamani', emergencyContactPhone: '964200001', authorizedPickups: [{ name: 'María Quispe Mamani', dni: '70200001', relation: 'Madre' }], guardians: parents(0, 1) },
-  { firstNames: 'Camila', lastNames: 'Rojas Quispe', dni: '70100002', sex: 'F', birth: [2015, 8, 3], address: 'Jr. Los Cedros 120, Satipo', placement: P('Primaria', '5°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(0, 1) },
-  { firstNames: 'Mateo', lastNames: 'Rojas Quispe', dni: '70100003', sex: 'M', birth: [2018, 2, 20], address: 'Jr. Los Cedros 120, Satipo', placement: P('Primaria', '2°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', allergies: 'Penicilina', insuranceType: 'SIS', emergencyContactName: 'José Rojas Huamán', emergencyContactPhone: '964200002', guardians: parents(0, 1) },
+  { firstNames: 'Diego', paternalLastName: 'Rojas', maternalLastName: 'Quispe', dni: '70100001', sex: 'M', birth: [2011, 5, 12], address: 'Jr. Los Cedros 120, Satipo', placement: P('Secundaria', '3°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', insuranceType: 'SIS', emergencyContactName: 'María Quispe Mamani', emergencyContactPhone: '964200001', authorizedPickups: [{ name: 'María Quispe Mamani', dni: '70200001', relation: 'Madre' }], guardians: parents(0, 1) },
+  { firstNames: 'Camila', paternalLastName: 'Rojas', maternalLastName: 'Quispe', dni: '70100002', sex: 'F', birth: [2015, 8, 3], address: 'Jr. Los Cedros 120, Satipo', placement: P('Primaria', '5°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(0, 1) },
+  { firstNames: 'Mateo', paternalLastName: 'Rojas', maternalLastName: 'Quispe', dni: '70100003', sex: 'M', birth: [2018, 2, 20], address: 'Jr. Los Cedros 120, Satipo', placement: P('Primaria', '2°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', allergies: 'Penicilina', insuranceType: 'SIS', emergencyContactName: 'José Rojas Huamán', emergencyContactPhone: '964200002', guardians: parents(0, 1) },
 
   // F2 · Vela Huamán (Rosa Huamán + Luis Vela)
-  { firstNames: 'Valentina', lastNames: 'Vela Huamán', dni: '70100004', sex: 'F', birth: [2013, 4, 9], address: 'Av. Marginal 340, Satipo', placement: P('Secundaria', '1°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', insuranceType: 'ESSALUD', guardians: parents(2, 3) },
-  { firstNames: 'Sebastián', lastNames: 'Vela Huamán', dni: '70100005', sex: 'M', birth: [2014, 11, 27], address: 'Av. Marginal 340, Satipo', placement: P('Primaria', '6°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(2, 3) },
-  { firstNames: 'Micaela', lastNames: 'Vela Huamán', dni: '70100006', sex: 'F', birth: [2017, 6, 15], address: 'Av. Marginal 340, Satipo', placement: P('Primaria', '3°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(2, 3) },
+  { firstNames: 'Valentina', paternalLastName: 'Vela', maternalLastName: 'Huamán', dni: '70100004', sex: 'F', birth: [2013, 4, 9], address: 'Av. Marginal 340, Satipo', placement: P('Secundaria', '1°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', insuranceType: 'ESSALUD', guardians: parents(2, 3) },
+  { firstNames: 'Sebastián', paternalLastName: 'Vela', maternalLastName: 'Huamán', dni: '70100005', sex: 'M', birth: [2014, 11, 27], address: 'Av. Marginal 340, Satipo', placement: P('Primaria', '6°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(2, 3) },
+  { firstNames: 'Micaela', paternalLastName: 'Vela', maternalLastName: 'Huamán', dni: '70100006', sex: 'F', birth: [2017, 6, 15], address: 'Av. Marginal 340, Satipo', placement: P('Primaria', '3°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(2, 3) },
 
   // F3 · Mamani Ccopa (Carmen Ccopa + Pedro Mamani)
-  { firstNames: 'Adriana', lastNames: 'Mamani Ccopa', dni: '70100007', sex: 'F', birth: [2016, 1, 30], address: 'Jr. Colonos 88, Satipo', placement: P('Primaria', '4°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', emergencyContactName: 'Carmen Ccopa Mamani', emergencyContactPhone: '964200005', authorizedPickups: [{ name: 'Carmen Ccopa Mamani', dni: '70200005', relation: 'Madre' }, { name: 'Rosa Vera Ccopa', relation: 'Tía' }], guardians: parents(4, 5) },
-  { firstNames: 'Fabricio', lastNames: 'Mamani Ccopa', dni: '70100008', sex: 'M', birth: [2020, 9, 5], address: 'Jr. Colonos 88, Satipo', placement: P('Inicial', '5 años', 'Las Estrellitas'), status: 'ACTIVO', type: 'NUEVA', guardians: parents(4, 5) },
+  { firstNames: 'Adriana', paternalLastName: 'Mamani', maternalLastName: 'Ccopa', dni: '70100007', sex: 'F', birth: [2016, 1, 30], address: 'Jr. Colonos 88, Satipo', placement: P('Primaria', '4°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', emergencyContactName: 'Carmen Ccopa Mamani', emergencyContactPhone: '964200005', authorizedPickups: [{ name: 'Carmen Ccopa Mamani', dni: '70200005', relation: 'Madre' }, { name: 'Rosa Vera Ccopa', relation: 'Tía' }], guardians: parents(4, 5) },
+  { firstNames: 'Fabricio', paternalLastName: 'Mamani', maternalLastName: 'Ccopa', dni: '70100008', sex: 'M', birth: [2020, 9, 5], address: 'Jr. Colonos 88, Satipo', placement: P('Inicial', '5 años', 'Las Estrellitas'), status: 'ACTIVO', type: 'NUEVA', guardians: parents(4, 5) },
 
   // F4 · Torres Flores (Juana Flores + Miguel Torres)
-  { firstNames: 'Luciana', lastNames: 'Torres Flores', dni: '70100009', sex: 'F', birth: [2012, 3, 18], address: 'Jr. Amazonas 215, Satipo', placement: P('Secundaria', '2°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', allergies: 'Maní', insuranceType: 'ESSALUD', emergencyContactName: 'Juana Flores Rojas', emergencyContactPhone: '964200007', guardians: parents(6, 7) },
-  { firstNames: 'Thiago', lastNames: 'Torres Flores', dni: '70100010', sex: 'M', birth: [2019, 7, 22], address: 'Jr. Amazonas 215, Satipo', placement: P('Primaria', '1°', 'A'), status: 'ACTIVO', type: 'NUEVA', guardians: parents(6, 7) },
+  { firstNames: 'Luciana', paternalLastName: 'Torres', maternalLastName: 'Flores', dni: '70100009', sex: 'F', birth: [2012, 3, 18], address: 'Jr. Amazonas 215, Satipo', placement: P('Secundaria', '2°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', allergies: 'Maní', insuranceType: 'ESSALUD', emergencyContactName: 'Juana Flores Rojas', emergencyContactPhone: '964200007', guardians: parents(6, 7) },
+  { firstNames: 'Thiago', paternalLastName: 'Torres', maternalLastName: 'Flores', dni: '70100010', sex: 'M', birth: [2019, 7, 22], address: 'Jr. Amazonas 215, Satipo', placement: P('Primaria', '1°', 'A'), status: 'ACTIVO', type: 'NUEVA', guardians: parents(6, 7) },
 
   // F5 · Chávez Paredes (Ana Paredes + Jorge Chávez)
-  { firstNames: 'Emilia', lastNames: 'Chávez Paredes', dni: '70100011', sex: 'F', birth: [2014, 10, 2], address: 'Av. Los Incas 460, Satipo', placement: P('Primaria', '6°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(8, 9) },
-  { firstNames: 'Benjamín', lastNames: 'Chávez Paredes', dni: '70100012', sex: 'M', birth: [2016, 12, 11], address: 'Av. Los Incas 460, Satipo', placement: P('Primaria', '4°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(8, 9) },
+  { firstNames: 'Emilia', paternalLastName: 'Chávez', maternalLastName: 'Paredes', dni: '70100011', sex: 'F', birth: [2014, 10, 2], address: 'Av. Los Incas 460, Satipo', placement: P('Primaria', '6°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(8, 9) },
+  { firstNames: 'Benjamín', paternalLastName: 'Chávez', maternalLastName: 'Paredes', dni: '70100012', sex: 'M', birth: [2016, 12, 11], address: 'Av. Los Incas 460, Satipo', placement: P('Primaria', '4°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(8, 9) },
 
   // F6 · Huamán Vela (Silvia Vela + Raúl Huamán)
-  { firstNames: 'Antonella', lastNames: 'Huamán Vela', dni: '70100013', sex: 'F', birth: [2009, 2, 14], address: 'Jr. San Martín 77, Satipo', placement: P('Secundaria', '5°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', insuranceType: 'PRIVADO', authorizedPickups: [{ name: 'Silvia Vela Ccopa', dni: '70200011', relation: 'Madre' }], guardians: parents(10, 11) },
-  { firstNames: 'Gabriel', lastNames: 'Huamán Vela', dni: '70100014', sex: 'M', birth: [2012, 5, 25], address: 'Jr. San Martín 77, Satipo', placement: P('Secundaria', '2°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', allergies: 'Polen', insuranceType: 'PRIVADO', guardians: parents(10, 11) },
-  { firstNames: 'Isabella', lastNames: 'Huamán Vela', dni: '70100015', sex: 'F', birth: [2017, 8, 8], address: 'Jr. San Martín 77, Satipo', placement: P('Primaria', '3°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(10, 11) },
+  { firstNames: 'Antonella', paternalLastName: 'Huamán', maternalLastName: 'Vela', dni: '70100013', sex: 'F', birth: [2009, 2, 14], address: 'Jr. San Martín 77, Satipo', placement: P('Secundaria', '5°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', insuranceType: 'PRIVADO', authorizedPickups: [{ name: 'Silvia Vela Ccopa', dni: '70200011', relation: 'Madre' }], guardians: parents(10, 11) },
+  { firstNames: 'Gabriel', paternalLastName: 'Huamán', maternalLastName: 'Vela', dni: '70100014', sex: 'M', birth: [2012, 5, 25], address: 'Jr. San Martín 77, Satipo', placement: P('Secundaria', '2°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', allergies: 'Polen', insuranceType: 'PRIVADO', guardians: parents(10, 11) },
+  { firstNames: 'Isabella', paternalLastName: 'Huamán', maternalLastName: 'Vela', dni: '70100015', sex: 'F', birth: [2017, 8, 8], address: 'Jr. San Martín 77, Satipo', placement: P('Primaria', '3°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(10, 11) },
 
   // F7 · Mamani Rojas (Elena Rojas + Víctor Mamani)
-  { firstNames: 'Joaquín', lastNames: 'Mamani Rojas', dni: '70100016', sex: 'M', birth: [2015, 3, 1], address: 'Jr. Bolognesi 132, Satipo', placement: P('Primaria', '5°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(12, 13) },
-  { firstNames: 'Renata', lastNames: 'Mamani Rojas', dni: '70100017', sex: 'F', birth: [2021, 6, 19], address: 'Jr. Bolognesi 132, Satipo', placement: P('Inicial', '4 años', 'Los Girasoles'), status: 'ACTIVO', type: 'NUEVA', guardians: parents(12, 13) },
+  { firstNames: 'Joaquín', paternalLastName: 'Mamani', maternalLastName: 'Rojas', dni: '70100016', sex: 'M', birth: [2015, 3, 1], address: 'Jr. Bolognesi 132, Satipo', placement: P('Primaria', '5°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(12, 13) },
+  { firstNames: 'Renata', paternalLastName: 'Mamani', maternalLastName: 'Rojas', dni: '70100017', sex: 'F', birth: [2021, 6, 19], address: 'Jr. Bolognesi 132, Satipo', placement: P('Inicial', '4 años', 'Los Girasoles'), status: 'ACTIVO', type: 'NUEVA', guardians: parents(12, 13) },
 
   // F8 · Paredes Torres (Gloria Torres + Fernando Paredes)
-  { firstNames: 'Ariana', lastNames: 'Paredes Torres', dni: '70100018', sex: 'F', birth: [2010, 9, 30], address: 'Av. Perené 501, Satipo', placement: P('Secundaria', '4°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(14, 15) },
-  { firstNames: 'Dylan', lastNames: 'Paredes Torres', dni: '70100019', sex: 'M', birth: [2018, 4, 7], address: 'Av. Perené 501, Satipo', placement: P('Primaria', '2°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(14, 15) },
+  { firstNames: 'Ariana', paternalLastName: 'Paredes', maternalLastName: 'Torres', dni: '70100018', sex: 'F', birth: [2010, 9, 30], address: 'Av. Perené 501, Satipo', placement: P('Secundaria', '4°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(14, 15) },
+  { firstNames: 'Dylan', paternalLastName: 'Paredes', maternalLastName: 'Torres', dni: '70100019', sex: 'M', birth: [2018, 4, 7], address: 'Av. Perené 501, Satipo', placement: P('Primaria', '2°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: parents(14, 15) },
 
   // F9 · Chávez Ríos (Nilda Chávez, madre)
-  { firstNames: 'Alessandro', lastNames: 'Chávez Ríos', dni: '70100020', sex: 'M', birth: [2013, 7, 3], address: 'Jr. Grau 210, Satipo', placement: P('Secundaria', '1°', 'B'), status: 'ACTIVO', type: 'NUEVA', guardians: single(16, 'MADRE') },
-  { firstNames: 'Valeria', lastNames: 'Chávez Ríos', dni: '70100021', sex: 'F', birth: [2016, 5, 16], address: 'Jr. Grau 210, Satipo', placement: P('Primaria', '4°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(16, 'MADRE') },
-  { firstNames: 'Fabiana', lastNames: 'Chávez Ríos', dni: '70100022', sex: 'F', birth: [2020, 11, 21], address: 'Jr. Grau 210, Satipo', placement: P('Inicial', '5 años', 'Los Delfines'), status: 'BECADO', type: 'NUEVA', allergies: 'Lactosa', insuranceType: 'SIS', emergencyContactName: 'Nilda Chávez Mamani', emergencyContactPhone: '964200017', guardians: single(16, 'MADRE') },
+  { firstNames: 'Alessandro', paternalLastName: 'Chávez', maternalLastName: 'Ríos', dni: '70100020', sex: 'M', birth: [2013, 7, 3], address: 'Jr. Grau 210, Satipo', placement: P('Secundaria', '1°', 'B'), status: 'ACTIVO', type: 'NUEVA', guardians: single(16, 'MADRE') },
+  { firstNames: 'Valeria', paternalLastName: 'Chávez', maternalLastName: 'Ríos', dni: '70100021', sex: 'F', birth: [2016, 5, 16], address: 'Jr. Grau 210, Satipo', placement: P('Primaria', '4°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(16, 'MADRE') },
+  { firstNames: 'Fabiana', paternalLastName: 'Chávez', maternalLastName: 'Ríos', dni: '70100022', sex: 'F', birth: [2020, 11, 21], address: 'Jr. Grau 210, Satipo', placement: P('Inicial', '5 años', 'Los Delfines'), status: 'BECADO', type: 'NUEVA', allergies: 'Lactosa', insuranceType: 'SIS', emergencyContactName: 'Nilda Chávez Mamani', emergencyContactPhone: '964200017', guardians: single(16, 'MADRE') },
 
   // F10 · Flores Díaz (Óscar Flores, padre)
-  { firstNames: 'Santiago', lastNames: 'Flores Díaz', dni: '70100023', sex: 'M', birth: [2011, 1, 9], address: 'Jr. Tarma 44, Satipo', placement: P('Secundaria', '3°', 'B'), status: 'ACTIVO', type: 'NUEVA', guardians: single(17, 'PADRE') },
-  { firstNames: 'Bianca', lastNames: 'Flores Díaz', dni: '70100024', sex: 'F', birth: [2019, 3, 28], address: 'Jr. Tarma 44, Satipo', placement: P('Primaria', '1°', 'B'), status: 'ACTIVO', type: 'NUEVA', guardians: single(17, 'PADRE') },
+  { firstNames: 'Santiago', paternalLastName: 'Flores', maternalLastName: 'Díaz', dni: '70100023', sex: 'M', birth: [2011, 1, 9], address: 'Jr. Tarma 44, Satipo', placement: P('Secundaria', '3°', 'B'), status: 'ACTIVO', type: 'NUEVA', guardians: single(17, 'PADRE') },
+  { firstNames: 'Bianca', paternalLastName: 'Flores', maternalLastName: 'Díaz', dni: '70100024', sex: 'F', birth: [2019, 3, 28], address: 'Jr. Tarma 44, Satipo', placement: P('Primaria', '1°', 'B'), status: 'ACTIVO', type: 'NUEVA', guardians: single(17, 'PADRE') },
 
   // F11 · Quispe Salas (Yola Quispe, madre)
-  { firstNames: 'Mía', lastNames: 'Quispe Salas', dni: '70100025', sex: 'F', birth: [2017, 10, 4], address: 'Av. Circunvalación 610, Satipo', placement: P('Primaria', '3°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(18, 'MADRE') },
-  { firstNames: 'Liam', lastNames: 'Quispe Salas', dni: '70100026', sex: 'M', birth: [2022, 5, 13], address: 'Av. Circunvalación 610, Satipo', placement: P('Inicial', '3 años', 'Los Pollitos'), status: 'ACTIVO', type: 'NUEVA', guardians: single(18, 'MADRE') },
+  { firstNames: 'Mía', paternalLastName: 'Quispe', maternalLastName: 'Salas', dni: '70100025', sex: 'F', birth: [2017, 10, 4], address: 'Av. Circunvalación 610, Satipo', placement: P('Primaria', '3°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(18, 'MADRE') },
+  { firstNames: 'Liam', paternalLastName: 'Quispe', maternalLastName: 'Salas', dni: '70100026', sex: 'M', birth: [2022, 5, 13], address: 'Av. Circunvalación 610, Satipo', placement: P('Inicial', '3 años', 'Los Pollitos'), status: 'ACTIVO', type: 'NUEVA', guardians: single(18, 'MADRE') },
 
   // F12 · Vela Ninanya (César Vela, padre)
-  { firstNames: 'Zoe', lastNames: 'Vela Ninanya', dni: '70100027', sex: 'F', birth: [2009, 8, 17], address: 'Jr. Junín 158, Satipo', placement: P('Secundaria', '5°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(19, 'PADRE') },
-  { firstNames: 'Aarón', lastNames: 'Vela Ninanya', dni: '70100028', sex: 'M', birth: [2015, 2, 6], address: 'Jr. Junín 158, Satipo', placement: P('Primaria', '5°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(19, 'PADRE') },
+  { firstNames: 'Zoe', paternalLastName: 'Vela', maternalLastName: 'Ninanya', dni: '70100027', sex: 'F', birth: [2009, 8, 17], address: 'Jr. Junín 158, Satipo', placement: P('Secundaria', '5°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(19, 'PADRE') },
+  { firstNames: 'Aarón', paternalLastName: 'Vela', maternalLastName: 'Ninanya', dni: '70100028', sex: 'M', birth: [2015, 2, 6], address: 'Jr. Junín 158, Satipo', placement: P('Primaria', '5°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(19, 'PADRE') },
 
   // F13 · Soto Huamán (Marta Huamán, abuela/tutora)
-  { firstNames: 'Nicolás', lastNames: 'Soto Huamán', dni: '70100029', sex: 'M', birth: [2012, 12, 24], address: 'Jr. Lima 92, Satipo', placement: P('Secundaria', '2°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(20, 'ABUELO_A') },
-  { firstNames: 'Julieta', lastNames: 'Soto Huamán', dni: '70100030', sex: 'F', birth: [2016, 7, 11], address: 'Jr. Lima 92, Satipo', placement: P('Primaria', '4°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', allergies: 'Mariscos', insuranceType: 'ESSALUD', emergencyContactName: 'Marta Huamán Ccopa', emergencyContactPhone: '964200021', guardians: single(20, 'ABUELO_A') },
+  { firstNames: 'Nicolás', paternalLastName: 'Soto', maternalLastName: 'Huamán', dni: '70100029', sex: 'M', birth: [2012, 12, 24], address: 'Jr. Lima 92, Satipo', placement: P('Secundaria', '2°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(20, 'ABUELO_A') },
+  { firstNames: 'Julieta', paternalLastName: 'Soto', maternalLastName: 'Huamán', dni: '70100030', sex: 'F', birth: [2016, 7, 11], address: 'Jr. Lima 92, Satipo', placement: P('Primaria', '4°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', allergies: 'Mariscos', insuranceType: 'ESSALUD', emergencyContactName: 'Marta Huamán Ccopa', emergencyContactPhone: '964200021', guardians: single(20, 'ABUELO_A') },
 
   // F14 · Rojas Vega (Julio Rojas, padre)
-  { firstNames: 'Matías', lastNames: 'Rojas Vega', dni: '70100031', sex: 'M', birth: [2010, 6, 2], address: 'Av. Marginal 720, Satipo', placement: P('Secundaria', '4°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(21, 'PADRE') },
-  { firstNames: 'Alessia', lastNames: 'Rojas Vega', dni: '70100032', sex: 'F', birth: [2014, 9, 15], address: 'Av. Marginal 720, Satipo', placement: P('Primaria', '6°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(21, 'PADRE') },
-  { firstNames: 'Gael', lastNames: 'Rojas Vega', dni: '70100033', sex: 'M', birth: [2018, 11, 8], address: 'Av. Marginal 720, Satipo', placement: P('Primaria', '2°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(21, 'PADRE') },
+  { firstNames: 'Matías', paternalLastName: 'Rojas', maternalLastName: 'Vega', dni: '70100031', sex: 'M', birth: [2010, 6, 2], address: 'Av. Marginal 720, Satipo', placement: P('Secundaria', '4°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(21, 'PADRE') },
+  { firstNames: 'Alessia', paternalLastName: 'Rojas', maternalLastName: 'Vega', dni: '70100032', sex: 'F', birth: [2014, 9, 15], address: 'Av. Marginal 720, Satipo', placement: P('Primaria', '6°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(21, 'PADRE') },
+  { firstNames: 'Gael', paternalLastName: 'Rojas', maternalLastName: 'Vega', dni: '70100033', sex: 'M', birth: [2018, 11, 8], address: 'Av. Marginal 720, Satipo', placement: P('Primaria', '2°', 'A'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(21, 'PADRE') },
 
   // F15 · Mamani León (Delia Mamani, madre)
-  { firstNames: 'Alondra', lastNames: 'Mamani León', dni: '70100034', sex: 'F', birth: [2013, 3, 20], address: 'Jr. Ucayali 305, Satipo', placement: P('Secundaria', '1°', 'A'), status: 'ACTIVO', type: 'NUEVA', guardians: single(22, 'MADRE') },
-  { firstNames: 'Facundo', lastNames: 'Mamani León', dni: '70100035', sex: 'M', birth: [2019, 1, 12], address: 'Jr. Ucayali 305, Satipo', placement: null, status: 'RESERVADO', type: 'NUEVA', guardians: single(22, 'MADRE') },
+  { firstNames: 'Alondra', paternalLastName: 'Mamani', maternalLastName: 'León', dni: '70100034', sex: 'F', birth: [2013, 3, 20], address: 'Jr. Ucayali 305, Satipo', placement: P('Secundaria', '1°', 'A'), status: 'ACTIVO', type: 'NUEVA', guardians: single(22, 'MADRE') },
+  { firstNames: 'Facundo', paternalLastName: 'Mamani', maternalLastName: 'León', dni: '70100035', sex: 'M', birth: [2019, 1, 12], address: 'Jr. Ucayali 305, Satipo', placement: null, status: 'RESERVADO', type: 'NUEVA', guardians: single(22, 'MADRE') },
 
   // F16 · Ccopa Vera (Hugo Ccopa, padre)
-  { firstNames: 'Maite', lastNames: 'Ccopa Vera', dni: '70100036', sex: 'F', birth: [2015, 4, 26], address: 'Jr. Ayacucho 66, Satipo', placement: P('Primaria', '5°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(23, 'PADRE') },
-  { firstNames: 'Bruno', lastNames: 'Ccopa Vera', dni: '70100037', sex: 'M', birth: [2017, 9, 3], address: 'Jr. Ayacucho 66, Satipo', placement: P('Primaria', '3°', 'A'), status: 'ACTIVO', type: 'NUEVA', guardians: single(23, 'PADRE') },
+  { firstNames: 'Maite', paternalLastName: 'Ccopa', maternalLastName: 'Vera', dni: '70100036', sex: 'F', birth: [2015, 4, 26], address: 'Jr. Ayacucho 66, Satipo', placement: P('Primaria', '5°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(23, 'PADRE') },
+  { firstNames: 'Bruno', paternalLastName: 'Ccopa', maternalLastName: 'Vera', dni: '70100037', sex: 'M', birth: [2017, 9, 3], address: 'Jr. Ayacucho 66, Satipo', placement: P('Primaria', '3°', 'A'), status: 'ACTIVO', type: 'NUEVA', guardians: single(23, 'PADRE') },
 
   // F17 · Torres Salas (Betty Torres, madre)
-  { firstNames: 'Catalina', lastNames: 'Torres Salas', dni: '70100038', sex: 'F', birth: [2011, 7, 19], address: 'Av. Los Colonos 411, Satipo', placement: P('Secundaria', '3°', 'A'), status: 'BECADO', type: 'RATIFICADA', guardians: single(24, 'MADRE') },
-  { firstNames: 'Iker', lastNames: 'Torres Salas', dni: '70100039', sex: 'M', birth: [2016, 2, 28], address: 'Av. Los Colonos 411, Satipo', placement: P('Primaria', '4°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(24, 'MADRE') },
+  { firstNames: 'Catalina', paternalLastName: 'Torres', maternalLastName: 'Salas', dni: '70100038', sex: 'F', birth: [2011, 7, 19], address: 'Av. Los Colonos 411, Satipo', placement: P('Secundaria', '3°', 'A'), status: 'BECADO', type: 'RATIFICADA', guardians: single(24, 'MADRE') },
+  { firstNames: 'Iker', paternalLastName: 'Torres', maternalLastName: 'Salas', dni: '70100039', sex: 'M', birth: [2016, 2, 28], address: 'Av. Los Colonos 411, Satipo', placement: P('Primaria', '4°', 'B'), status: 'ACTIVO', type: 'RATIFICADA', guardians: single(24, 'MADRE') },
   {
-    firstNames: 'Amanda', lastNames: 'Torres Salas', dni: '70100040', sex: 'F', birth: [2018, 5, 10],
+    firstNames: 'Amanda', paternalLastName: 'Torres', maternalLastName: 'Salas', dni: '70100040', sex: 'F', birth: [2018, 5, 10],
     address: 'Av. Los Colonos 411, Satipo', placement: P('Primaria', '2°', 'A'),
     status: 'TRASLADADO', type: 'RATIFICADA',
     withdrawalReason: 'Traslado a otra ciudad por motivos laborales de la familia',
@@ -243,7 +244,8 @@ export async function seedStudentsGuardians(prisma: PrismaClient) {
       create: {
         code,
         firstNames: s.firstNames,
-        lastNames: s.lastNames,
+        paternalLastName: s.paternalLastName,
+        maternalLastName: s.maternalLastName ?? null,
         dni: s.dni,
         birthDate: d(...s.birth),
         sex: s.sex,

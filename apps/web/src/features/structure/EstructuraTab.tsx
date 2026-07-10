@@ -779,7 +779,9 @@ function RosterDialog({ ctx, onClose }: { ctx: RosterCtx | null; onClose: () => 
   const rows = roster
     .map((r) => ({
       id: r.id,
-      fullName: `${r.student.lastNames}, ${r.student.firstNames}`,
+      fullName: `${r.student.paternalLastName}${
+        r.student.maternalLastName ? ` ${r.student.maternalLastName}` : ''
+      }, ${r.student.firstNames}`,
       code: r.student.code,
       status: r.student.status,
     }))

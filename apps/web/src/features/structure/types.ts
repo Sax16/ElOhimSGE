@@ -88,7 +88,13 @@ export interface ApiProgram {
 /** Inscripción a un programa — GET /api/programs/:id/enrollments. */
 export interface ApiProgramEnrollment {
   id: string;
-  student: { id: string; code: string; firstNames: string; lastNames: string };
+  student: {
+    id: string;
+    code: string;
+    firstNames: string;
+    paternalLastName: string;
+    maternalLastName: string | null;
+  };
   enrolledAt: string;
   canceledAt: string | null;
   paidCount: number;
@@ -129,7 +135,8 @@ export interface ApiRosterRow {
     id: string;
     code: string;
     firstNames: string;
-    lastNames: string;
+    paternalLastName: string;
+    maternalLastName: string | null;
     status: StudentStatus;
   };
 }

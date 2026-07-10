@@ -346,11 +346,12 @@ model Discount {
 // ===== Personas =====
 
 model Student {
-  id             String        @id @default(cuid())
-  code           String        @unique // "E-1042"
-  firstNames     String
-  lastNames      String
-  dni            String        @unique @db.Char(8)
+  id               String      @id @default(cuid())
+  code             String      @unique // "E-1042"
+  firstNames       String
+  paternalLastName String // apellido paterno (obligatorio)
+  maternalLastName String? // apellido materno (opcional: cubre personas con un solo apellido)
+  dni              String      @unique @db.Char(8)
   birthDate      DateTime      @db.Date
   sex            Sex
   address        String
@@ -430,10 +431,9 @@ model Enrollment {
   discountId String?
   discount   Discount? @relation(fields: [discountId], references: [id])
 
-  // originSchool/siagieCode: histórico de traslados (ya no se capturan en el flujo actual).
-  originSchool String?
-  siagieCode   String?   @db.Char(14)
-  entryDate    DateTime? @db.Date // define desde cuándo se cobran pensiones
+  // siagieCode: histórico de traslados (ya no se captura en el flujo actual).
+  siagieCode String?   @db.Char(14)
+  entryDate  DateTime? @db.Date // define desde cuándo se cobran pensiones
 
   // Anulación con justificación (nada se borra)
   canceledAt   DateTime?

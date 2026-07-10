@@ -368,10 +368,17 @@ export class StructureService {
       select: {
         id: true,
         student: {
-          select: { id: true, code: true, firstNames: true, lastNames: true, status: true },
+          select: {
+            id: true,
+            code: true,
+            firstNames: true,
+            paternalLastName: true,
+            maternalLastName: true,
+            status: true,
+          },
         },
       },
-      orderBy: { student: { lastNames: 'asc' } },
+      orderBy: [{ student: { paternalLastName: 'asc' } }, { student: { maternalLastName: 'asc' } }],
     });
     return enrollments.map((e) => e.student);
   }

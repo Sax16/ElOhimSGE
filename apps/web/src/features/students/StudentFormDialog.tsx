@@ -27,7 +27,7 @@ import {
 } from '@elohim/shared';
 import { ApiError } from '../../lib/api';
 import { useCreateStudent, useUpdateStudent } from './api';
-import { STUDENT_STATUS_TONE } from './bits';
+import { fullName, STUDENT_STATUS_TONE } from './bits';
 import type { AuthorizedPickup, StudentCreateBody, StudentDetail, StudentUpdateBody } from './types';
 
 export interface StudentFormDialogProps {
@@ -60,7 +60,8 @@ export function StudentFormDialog({
   const edit = student ?? null;
 
   const [firstNames, setFirstNames] = useState('');
-  const [lastNames, setLastNames] = useState('');
+  const [paternalLastName, setPaternalLastName] = useState('');
+  const [maternalLastName, setMaternalLastName] = useState('');
   const [dni, setDni] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [sex, setSex] = useState<Sex>('M');
@@ -78,7 +79,8 @@ export function StudentFormDialog({
   useEffect(() => {
     if (!open) return;
     setFirstNames(edit?.firstNames ?? '');
-    setLastNames(edit?.lastNames ?? '');
+    setPaternalLastName(edit?.paternalLastName ?? '');
+    setMaternalLastName(edit?.maternalLastName ?? '');
     setDni(edit?.dni ?? '');
     setBirthDate(edit?.birthDate ? edit.birthDate.slice(0, 10) : '');
     setSex(edit?.sex ?? 'M');
@@ -106,7 +108,7 @@ export function StudentFormDialog({
   const validate = (): boolean => {
     const e: Record<string, string> = {};
     if (!firstNames.trim()) e.firstNames = 'Ingresa los nombres.';
-    if (!lastNames.trim()) e.lastNames = 'Ingresa los apellidos.';
+    if (!paternalLastName.trim()) e.paternalLastName = 'Ingresa el apellido paterno.';
     if (!/^\d{8}$/.test(dni.trim())) e.dni = 'El DNI debe tener 8 dígitos.';
     if (!birthDate) e.birthDate = 'Ingresa la fecha de nacimiento.';
     if (!address.trim()) e.address = 'Ingresa una dirección.';
@@ -116,6 +118,11 @@ export function StudentFormDialog({
 
   const submit = () => {
     if (readOnly || !validate()) return;
+    const displayName = fullName({
+      firstNames: firstNames.trim(),
+      paternalLastName: paternalLastName.trim(),
+      maternalLastName: maternalLastName.trim() || null,
+    });
     const cleanPickups = pickups
       .filter((p) => p.name.trim())
       .map((p) => ({
@@ -135,7 +142,8 @@ export function StudentFormDialog({
       // null (no undefined) para que al vaciar un campo opcional se limpie en la BD.
       const body: StudentUpdateBody = {
         firstNames: firstNames.trim(),
-        lastNames: lastNames.trim(),
+        paternalLastName: paternalLastName.trim(),
+        maternalLastName: maternalLastName.trim() || null,
         dni: dni.trim(),
         birthDate,
         sex,
@@ -153,7 +161,7 @@ export function StudentFormDialog({
         { id: edit.id, body },
         {
           onSuccess: () => {
-            toast('success', 'Ficha actualizada', `${lastNames.trim()} ${firstNames.trim()} guardado correctamente.`);
+            toast('success', 'Ficha actualizada', `${displayName} guardado correctamente.`);
             onClose();
           },
           onError,
@@ -162,7 +170,8 @@ export function StudentFormDialog({
     } else {
       const body: StudentCreateBody = {
         firstNames: firstNames.trim(),
-        lastNames: lastNames.trim(),
+        paternalLastName: paternalLastName.trim(),
+        maternalLastName: maternalLastName.trim() || undefined,
         dni: dni.trim(),
         birthDate,
         sex,
@@ -177,7 +186,7 @@ export function StudentFormDialog({
       };
       createStudent.mutate(body, {
         onSuccess: (created) => {
-          toast('success', 'Estudiante registrado', `${created.code} · ${lastNames.trim()} ${firstNames.trim()}.`);
+          toast('success', 'Estudiante registrado', `${created.code} · ${displayName}.`);
           onCreated?.(created);
           onClose();
         },
@@ -192,7 +201,7 @@ export function StudentFormDialog({
       onClose={onClose}
       size="lg"
       icon={edit ? <Icons.Pencil /> : <Icons.User />}
-      title={edit ? `Editar · ${edit.lastNames} ${edit.firstNames}` : 'Nuevo estudiante'}
+      title={edit ? `Editar · ${fullName(edit)}` : 'Nuevo estudiante'}
       description={
         edit
           ? edit.code
@@ -219,12 +228,20 @@ export function StudentFormDialog({
           placeholder="Ej. María"
         />
         <Input
-          label="Apellidos"
+          label="Apellido paterno"
           required
-          value={lastNames}
-          onChange={(e) => setLastNames(e.target.value)}
-          error={errors.lastNames}
-          placeholder="Ej. Quispe Roca"
+          value={paternalLastName}
+          onChange={(e) => setPaternalLastName(e.target.value)}
+          error={errors.paternalLastName}
+          placeholder="Ej. Quispe"
+        />
+        <Input
+          label="Apellido materno"
+          value={maternalLastName}
+          onChange={(e) => setMaternalLastName(e.target.value)}
+          error={errors.maternalLastName}
+          hint="Opcional"
+          placeholder="Ej. Roca (opcional)"
         />
         <Input
           label="DNI"

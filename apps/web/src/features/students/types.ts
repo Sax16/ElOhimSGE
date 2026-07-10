@@ -26,7 +26,8 @@ export interface StudentListItem {
   id: string;
   code: string;
   firstNames: string;
-  lastNames: string;
+  paternalLastName: string;
+  maternalLastName: string | null;
   dni: string;
   status: StudentStatus;
   shift: Shift | null;
@@ -104,7 +105,8 @@ export interface StudentDetail {
   id: string;
   code: string;
   firstNames: string;
-  lastNames: string;
+  paternalLastName: string;
+  maternalLastName: string | null;
   dni: string;
   status: StudentStatus;
   shift: Shift | null;
@@ -132,7 +134,8 @@ export interface StudentDetail {
 
 export interface StudentCreateBody {
   firstNames: string;
-  lastNames: string;
+  paternalLastName: string;
+  maternalLastName?: string | null;
   dni: string;
   birthDate: string;
   sex: Sex;

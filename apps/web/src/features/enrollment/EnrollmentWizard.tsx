@@ -95,7 +95,8 @@ interface WizardState {
 
 const emptyNewStudent = (): NewStudentInput => ({
   firstNames: '',
-  lastNames: '',
+  paternalLastName: '',
+  maternalLastName: '',
   dni: '',
   birthDate: '',
   sex: 'M',
@@ -129,7 +130,8 @@ function buildBody(s: WizardState, yearId: string | undefined): EnrollmentWizard
   const newStudent: NewStudentInput = {
     ...s.newStudent,
     firstNames: s.newStudent.firstNames.trim(),
-    lastNames: s.newStudent.lastNames.trim(),
+    paternalLastName: s.newStudent.paternalLastName.trim(),
+    maternalLastName: s.newStudent.maternalLastName?.trim() || undefined,
     dni: s.newStudent.dni.trim(),
     address: s.newStudent.address.trim(),
     previousSchool: s.newStudent.previousSchool?.trim() || undefined,
@@ -143,7 +145,7 @@ function studentStepValid(s: WizardState): boolean {
   const n = s.newStudent;
   return (
     !!n.firstNames.trim() &&
-    !!n.lastNames.trim() &&
+    !!n.paternalLastName.trim() &&
     /^\d{8}$/.test(n.dni.trim()) &&
     !!n.birthDate &&
     !!n.address.trim()
@@ -401,11 +403,18 @@ function NewStudentFields({
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
       <Input
-        label="Apellidos"
+        label="Apellido paterno"
         required
-        value={value.lastNames}
-        onChange={(e) => onChange({ lastNames: e.target.value })}
-        placeholder="Núñez Ríos"
+        value={value.paternalLastName}
+        onChange={(e) => onChange({ paternalLastName: e.target.value })}
+        placeholder="Ej. Quispe"
+      />
+      <Input
+        label="Apellido materno"
+        value={value.maternalLastName ?? ''}
+        onChange={(e) => onChange({ maternalLastName: e.target.value })}
+        hint="Opcional"
+        placeholder="Ej. Roca (opcional)"
       />
       <Input
         label="Nombres"
@@ -1284,7 +1293,11 @@ function StepConfirm({
       ? existing
         ? fullName(existing)
         : '—'
-      : `${state.newStudent.lastNames} ${state.newStudent.firstNames}`.trim() || '—';
+      : fullName({
+          firstNames: state.newStudent.firstNames,
+          paternalLastName: state.newStudent.paternalLastName,
+          maternalLastName: state.newStudent.maternalLastName,
+        }).trim() || '—';
 
   const entryDateLabel = state.entryDate ? state.entryDate.split('-').reverse().join('/') : '—';
   const fields: [string, string][] = [

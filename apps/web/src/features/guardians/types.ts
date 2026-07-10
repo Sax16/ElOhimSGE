@@ -29,7 +29,8 @@ export interface GuardianChild {
     id: string;
     code: string;
     firstNames: string;
-    lastNames: string;
+    paternalLastName: string;
+    maternalLastName: string | null;
     status: StudentStatus;
   };
   relation: GuardianRelation;

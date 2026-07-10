@@ -17,7 +17,9 @@ export type AuthorizedPickup = z.infer<typeof authorizedPickupSchema>;
 
 export const studentCreateSchema = z.object({
   firstNames: z.string().min(2),
-  lastNames: z.string().min(2),
+  paternalLastName: z.string().min(2, 'Ingresa el apellido paterno'),
+  // Apellido materno opcional: cubre personas con un solo apellido. '' del formulario cuenta como vacío.
+  maternalLastName: z.union([z.string().min(2), z.literal('')]).optional().nullable(),
   dni,
   birthDate: z.coerce.date(),
   sex: z.enum(SEXES),
