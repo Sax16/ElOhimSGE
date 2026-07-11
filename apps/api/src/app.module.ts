@@ -11,6 +11,7 @@ import { StudentsModule } from './students/students.module';
 import { GuardiansModule } from './guardians/guardians.module';
 import { BillingModule } from './billing/billing.module';
 import { EnrollmentModule } from './enrollment/enrollment.module';
+import { CashierModule } from './cashier/cashier.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { EnrollmentModule } from './enrollment/enrollment.module';
     GuardiansModule,
     BillingModule,
     EnrollmentModule,
+    CashierModule,
     HealthModule,
   ],
 })

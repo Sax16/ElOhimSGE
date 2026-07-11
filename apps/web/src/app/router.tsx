@@ -25,6 +25,9 @@ const GuardiansPage = lazy(() =>
   import('../features/guardians/GuardiansPage').then((m) => ({ default: m.GuardiansPage })),
 );
 const FeesPage = lazy(() => import('../features/fees/FeesPage').then((m) => ({ default: m.FeesPage })));
+const CashierPage = lazy(() =>
+  import('../features/cashier/CashierPage').then((m) => ({ default: m.CashierPage })),
+);
 const EnrollmentPage = lazy(() =>
   import('../features/enrollment/EnrollmentPage').then((m) => ({ default: m.EnrollmentPage })),
 );
@@ -76,6 +79,8 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
           <GuardiansPage />
         ) : id === 'tarifario' ? (
           <FeesPage />
+        ) : id === 'caja' ? (
+          <CashierPage />
         ) : id === 'matricula' ? (
           <EnrollmentPage />
         ) : id === 'dash' ? (

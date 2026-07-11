@@ -1,15 +1,19 @@
-import { Controller, Get, HttpCode, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import {
   billingSettingsUpdateSchema,
   discountUpdateSchema,
   discountUpsertSchema,
   installmentCancelSchema,
   levelFeeUpdateSchema,
+  saleConceptUpdateSchema,
+  saleConceptUpsertSchema,
   type BillingSettingsUpdateInput,
   type DiscountUpdateInput,
   type DiscountUpsertInput,
   type InstallmentCancelInput,
   type LevelFeeUpdateInput,
+  type SaleConceptUpdateInput,
+  type SaleConceptUpsertInput,
 } from '@elohim/shared';
 import { zodBody } from '../common/zod-validation.pipe';
 import { RequirePermission } from '../common/permissions/require-permission.decorator';
@@ -74,5 +78,38 @@ export class BillingController {
     @CurrentUser() actor: JwtUser,
   ) {
     return this.billing.cancelInstallment(id, body, actor.sub);
+  }
+
+  // ===== Conceptos de venta (otros conceptos) =====
+
+  @Get('billing/sale-concepts')
+  @RequirePermission('tarifario', 'ver')
+  listSaleConcepts() {
+    return this.billing.listSaleConcepts();
+  }
+
+  @Post('billing/sale-concepts')
+  @RequirePermission('tarifario', 'editar')
+  createSaleConcept(
+    @(zodBody(saleConceptUpsertSchema)) body: SaleConceptUpsertInput,
+    @CurrentUser() actor: JwtUser,
+  ) {
+    return this.billing.createSaleConcept(body, actor.sub);
+  }
+
+  @Patch('billing/sale-concepts/:id')
+  @RequirePermission('tarifario', 'editar')
+  updateSaleConcept(
+    @Param('id') id: string,
+    @(zodBody(saleConceptUpdateSchema)) body: SaleConceptUpdateInput,
+    @CurrentUser() actor: JwtUser,
+  ) {
+    return this.billing.updateSaleConcept(id, body, actor.sub);
+  }
+
+  @Delete('billing/sale-concepts/:id')
+  @RequirePermission('tarifario', 'editar')
+  deleteSaleConcept(@Param('id') id: string, @CurrentUser() actor: JwtUser) {
+    return this.billing.deleteSaleConcept(id, actor.sub);
   }
 }

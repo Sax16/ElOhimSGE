@@ -75,3 +75,14 @@ export type DiscountApplication = (typeof DISCOUNT_APPLICATIONS)[number];
 
 export const ACTIVE_STATUSES = ['ACTIVO', 'INACTIVO'] as const;
 export type ActiveStatus = (typeof ACTIVE_STATUSES)[number];
+
+// ===== Caja y cobros (R2 — E1) =====
+
+export const PAYMENT_METHODS = ['EFECTIVO', 'YAPE_PLIN', 'TRANSFERENCIA', 'TARJETA'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export const CASH_SESSION_STATUSES = ['ABIERTA', 'CERRADA'] as const;
+export type CashSessionStatus = (typeof CASH_SESSION_STATUSES)[number];
+
+export const RECEIPT_STATUSES = ['EMITIDO', 'ANULADO'] as const;
+export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];

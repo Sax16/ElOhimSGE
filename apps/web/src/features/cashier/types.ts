@@ -1,0 +1,176 @@
+// DTOs de la pantalla Caja y cobros (R2 · Etapa 1), según el contrato de la API.
+// Los montos viajan como string decimal ("280.00"); el front convierte a centavos
+// para mostrar con formatPEN. Fechas civiles como "yyyy-mm-dd"; datetimes en ISO.
+import type { ActiveStatus } from '@elohim/shared';
+
+/** Método de cobro. Espejo del enum del backend (PAYMENT_METHODS). */
+export type PaymentMethod = 'EFECTIVO' | 'YAPE_PLIN' | 'TRANSFERENCIA' | 'TARJETA';
+/** Estado de un recibo. */
+export type ReceiptStatus = 'EMITIDO' | 'ANULADO';
+/** Estado de la caja del día. */
+export type CashSessionStatus = 'ABIERTA' | 'CERRADA';
+
+/** Caja del día (apertura + arqueo de cierre). */
+export interface CashSession {
+  id: string;
+  /** yyyy-mm-dd (fecha civil). */
+  date: string;
+  status: CashSessionStatus;
+  /** ISO datetime de apertura. */
+  openedAt: string;
+  openedByName: string;
+  initialAmount: string;
+  /** Presentes solo cuando la caja ya cerró. */
+  closedAt?: string | null;
+  closedByName?: string | null;
+  expectedCash?: string | null;
+  countedCash?: string | null;
+  difference?: string | null;
+  closeNotes?: string | null;
+}
+
+/** Totales del día para las StatCards. */
+export interface DayStats {
+  totalAmount: string;
+  cashAmount: string;
+  digitalAmount: string;
+  operationsCount: number;
+  cashCount: number;
+  digitalCount: number;
+  canceledCount: number;
+}
+
+/** Fila de la tabla «Movimientos del día». */
+export interface Movement {
+  id: string;
+  code: string;
+  /** ISO datetime. */
+  createdAt: string;
+  studentName: string;
+  summary: string;
+  method: PaymentMethod;
+  totalAmount: string;
+  cashierName: string;
+  status: ReceiptStatus;
+}
+
+/** Respuesta de GET /cashier/day. */
+export interface CashierDayResponse {
+  session: CashSession | null;
+  stats: DayStats;
+  movements: Movement[];
+}
+
+/** Concepto de venta activo, catálogo de «Otros conceptos». */
+export interface SaleConceptOption {
+  id: string;
+  name: string;
+  price: string;
+  status: ActiveStatus;
+}
+
+/** Resultado de la búsqueda de estudiantes en Caja. */
+export interface StudentHit {
+  id: string;
+  code: string;
+  fullName: string;
+  gradeSection: string;
+  primaryGuardianName: string;
+  primaryGuardianPhone: string;
+  debtAmount: string;
+}
+
+/** Estado de una cuota cobrable. */
+export type CollectibleStatus = 'PENDIENTE' | 'VENCIDO';
+
+/** Cuota pendiente o vencida de un estudiante. */
+export interface Collectible {
+  id: string;
+  concept: string;
+  /** yyyy-mm-dd. */
+  dueDate: string;
+  amount: string;
+  status: CollectibleStatus;
+  type: 'MATRICULA' | 'PENSION';
+  source: 'ESCOLAR' | 'PROGRAMA';
+}
+
+/** Respuesta de GET /cashier/students/:id/collectibles. */
+export interface CollectiblesResponse {
+  student: {
+    id: string;
+    code: string;
+    fullName: string;
+    gradeSection: string;
+    primaryGuardianName?: string;
+    primaryGuardianPhone?: string;
+    debtAmount?: string;
+  };
+  installments: Collectible[];
+}
+
+// ---- Recibo -----------------------------------------------------------------
+
+export interface ReceiptStudent {
+  id: string;
+  code: string;
+  fullName: string;
+  gradeSection: string;
+}
+
+export interface ReceiptItem {
+  concept: string;
+  quantity: number;
+  amount: string;
+}
+
+/** Recibo emitido (respuesta de POST /cashier/receipts y GET /cashier/receipts/:id). */
+export interface Receipt {
+  id: string;
+  code: string;
+  /** ISO datetime. */
+  createdAt: string;
+  status: ReceiptStatus;
+  method: PaymentMethod;
+  operationNumber: string | null;
+  totalAmount: string;
+  receivedAmount: string | null;
+  changeAmount: string | null;
+  cashierName: string;
+  student: ReceiptStudent;
+  guardianName: string;
+  guardianPhone: string;
+  items: ReceiptItem[];
+  canceledAt?: string | null;
+  cancelReason?: string | null;
+  canceledByName?: string | null;
+}
+
+// ---- Bodies de mutación -----------------------------------------------------
+
+export interface OpenSessionBody {
+  initialAmount: string;
+}
+
+export interface CloseSessionBody {
+  countedCash: string;
+  notes?: string;
+}
+
+export interface SaleItemInput {
+  saleConceptId: string;
+  quantity: number;
+}
+
+export interface CreateReceiptBody {
+  studentId: string;
+  installmentIds: string[];
+  saleItems: SaleItemInput[];
+  method: PaymentMethod;
+  operationNumber?: string;
+  receivedAmount?: string;
+}
+
+export interface CancelReceiptBody {
+  reason: string;
+}

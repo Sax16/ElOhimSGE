@@ -12,3 +12,4 @@ export * from './schemas/structure';
 export * from './schemas/students';
 export * from './schemas/guardians';
 export * from './schemas/enrollment';
+export * from './schemas/cashier';

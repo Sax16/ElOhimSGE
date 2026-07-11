@@ -130,6 +130,23 @@ enum ActiveStatus {
   INACTIVO
 }
 
+enum PaymentMethod {
+  EFECTIVO
+  YAPE_PLIN
+  TRANSFERENCIA
+  TARJETA
+}
+
+enum CashSessionStatus {
+  ABIERTA
+  CERRADA
+}
+
+enum ReceiptStatus {
+  EMITIDO
+  ANULADO
+}
+
 // ===== Identity / Configuración =====
 
 model User {
@@ -150,6 +167,10 @@ model User {
   enrollmentsRegistered        Enrollment[]        @relation("RegisteredBy")
   programEnrollmentsRegistered ProgramEnrollment[] @relation("ProgramEnrollmentRegisteredBy")
   auditLogs                    AuditLog[]
+  cashSessionsOpened           CashSession[]       @relation("CashSessionOpenedBy")
+  cashSessionsClosed           CashSession[]       @relation("CashSessionClosedBy")
+  receiptsCashiered            Receipt[]           @relation("ReceiptCashier")
+  receiptsCanceled             Receipt[]           @relation("ReceiptCanceledBy")
 }
 
 // Singleton (id = 1): datos institucionales de la pestaña Configuración > Institución.
@@ -377,6 +398,7 @@ model Student {
   guardians          StudentGuardian[]
   enrollments        Enrollment[]
   programEnrollments ProgramEnrollment[]
+  receipts           Receipt[]
 }
 
 model Guardian {
@@ -468,8 +490,92 @@ model Installment {
   cancelReason String?
   canceledById String?
 
+  receiptItems ReceiptItem[]
+
   @@unique([enrollmentId, sequence])
   @@unique([programEnrollmentId, sequence])
+}
+
+// ===== Caja y cobros (R2 — E1) =====
+
+// Catálogo simple de "otros conceptos" (libros, uniformes, buzo…): nombre + precio, sin stock.
+// La integración con Inventario llega en R5. Administrable desde Tarifario.
+model SaleConcept {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  price     Decimal      @db.Decimal(10, 2)
+  status    ActiveStatus @default(ACTIVO)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  items ReceiptItem[]
+}
+
+// Una caja compartida POR DÍA (única por fecha). Quien la abre registra el monto inicial y
+// responde por el arqueo; cualquier usuario con permiso caja puede cobrar sobre ella.
+model CashSession {
+  id            String            @id @default(cuid())
+  date          DateTime          @unique @db.Date // una caja por día civil
+  status        CashSessionStatus @default(ABIERTA)
+  openedById    String
+  openedBy      User              @relation("CashSessionOpenedBy", fields: [openedById], references: [id])
+  openedAt      DateTime          @default(now())
+  initialAmount Decimal           @db.Decimal(10, 2)
+  closedById    String?
+  closedBy      User?             @relation("CashSessionClosedBy", fields: [closedById], references: [id])
+  closedAt      DateTime?
+  expectedCash  Decimal?          @db.Decimal(10, 2) // inicial + efectivo de recibos EMITIDO
+  countedCash   Decimal?          @db.Decimal(10, 2)
+  difference    Decimal?          @db.Decimal(10, 2) // countedCash − expectedCash
+  closeNotes    String?
+
+  receipts Receipt[]
+}
+
+// Recibo interno numerado (R-2026-#####). Registra quién cobró; anulación mientras la caja siga abierta.
+model Receipt {
+  id             String        @id @default(cuid())
+  code           String        @unique // "R-2026-04313"
+  cashSessionId  String
+  cashSession    CashSession   @relation(fields: [cashSessionId], references: [id])
+  studentId      String
+  student        Student       @relation(fields: [studentId], references: [id])
+  guardianName   String? // snapshot del apoderado principal al cobrar
+  guardianPhone  String?
+  method         PaymentMethod
+  operationNumber String?
+  totalAmount    Decimal       @db.Decimal(10, 2)
+  receivedAmount Decimal?      @db.Decimal(10, 2) // solo EFECTIVO
+  changeAmount   Decimal?      @db.Decimal(10, 2) // vuelto (solo EFECTIVO)
+  status         ReceiptStatus @default(EMITIDO)
+  cashierId      String
+  cashier        User          @relation("ReceiptCashier", fields: [cashierId], references: [id])
+  createdAt      DateTime      @default(now())
+  canceledAt     DateTime?
+  cancelReason   String?
+  canceledById   String?
+  canceledBy     User?         @relation("ReceiptCanceledBy", fields: [canceledById], references: [id])
+
+  items ReceiptItem[]
+
+  @@index([cashSessionId])
+  @@index([studentId])
+}
+
+// Línea de recibo: una cuota escolar/programa (installmentId) o una venta de catálogo (saleConceptId),
+// exactamente una de las dos (CHECK en la BD). Guarda snapshot del concepto y montos.
+model ReceiptItem {
+  id            String       @id @default(cuid())
+  receiptId     String
+  receipt       Receipt      @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  installmentId String?
+  installment   Installment? @relation(fields: [installmentId], references: [id])
+  saleConceptId String?
+  saleConcept   SaleConcept? @relation(fields: [saleConceptId], references: [id])
+  concept       String // snapshot del concepto
+  quantity      Int          @default(1)
+  unitAmount    Decimal      @db.Decimal(10, 2)
+  amount        Decimal      @db.Decimal(10, 2) // unitAmount × quantity
 }
 
 // Secuencias de códigos legibles: "student" → E-####, "guardian" → A-####, "enrollment:2026" → M-2026-####

@@ -30,16 +30,21 @@ import {
   type DiscountApplication,
 } from '@elohim/shared';
 import { ApiError } from '../../lib/api';
+import { useCan } from '../../lib/useCan';
 import { useSelectedYear } from '../../lib/useSelectedYear';
 import { vigenciaText } from '../structure/bits';
 import {
   useCreateDiscount,
+  useCreateSaleConcept,
+  useDeleteSaleConcept,
   useFees,
+  useSaleConcepts,
   useUpdateBillingSettings,
   useUpdateDiscount,
   useUpdateLevelFee,
+  useUpdateSaleConcept,
 } from './api';
-import type { BillingSettings, Discount, FeeLevel } from './types';
+import type { BillingSaleConcept, BillingSettings, Discount, FeeLevel } from './types';
 
 /** "10 (mar–dic)" / "11 (feb–dic)" según el número de cuotas. */
 function cuotasLabel(n: number): string {
@@ -51,27 +56,39 @@ function annualTotal(level: FeeLevel): string {
   return formatPEN(toCents(level.enrollmentFee) + toCents(level.monthlyFee) * level.installmentsCount);
 }
 
+type FeesTabId = 'tarifas' | 'becas' | 'conceptos';
+
 export function FeesPage() {
-  const [tab, setTab] = useState<'tarifas' | 'becas'>('tarifas');
+  const [tab, setTab] = useState<FeesTabId>('tarifas');
   const { yearId, yearName, readOnly } = useSelectedYear();
   const { data, isLoading } = useFees(yearId);
+  const conceptsQuery = useSaleConcepts();
+  const canEditConcepts = useCan('tarifario', 'editar');
 
   const discountsCount = data?.discounts.length ?? 0;
+  const conceptsCount = conceptsQuery.data?.length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Tabs
         value={tab}
-        onChange={(id) => setTab(id as 'tarifas' | 'becas')}
+        onChange={(id) => setTab(id as FeesTabId)}
         items={[
           { id: 'tarifas', label: `Tarifario ${yearName}`.trim() },
           { id: 'becas', label: 'Descuentos y becas', count: discountsCount },
+          { id: 'conceptos', label: 'Conceptos de venta', count: conceptsCount },
         ]}
       />
       {tab === 'tarifas' ? (
         <TarifasTab data={data} isLoading={isLoading} readOnly={readOnly} yearName={yearName} />
-      ) : (
+      ) : tab === 'becas' ? (
         <BecasTab data={data} isLoading={isLoading} readOnly={readOnly} />
+      ) : (
+        <ConceptosTab
+          data={conceptsQuery.data}
+          isLoading={conceptsQuery.isLoading}
+          readOnly={!canEditConcepts}
+        />
       )}
     </div>
   );
@@ -707,6 +724,264 @@ function BeneficiariesDialog({ discount, onClose }: { discount: Discount | null;
           description="Este descuento aún no tiene beneficiarios asignados."
         />
       )}
+    </Dialog>
+  );
+}
+
+// ============================== Conceptos de venta ==========================
+function ConceptosTab({
+  data,
+  isLoading,
+  readOnly,
+}: {
+  data: BillingSaleConcept[] | undefined;
+  isLoading: boolean;
+  readOnly: boolean;
+}) {
+  const { toast } = useToast();
+  const del = useDeleteSaleConcept();
+  const [dialog, setDialog] = useState<{ concept: BillingSaleConcept | null } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<BillingSaleConcept | null>(null);
+
+  const remove = (c: BillingSaleConcept) => {
+    del.mutate(c.id, {
+      onSuccess: () => {
+        toast('success', 'Concepto eliminado', `${c.name} · quitado del catálogo.`);
+        setDeleteTarget(null);
+      },
+      onError: (err) => {
+        toast('danger', 'No se pudo eliminar', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.');
+        setDeleteTarget(null);
+      },
+    });
+  };
+
+  const cols: TableColumn<BillingSaleConcept>[] = [
+    {
+      key: 'name',
+      header: 'Nombre',
+      render: (v) => (
+        <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-strong)' }}>{v}</span>
+      ),
+    },
+    { key: 'price', header: 'Precio', num: true, mono: true, render: (v) => formatPEN(toCents(v as string)) },
+    {
+      key: 'status',
+      header: 'Estado',
+      align: 'center',
+      render: (v) => (
+        <Badge tone={v === 'ACTIVO' ? 'success' : 'neutral'} dot>
+          {ACTIVE_STATUS_LABELS[v as ActiveStatus]}
+        </Badge>
+      ),
+    },
+    { key: 'receiptCount', header: 'Usos', align: 'center', mono: true },
+    {
+      key: 'acc',
+      header: '',
+      align: 'right',
+      render: (_v, r) =>
+        readOnly ? null : (
+          <div style={{ display: 'inline-flex', gap: 2 }}>
+            <Tooltip content="Editar">
+              <IconButton label="Editar" size="sm" onClick={() => setDialog({ concept: r })}>
+                <Icons.Pencil />
+              </IconButton>
+            </Tooltip>
+            {r.receiptCount > 0 ? (
+              <Tooltip content="Tiene recibos asociados — desactívalo">
+                <span style={{ display: 'inline-flex' }}>
+                  <IconButton label="Eliminar" size="sm" variant="danger" disabled>
+                    <Icons.Trash />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            ) : (
+              <Tooltip content="Eliminar">
+                <IconButton label="Eliminar" size="sm" variant="danger" onClick={() => setDeleteTarget(r)}>
+                  <Icons.Trash />
+                </IconButton>
+              </Tooltip>
+            )}
+          </div>
+        ),
+    },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <Alert tone="info">
+        Libros, uniformes y otros cobros de ventanilla — sin control de stock (llega con Inventario). Se cobran en
+        Caja, en la sección «Otros conceptos».
+      </Alert>
+      {!readOnly && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button variant="primary" iconLeft={<Icons.Plus />} onClick={() => setDialog({ concept: null })}>
+            Nuevo concepto
+          </Button>
+        </div>
+      )}
+      <Card flush>
+        <Table
+          columns={cols}
+          data={data ?? []}
+          rowKey="id"
+          hover
+          emptyText={isLoading ? 'Cargando conceptos…' : 'Aún no hay conceptos de venta.'}
+        />
+      </Card>
+
+      {dialog && <SaleConceptDialog concept={dialog.concept} onClose={() => setDialog(null)} readOnly={readOnly} />}
+
+      <Dialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        icon={<Icons.Trash />}
+        iconTone="danger"
+        title="Eliminar concepto"
+        description={deleteTarget ? deleteTarget.name : ''}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              iconLeft={<Icons.Trash />}
+              disabled={del.isPending}
+              onClick={() => deleteTarget && remove(deleteTarget)}
+            >
+              Eliminar
+            </Button>
+          </>
+        }
+      >
+        <Alert tone="warning" title="Esta acción no se puede deshacer">
+          El concepto dejará de estar disponible en Caja. Si tiene recibos asociados no podrá eliminarse; desactívalo
+          en su lugar.
+        </Alert>
+      </Dialog>
+    </div>
+  );
+}
+
+// ---- Diálogo nuevo / editar concepto de venta ------------------------------
+function SaleConceptDialog({
+  concept,
+  onClose,
+  readOnly,
+}: {
+  concept: BillingSaleConcept | null;
+  onClose: () => void;
+  readOnly: boolean;
+}) {
+  const { toast } = useToast();
+  const create = useCreateSaleConcept();
+  const update = useUpdateSaleConcept();
+  const edit = concept ?? null;
+
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const [status, setStatus] = useState<ActiveStatus>('ACTIVO');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setName(edit?.name ?? '');
+    setPrice(edit?.price ?? '');
+    setStatus(edit?.status ?? 'ACTIVO');
+    setErrors({});
+  }, [edit?.id]);
+
+  const pending = create.isPending || update.isPending;
+
+  const submit = () => {
+    if (readOnly) return;
+    const e: Record<string, string> = {};
+    if (!name.trim()) e.name = 'Ingresa un nombre.';
+    let priceCents = 0;
+    try {
+      priceCents = toCents(price.trim() || '0');
+    } catch {
+      priceCents = -1;
+    }
+    if (priceCents <= 0) e.price = 'Ingresa un precio válido.';
+    setErrors(e);
+    if (Object.keys(e).length) return;
+
+    const body = { name: name.trim(), price: (priceCents / 100).toFixed(2), status };
+    const onError = (err: unknown) => {
+      if (err instanceof ApiError && err.errors?.length) {
+        setErrors(Object.fromEntries(err.errors.map((f) => [f.path, f.message])));
+      }
+      toast('danger', 'No se pudo guardar', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.');
+    };
+
+    if (edit) {
+      update.mutate(
+        { id: edit.id, body },
+        {
+          onSuccess: () => {
+            toast('success', 'Concepto actualizado', `${body.name} · guardado.`);
+            onClose();
+          },
+          onError,
+        },
+      );
+    } else {
+      create.mutate(body, {
+        onSuccess: () => {
+          toast('success', 'Concepto creado', 'Disponible en Caja, en «Otros conceptos».');
+          onClose();
+        },
+        onError,
+      });
+    }
+  };
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      icon={<Icons.Clipboard />}
+      title={edit ? `Editar · ${edit.name}` : 'Nuevo concepto de venta'}
+      description="Libros, uniformes y otros cobros de ventanilla"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button variant="primary" iconLeft={<Icons.Check />} disabled={readOnly || pending} onClick={submit}>
+            {edit ? 'Guardar cambios' : 'Crear'}
+          </Button>
+        </>
+      }
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, paddingTop: 4 }}>
+        <Input
+          label="Nombre"
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          error={errors.name}
+          placeholder="Ej. Libros 3° Primaria"
+          containerStyle={{ gridColumn: '1 / -1' }}
+        />
+        <Input
+          label="Precio"
+          prefix="S/."
+          value={price}
+          onChange={(e) => setPrice(e.target.value.replace(/[^0-9.]/g, ''))}
+          error={errors.price}
+          inputMode="decimal"
+          placeholder="0.00"
+        />
+        <Select
+          label="Estado"
+          options={(['ACTIVO', 'INACTIVO'] as ActiveStatus[]).map((s) => ({ value: s, label: ACTIVE_STATUS_LABELS[s] }))}
+          value={status}
+          onChange={(e) => setStatus(e.target.value as ActiveStatus)}
+        />
+      </div>
     </Dialog>
   );
 }

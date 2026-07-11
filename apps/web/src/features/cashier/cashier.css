@@ -1,0 +1,72 @@
+/* Layout responsive de Caja (desktop-first; breakpoints lg ≥1024 / md 768–1023 / sm <768). */
+.esge-cobrar-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+.esge-cobrar-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: sticky;
+  top: 0;
+}
+.esge-cashier-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1023px) {
+  .esge-cobrar-grid {
+    grid-template-columns: 1fr;
+  }
+  .esge-cobrar-summary {
+    position: static;
+  }
+  .esge-cashier-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .esge-cashier-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Impresión del recibo estilo ticket. Al imprimir se oculta toda la app y solo
+   queda visible el ticket (#esge-receipt-print), centrado en la hoja. */
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #esge-receipt-print,
+  #esge-receipt-print * {
+    visibility: visible;
+  }
+  #esge-receipt-print {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    padding: 12mm 0 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #esge-receipt-print .esge-receipt-ticket {
+    width: 80mm;
+    box-shadow: none;
+    border-radius: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  @page {
+    margin: 0;
+  }
+}

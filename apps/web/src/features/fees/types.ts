@@ -61,6 +61,16 @@ export interface FeesResponse {
   discounts: Discount[];
 }
 
+/** Concepto de venta de ventanilla (libros, uniformes, etc.) — GET /billing/sale-concepts. */
+export interface BillingSaleConcept {
+  id: string;
+  name: string;
+  price: string;
+  status: ActiveStatus;
+  /** Cuántos recibos lo usan (bloquea el borrado si > 0). */
+  receiptCount: number;
+}
+
 // ---- Bodies de mutación ----------------------------------------------------
 
 export interface LevelFeeBody {
@@ -76,5 +86,11 @@ export interface DiscountBody {
   percent: string;
   application: DiscountApplication;
   condition: string;
+  status: ActiveStatus;
+}
+
+export interface SaleConceptBody {
+  name: string;
+  price: string;
   status: ActiveStatus;
 }

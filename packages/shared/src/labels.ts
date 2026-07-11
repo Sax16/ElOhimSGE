@@ -3,6 +3,7 @@
 
 import {
   type ActiveStatus,
+  type CashSessionStatus,
   type DiscountApplication,
   type EnrollmentStatus,
   type EnrollmentType,
@@ -11,10 +12,12 @@ import {
   type InstallmentType,
   type InsuranceType,
   type NotificationChannel,
+  type PaymentMethod,
   type PeriodStatus,
   type PeriodType,
   type ProgramStatus,
   type ProgramType,
+  type ReceiptStatus,
   type Sex,
   type Shift,
   type StudentStatus,
@@ -138,4 +141,21 @@ export const DISCOUNT_APPLICATION_LABELS: Record<DiscountApplication, string> = 
 export const ACTIVE_STATUS_LABELS: Record<ActiveStatus, string> = {
   ACTIVO: 'Activo',
   INACTIVO: 'Inactivo',
+};
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  EFECTIVO: 'Efectivo',
+  YAPE_PLIN: 'Yape / Plin',
+  TRANSFERENCIA: 'Transferencia',
+  TARJETA: 'Tarjeta',
+};
+
+export const CASH_SESSION_STATUS_LABELS: Record<CashSessionStatus, string> = {
+  ABIERTA: 'Abierta',
+  CERRADA: 'Cerrada',
+};
+
+export const RECEIPT_STATUS_LABELS: Record<ReceiptStatus, string> = {
+  EMITIDO: 'Emitido',
+  ANULADO: 'Anulado',
 };

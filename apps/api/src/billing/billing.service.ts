@@ -11,6 +11,8 @@ import {
   type DiscountUpsertInput,
   type InstallmentCancelInput,
   type LevelFeeUpdateInput,
+  type SaleConceptUpdateInput,
+  type SaleConceptUpsertInput,
 } from '@elohim/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
@@ -335,6 +337,142 @@ export class BillingService {
       );
       return { id: updated.id, status: updated.status };
     });
+  }
+
+  // ===== Conceptos de venta (otros conceptos: libros, uniformes…) =====
+
+  // GET /api/billing/sale-concepts — todos (incl. INACTIVO) con nº de recibos que los usan.
+  async listSaleConcepts() {
+    const concepts = await this.prisma.saleConcept.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        status: true,
+        _count: { select: { items: true } },
+      },
+    });
+    return concepts.map((c) => ({
+      id: c.id,
+      name: c.name,
+      price: money(c.price),
+      status: c.status,
+      receiptCount: c._count.items,
+    }));
+  }
+
+  // POST /api/billing/sale-concepts — alta (nombre único → 409).
+  async createSaleConcept(input: SaleConceptUpsertInput, actorId: string) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const concept = await tx.saleConcept.create({
+          data: { name: input.name, price: input.price, status: input.status },
+        });
+        await this.audit.log(
+          {
+            userId: actorId,
+            action: 'saleConcept.create',
+            entity: 'SaleConcept',
+            entityId: concept.id,
+            payload: { name: concept.name, price: input.price },
+          },
+          tx,
+        );
+        return this.serializeSaleConcept(concept, 0);
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Ya existe un concepto con ese nombre');
+      }
+      throw error;
+    }
+  }
+
+  // PATCH /api/billing/sale-concepts/:id — edición parcial (nombre único → 409).
+  async updateSaleConcept(id: string, input: SaleConceptUpdateInput, actorId: string) {
+    const existing = await this.prisma.saleConcept.findUnique({
+      where: { id },
+      select: { id: true, _count: { select: { items: true } } },
+    });
+    if (!existing) throw new NotFoundException('Concepto no encontrado');
+
+    const data: Prisma.SaleConceptUpdateInput = {};
+    const payload: Record<string, unknown> = {};
+    if (input.name !== undefined) {
+      data.name = input.name;
+      payload.name = input.name;
+    }
+    if (input.price !== undefined) {
+      data.price = input.price;
+      payload.price = input.price;
+    }
+    if (input.status !== undefined) {
+      data.status = input.status;
+      payload.status = input.status;
+    }
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const concept = await tx.saleConcept.update({ where: { id }, data });
+        await this.audit.log(
+          {
+            userId: actorId,
+            action: 'saleConcept.update',
+            entity: 'SaleConcept',
+            entityId: id,
+            payload: payload as Prisma.InputJsonValue,
+          },
+          tx,
+        );
+        return this.serializeSaleConcept(concept, existing._count.items);
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Ya existe un concepto con ese nombre');
+      }
+      throw error;
+    }
+  }
+
+  // DELETE /api/billing/sale-concepts/:id — solo si nunca se usó en un recibo; si no, desactívalo.
+  async deleteSaleConcept(id: string, actorId: string) {
+    const existing = await this.prisma.saleConcept.findUnique({
+      where: { id },
+      select: { id: true, name: true, _count: { select: { items: true } } },
+    });
+    if (!existing) throw new NotFoundException('Concepto no encontrado');
+    if (existing._count.items > 0) {
+      throw new ConflictException('Tiene recibos asociados — desactívalo');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.saleConcept.delete({ where: { id } });
+      await this.audit.log(
+        {
+          userId: actorId,
+          action: 'saleConcept.delete',
+          entity: 'SaleConcept',
+          entityId: id,
+          payload: { name: existing.name },
+        },
+        tx,
+      );
+      return { id, deleted: true };
+    });
+  }
+
+  private serializeSaleConcept(
+    c: { id: string; name: string; price: Prisma.Decimal; status: string },
+    receiptCount: number,
+  ) {
+    return {
+      id: c.id,
+      name: c.name,
+      price: money(c.price),
+      status: c.status,
+      receiptCount,
+    };
   }
 
   private serializeDiscount(d: {
