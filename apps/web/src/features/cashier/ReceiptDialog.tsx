@@ -4,6 +4,7 @@ import { Badge, Button, Dialog, Icons, Tooltip } from '@elohim/ui';
 import { PAYMENT_METHOD_LABELS, RECEIPT_STATUS_LABELS, formatPEN, toCents } from '@elohim/shared';
 import { useInstitution } from '../settings/api';
 import { fmtDateTime, digitsOnly } from './bits';
+import { printReceipt } from './printReceipt';
 import type { Receipt } from './types';
 import './cashier.css';
 
@@ -70,7 +71,17 @@ export function ReceiptDialog({ open, receipt, loading = false, onClose }: Recei
                 <span style={{ display: 'inline-flex' }}>{sendButton}</span>
               </Tooltip>
             )}
-            <Button variant="primary" iconLeft={<Icons.Printer />} onClick={() => window.print()}>
+            <Button
+              variant="primary"
+              iconLeft={<Icons.Printer />}
+              onClick={() =>
+                printReceipt(receipt, {
+                  name: institutionName,
+                  address: institution?.address,
+                  ruc: institution?.ruc,
+                })
+              }
+            >
               Imprimir recibo
             </Button>
           </>
@@ -82,9 +93,8 @@ export function ReceiptDialog({ open, receipt, loading = false, onClose }: Recei
           {loading ? 'Cargando recibo…' : 'No se encontró el recibo.'}
         </div>
       ) : (
-        <div id="esge-receipt-print">
+        <div>
           <div
-            className="esge-receipt-ticket"
             style={{
               fontFamily: 'var(--font-mono)',
               background: 'var(--surface-sunken)',

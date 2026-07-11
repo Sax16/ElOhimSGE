@@ -36,37 +36,6 @@
   }
 }
 
-/* Impresión del recibo estilo ticket. Al imprimir se oculta toda la app y solo
-   queda visible el ticket (#esge-receipt-print), centrado en la hoja. */
-
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  #esge-receipt-print,
-  #esge-receipt-print * {
-    visibility: visible;
-  }
-  #esge-receipt-print {
-    position: fixed;
-    inset: 0;
-    margin: 0;
-    padding: 12mm 0 0;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    background: #fff;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  #esge-receipt-print .esge-receipt-ticket {
-    width: 80mm;
-    box-shadow: none;
-    border-radius: 0;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  @page {
-    margin: 0;
-  }
-}
+/* La impresión del recibo ya NO se hace desde esta página: printReceipt.ts la
+   genera en un documento aislado (iframe) con su propio CSS, para no bloquear
+   opciones del diálogo de impresión del navegador con reglas @page globales. */
