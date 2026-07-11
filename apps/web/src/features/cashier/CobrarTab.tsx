@@ -19,8 +19,9 @@ import {
 } from '@elohim/ui';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, formatPEN, toCents } from '@elohim/shared';
 import { ApiError } from '../../lib/api';
-import { fmtDayMonth } from '../structure/bits';
+import { fmtDate, fmtDayMonth } from '../structure/bits';
 import { useCashierDay, useCashierSaleConcepts, useCollectibles, useCreateReceipt, useStudentSearch } from './api';
+import { todayLocalISO } from './bits';
 import { OpenSessionDialog } from './SessionDialogs';
 import { ReceiptDialog } from './ReceiptDialog';
 import type { CashSession, PaymentMethod, Receipt, StudentHit } from './types';
@@ -48,7 +49,8 @@ export function CobrarTab({ canEdit }: { canEdit: boolean }) {
     return <div style={{ padding: 24, color: 'var(--text-muted)', font: 'var(--type-body)' }}>Cargando caja…</div>;
   }
 
-  const isOpen = session != null && session.status === 'ABIERTA';
+  const isToday = session != null && session.date === todayLocalISO();
+  const isOpen = session != null && session.status === 'ABIERTA' && isToday;
 
   if (!isOpen) {
     return (
@@ -62,7 +64,8 @@ export function CobrarTab({ canEdit }: { canEdit: boolean }) {
   return <CobrarForm canEdit={canEdit} />;
 }
 
-/** Aviso cuando la caja no está abierta (nunca abrió hoy, o ya cerró). */
+/** Aviso cuando no se puede cobrar: no hay caja hoy, ya cerró, o quedó una caja
+ *  de un día anterior sin cerrar (los cobros solo caen en la caja del día actual). */
 function CajaCerradaAviso({
   session,
   canEdit,
@@ -72,6 +75,15 @@ function CajaCerradaAviso({
   canEdit: boolean;
   onOpen: () => void;
 }) {
+  const pendingPrevious = session != null && session.status === 'ABIERTA' && session.date !== todayLocalISO();
+  if (pendingPrevious) {
+    return (
+      <Alert tone="warning" title={`La caja del ${fmtDate(session.date)} sigue abierta`}>
+        Realiza su arqueo y ciérrala en la pestaña <b>Caja del día</b> antes de abrir la de hoy. Los cobros solo
+        caen en la caja del día actual, así el arqueo pendiente no se contamina.
+      </Alert>
+    );
+  }
   const alreadyClosed = session?.status === 'CERRADA';
   return (
     <Alert tone="warning" title="La caja del día no está abierta">

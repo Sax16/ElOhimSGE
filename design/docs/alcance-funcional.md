@@ -136,7 +136,8 @@ Decididas por el administrador antes de implementar. MANDAN sobre los prototipos
 - **Sin pagos parciales**: las cuotas se cobran completas. Deuda que la familia no puede cubrir → compromiso de pago.
 - **Una caja compartida por día**: quien la abre registra el monto inicial y responde por el arqueo al cierre; varios usuarios pueden cobrar sobre ella y cada movimiento registra quién cobró.
 - **Todo cobro exige caja abierta** (efectivo y digital). El arqueo cuenta solo el efectivo; los cobros digitales se listan aparte en el cierre.
-- **Anulación de recibo**: solo mientras la caja de ese día esté abierta; después, la corrección va por devolución. Anular devuelve las cuotas a su estado anterior.
+- **El cierre no caduca a medianoche**: no hay cierre automático — el arqueo siempre lo hace una persona. Si la caja quedó abierta y se cuadra al día siguiente (o después), se cierra normal y la demora queda trazada en la hora de cierre. Mientras exista una caja anterior sin cerrar **no se puede abrir la caja del día** (la UI lleva al arqueo pendiente), y los cobros solo caen en la caja del día actual — nunca en la pendiente.
+- **Anulación de recibo**: solo mientras la caja de ese día siga abierta (aunque el cierre ocurra pasada la medianoche); cerrada la caja, la corrección va por devolución. Anular devuelve las cuotas a su estado anterior.
 - **Otros conceptos** (libros, uniformes, buzo…): **catálogo simple** nombre + precio administrable desde Tarifario, sin stock — la integración con Inventario llega en R5.
 - El diálogo "Generar cuotas del mes" del prototipo **no aplica**: el cronograma anual nace completo con la matrícula (decisión R1).
 

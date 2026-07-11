@@ -193,13 +193,21 @@ export class CashierService {
 
   // ===== Caja del día =====
 
-  // GET /cashier/day — todo lo del día de HOY (caja, indicadores y movimientos).
+  // GET /cashier/day — la caja relevante con indicadores y movimientos:
+  // la de HOY si existe; si no, una ABIERTA de un día anterior pendiente de cierre.
   async getDay() {
     const todayDate = isoToDate(todayISO());
-    const session = await this.prisma.cashSession.findUnique({
+    let session = await this.prisma.cashSession.findUnique({
       where: { date: todayDate },
       include: sessionInclude,
     });
+    if (!session) {
+      session = await this.prisma.cashSession.findFirst({
+        where: { status: 'ABIERTA' },
+        orderBy: { date: 'desc' },
+        include: sessionInclude,
+      });
+    }
 
     if (!session) {
       return {
@@ -285,6 +293,7 @@ export class CashierService {
   }
 
   // POST /cashier/session/open — abre la caja de HOY (una por día, sin reapertura).
+  // Bloqueada mientras exista una caja de un día anterior sin cerrar.
   async openSession(input: CashSessionOpenInput, actorId: string) {
     const todayDate = isoToDate(todayISO());
     const existing = await this.prisma.cashSession.findUnique({
@@ -293,6 +302,17 @@ export class CashierService {
     });
     if (existing) {
       throw new ConflictException('Ya existe una caja para hoy');
+    }
+    const pending = await this.prisma.cashSession.findFirst({
+      where: { status: 'ABIERTA' },
+      orderBy: { date: 'desc' },
+      select: { date: true },
+    });
+    if (pending) {
+      const dmy = dateToISO(pending.date).split('-').reverse().join('/');
+      throw new ConflictException(
+        `La caja del ${dmy} sigue abierta — realiza su arqueo y ciérrala antes de abrir la de hoy`,
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -319,17 +339,16 @@ export class CashierService {
     });
   }
 
-  // POST /cashier/session/close — cierra la caja ABIERTA de HOY con arqueo (solo efectivo).
+  // POST /cashier/session/close — cierra la caja ABIERTA con arqueo (solo efectivo).
+  // Opera sobre la caja abierta aunque sea de un día anterior: el cierre no caduca
+  // a medianoche — quien cuadra tarde igual registra su arqueo (queda trazado en closedAt).
   async closeSession(input: CashSessionCloseInput, actorId: string) {
-    const todayDate = isoToDate(todayISO());
-    const session = await this.prisma.cashSession.findUnique({
-      where: { date: todayDate },
+    const session = await this.prisma.cashSession.findFirst({
+      where: { status: 'ABIERTA' },
+      orderBy: { date: 'desc' },
       select: { id: true, status: true, initialAmount: true },
     });
-    if (!session) throw new NotFoundException('No hay caja abierta hoy');
-    if (session.status !== 'ABIERTA') {
-      throw new ConflictException('La caja del día ya está cerrada');
-    }
+    if (!session) throw new NotFoundException('No hay ninguna caja abierta');
 
     // Efectivo esperado = monto inicial + efectivo de recibos EMITIDO de la sesión.
     const cashReceipts = await this.prisma.receipt.findMany({
@@ -698,9 +717,9 @@ export class CashierService {
       if (receipt.status !== 'EMITIDO') {
         throw new ConflictException('El recibo ya está anulado');
       }
-      // Solo mientras la caja de ESE día siga abierta y sea la de HOY.
-      const isToday = dateToISO(receipt.cashSession.date) === todayISO();
-      if (!isToday || receipt.cashSession.status !== 'ABIERTA') {
+      // Solo mientras la caja de ESE día siga abierta (aunque el cierre ocurra pasada
+      // la medianoche): cerrada la caja, la corrección va por devolución.
+      if (receipt.cashSession.status !== 'ABIERTA') {
         throw new ConflictException(
           'La caja de ese día ya cerró — la corrección va por devolución',
         );

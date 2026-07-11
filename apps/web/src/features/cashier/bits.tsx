@@ -31,3 +31,11 @@ export function fmtDateTime(iso: string | null | undefined): string {
 export function digitsOnly(phone: string | null | undefined): string {
   return (phone ?? '').replace(/\D/g, '');
 }
+
+/** Fecha civil de HOY como 'yyyy-mm-dd' en hora local (para comparar con session.date). */
+export function todayLocalISO(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}

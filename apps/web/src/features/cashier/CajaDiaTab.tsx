@@ -27,7 +27,7 @@ import {
 import { ApiError } from '../../lib/api';
 import { fmtDate } from '../structure/bits';
 import { useCancelReceipt, useCashierDay, useReceipt } from './api';
-import { fmtTime, methodTone } from './bits';
+import { fmtTime, methodTone, todayLocalISO } from './bits';
 import { OpenSessionDialog, CloseSessionDialog } from './SessionDialogs';
 import { ReceiptDialog } from './ReceiptDialog';
 import type { Movement } from './types';
@@ -145,8 +145,16 @@ export function CajaDiaTab({ canEdit }: { canEdit: boolean }) {
     },
   ];
 
+  const pendingPrevious = isOpen && session.date !== todayLocalISO();
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {pendingPrevious && (
+        <Alert tone="warning" title={`Caja del ${fmtDate(session.date)} pendiente de cierre`}>
+          Esta caja quedó abierta de un día anterior. Realiza el arqueo y ciérrala para poder abrir la caja de
+          hoy; mientras tanto no se pueden registrar cobros nuevos.
+        </Alert>
+      )}
       <Card>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <span
