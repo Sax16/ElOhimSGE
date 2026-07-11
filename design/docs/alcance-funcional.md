@@ -143,6 +143,15 @@ Decididas por el administrador antes de implementar. MANDAN sobre los prototipos
 
 ### Recordatorios de pago
 - **Semiautomáticos vía WhatsApp**: el botón "Recordar" abre WhatsApp (enlace `wa.me` al celular del apoderado principal) con el mensaje de deuda prellenado, y el sistema registra el recordatorio (fecha, quién lo envió, a quién). El envío automático masivo queda para Notificaciones (R5).
+- **Mensaje consolidado por apoderado** (decidido en E2): lista las cuotas VENCIDAS de todos sus hijos (con su mora) más la cuota del mes en curso si sigue pendiente, con el total. Ni solo vencidas ni todo el año.
+
+### Pensiones — decisiones de la etapa 2 (jul 2026)
+- **La mora aplica SOLO a cuotas de pensión de enseñanza regular**: la matrícula vencida no genera mora, y las cuotas de programas complementarios tampoco. El estado `VENCIDO` sí se materializa para toda cuota con fecha pasada (cualquier tipo).
+- **Job diario (pg-boss)**: materializa `VENCIDO` y carga la mora fija (una vez, tras los días de gracia, si `autoLateFee` está activo; respeta exoneraciones). Además el Admin puede ejecutarlo manualmente desde la API.
+- **Exonerar mora**: solo rol Admin, motivo ≥ 10 caracteres, auditado; la cuota conserva la marca de exoneración para que el job no la vuelva a cargar.
+- **El cobro siempre ocurre en Caja**: la pantalla Pensiones es la vista de seguimiento de cobranza; su acción de cobro deriva a Caja → Cobrar con el estudiante y la cuota precargados (un solo punto de registro del dinero). No existe registrar pago desde Pensiones (reemplaza el dialog del prototipo).
+- **Exportar a Excel: pospuesto** al módulo Reportes (E5/R2 tardío).
+- La StatCard "Pago en línea" del prototipo se reemplaza por **Morosidad** (el pago en línea llega en R5).
 
 ### Devoluciones
 - Flujo de dos pasos: Secretaría solicita (vinculada a un recibo, motivo obligatorio) → Admin aprueba o rechaza (justificación ≥ 10) → Caja ejecuta.
