@@ -171,6 +171,8 @@ model User {
   cashSessionsClosed           CashSession[]       @relation("CashSessionClosedBy")
   receiptsCashiered            Receipt[]           @relation("ReceiptCashier")
   receiptsCanceled             Receipt[]           @relation("ReceiptCanceledBy")
+  lateFeesExonerated           Installment[]       @relation("InstallmentLateFeeExoneratedBy")
+  remindersSent                ReminderLog[]       @relation("ReminderSentBy")
 }
 
 // Singleton (id = 1): datos institucionales de la pestaña Configuración > Institución.
@@ -415,6 +417,7 @@ model Guardian {
 
   students          StudentGuardian[]
   enrollmentsSigned Enrollment[]      @relation("SigningGuardian")
+  reminderLogs      ReminderLog[]
 }
 
 // Relación N:M estudiante↔apoderado. Desvincular = active:false (soft), nunca DELETE.
@@ -486,6 +489,14 @@ model Installment {
   amount              Decimal           @db.Decimal(10, 2) // total = base - descuento + programas
   status              InstallmentStatus @default(PENDIENTE)
 
+  // Mora fija (R2 — E2): una sola vez por cuota, solo pensión escolar. 0 = sin mora / exonerada.
+  lateFeeAmount            Decimal   @default(0) @db.Decimal(10, 2)
+  lateFeeAppliedAt         DateTime? // cuándo el job cargó la mora
+  lateFeeExoneratedAt      DateTime? // cuándo un Admin exoneró la mora (congela el recargo)
+  lateFeeExoneratedById    String?
+  lateFeeExoneratedBy      User?     @relation("InstallmentLateFeeExoneratedBy", fields: [lateFeeExoneratedById], references: [id])
+  lateFeeExonerationReason String? // motivo de exoneración (≥ 10 caracteres, CHECK en BD)
+
   canceledAt   DateTime?
   cancelReason String?
   canceledById String?
@@ -494,6 +505,23 @@ model Installment {
 
   @@unique([enrollmentId, sequence])
   @@unique([programEnrollmentId, sequence])
+}
+
+// Recordatorio de pago enviado a un apoderado principal (R2 — E2): snapshot del mensaje y total.
+// Semiautomático vía WhatsApp (wa.me); el envío queda trazado (quién, a quién, cuándo, cuánto).
+model ReminderLog {
+  id          String   @id @default(cuid())
+  guardianId  String
+  guardian    Guardian @relation(fields: [guardianId], references: [id])
+  sentById    String
+  sentBy      User     @relation("ReminderSentBy", fields: [sentById], references: [id])
+  channel     String   @default("WHATSAPP")
+  message     String
+  totalAmount Decimal  @db.Decimal(10, 2)
+  itemsCount  Int
+  createdAt   DateTime @default(now())
+
+  @@index([guardianId, createdAt])
 }
 
 // ===== Caja y cobros (R2 — E1) =====

@@ -460,7 +460,8 @@ export class CashierService {
 
     const rows = await this.prisma.installment.findMany({
       where: {
-        status: 'PENDIENTE',
+        // Cobrable = sigue por pagar: PENDIENTE o VENCIDO (el job materializa VENCIDO con su mora).
+        status: { in: ['PENDIENTE', 'VENCIDO'] },
         OR: [
           {
             enrollment: {
@@ -484,21 +485,27 @@ export class CashierService {
         concept: true,
         dueDate: true,
         amount: true,
+        lateFeeAmount: true,
         type: true,
         enrollmentId: true,
       },
     });
 
     const threshold = startOfToday();
-    const installments = rows.map((i) => ({
-      id: i.id,
-      concept: i.concept,
-      dueDate: dateToISO(i.dueDate),
-      amount: money(i.amount),
-      status: i.dueDate < threshold ? 'VENCIDO' : 'PENDIENTE',
-      type: i.type,
-      source: i.enrollmentId ? 'ESCOLAR' : 'PROGRAMA',
-    }));
+    const installments = rows.map((i) => {
+      const totalCents = decimalToCents(i.amount) + decimalToCents(i.lateFeeAmount);
+      return {
+        id: i.id,
+        concept: i.concept,
+        dueDate: dateToISO(i.dueDate),
+        amount: money(i.amount),
+        lateFee: money(i.lateFeeAmount),
+        totalWithFee: fromCents(totalCents),
+        status: i.dueDate < threshold ? 'VENCIDO' : 'PENDIENTE',
+        type: i.type,
+        source: i.enrollmentId ? 'ESCOLAR' : 'PROGRAMA',
+      };
+    });
 
     return {
       student: this.mapStudentHit(student, debt.get(studentId) ?? 0),
@@ -538,6 +545,7 @@ export class CashierService {
             id: true,
             concept: true,
             amount: true,
+            lateFeeAmount: true,
             status: true,
             enrollmentId: true,
             enrollment: {
@@ -553,7 +561,8 @@ export class CashierService {
         if (ownerStudentId !== input.studentId) {
           throw new BadRequestException('Una cuota no pertenece al estudiante indicado');
         }
-        if (inst.status !== 'PENDIENTE') {
+        // Cobrable si sigue por pagar: PENDIENTE o VENCIDO (el job materializa VENCIDO).
+        if (inst.status !== 'PENDIENTE' && inst.status !== 'VENCIDO') {
           throw new ConflictException(`La cuota "${inst.concept}" ya no está pendiente`);
         }
         const yearStatus =
@@ -562,11 +571,14 @@ export class CashierService {
         if (yearStatus === 'CERRADO') {
           throw new ConflictException('No se puede cobrar una cuota de un año cerrado');
         }
-        installmentsCents += decimalToCents(inst.amount);
+        // Se cobra la cuota + su mora fija (snapshot en la línea del recibo).
+        const feeCents = decimalToCents(inst.lateFeeAmount);
+        const lineCents = decimalToCents(inst.amount) + feeCents;
+        installmentsCents += lineCents;
         installmentItems.push({
           installmentId: inst.id,
-          concept: inst.concept,
-          amount: inst.amount,
+          concept: feeCents > 0 ? `${inst.concept} (+ mora)` : inst.concept,
+          amount: new Prisma.Decimal(fromCents(lineCents)),
         });
         if (inst.enrollmentId) enrollmentIds.add(inst.enrollmentId);
       }
@@ -725,21 +737,37 @@ export class CashierService {
         );
       }
 
-      // Cuotas del recibo → vuelven a PENDIENTE; recalcula el estado de sus matrículas.
+      // Cuotas del recibo → vuelven a su estado por pagar: VENCIDO si ya vencieron, PENDIENTE si no.
+      // La mora (lateFeeAmount) permanece en la cuota: reaparece como vencida con su recargo.
       const installmentIds = receipt.items
         .map((i) => i.installmentId)
         .filter((x): x is string => x !== null);
       const enrollmentIds = new Set<string>();
       if (installmentIds.length > 0) {
+        const threshold = startOfToday();
         const affected = await tx.installment.findMany({
           where: { id: { in: installmentIds } },
-          select: { enrollmentId: true },
+          select: { id: true, enrollmentId: true, dueDate: true },
         });
-        for (const a of affected) if (a.enrollmentId) enrollmentIds.add(a.enrollmentId);
-        await tx.installment.updateMany({
-          where: { id: { in: installmentIds } },
-          data: { status: 'PENDIENTE' },
-        });
+        const overdueIds: string[] = [];
+        const pendingIds: string[] = [];
+        for (const a of affected) {
+          if (a.enrollmentId) enrollmentIds.add(a.enrollmentId);
+          if (a.dueDate < threshold) overdueIds.push(a.id);
+          else pendingIds.push(a.id);
+        }
+        if (overdueIds.length > 0) {
+          await tx.installment.updateMany({
+            where: { id: { in: overdueIds } },
+            data: { status: 'VENCIDO' },
+          });
+        }
+        if (pendingIds.length > 0) {
+          await tx.installment.updateMany({
+            where: { id: { in: pendingIds } },
+            data: { status: 'PENDIENTE' },
+          });
+        }
       }
 
       await tx.receipt.update({

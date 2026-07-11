@@ -1,0 +1,33 @@
+/* Layout responsive de Pensiones (desktop-first; lg ≥1024 / md 768–1023 / sm <768). */
+.esge-pensions-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.esge-pensions-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.esge-pensions-filters__search {
+  flex: 1;
+  min-width: 200px;
+}
+
+@media (max-width: 1023px) {
+  .esge-pensions-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .esge-pensions-stats {
+    grid-template-columns: 1fr;
+  }
+  .esge-pensions-filters__search {
+    flex-basis: 100%;
+  }
+}

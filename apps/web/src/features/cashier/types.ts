@@ -90,6 +90,10 @@ export interface Collectible {
   /** yyyy-mm-dd. */
   dueDate: string;
   amount: string;
+  /** Mora acumulada en la cuota (0.00 si no aplica). */
+  lateFee: string;
+  /** amount + lateFee: el monto que realmente se cobra. */
+  totalWithFee: string;
   status: CollectibleStatus;
   type: 'MATRICULA' | 'PENSION';
   source: 'ESCOLAR' | 'PROGRAMA';

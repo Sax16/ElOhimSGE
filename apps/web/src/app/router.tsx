@@ -28,6 +28,9 @@ const FeesPage = lazy(() => import('../features/fees/FeesPage').then((m) => ({ d
 const CashierPage = lazy(() =>
   import('../features/cashier/CashierPage').then((m) => ({ default: m.CashierPage })),
 );
+const PensionsPage = lazy(() =>
+  import('../features/payments/PensionsPage').then((m) => ({ default: m.PensionsPage })),
+);
 const EnrollmentPage = lazy(() =>
   import('../features/enrollment/EnrollmentPage').then((m) => ({ default: m.EnrollmentPage })),
 );
@@ -81,6 +84,8 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
           <FeesPage />
         ) : id === 'caja' ? (
           <CashierPage />
+        ) : id === 'pagos' ? (
+          <PensionsPage />
         ) : id === 'matricula' ? (
           <EnrollmentPage />
         ) : id === 'dash' ? (

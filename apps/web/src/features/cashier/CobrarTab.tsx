@@ -1,6 +1,7 @@
 // Pestaña «Cobrar»: buscar estudiante → seleccionar cuotas/conceptos → método → recibo.
 // Todo cobro exige la caja del día abierta (decisión R2 que manda sobre el prototipo).
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Avatar,
@@ -110,6 +111,7 @@ function CajaCerradaAviso({
 function CobrarForm({ canEdit }: { canEdit: boolean }) {
   const { toast } = useToast();
   const createReceipt = useCreateReceipt();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [term, setTerm] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -127,11 +129,53 @@ function CobrarForm({ canEdit }: { canEdit: boolean }) {
     return () => clearTimeout(id);
   }, [term]);
 
+  // Enlace profundo desde Pensiones: /caja?student=<id>&installment=<id>.
+  // Precarga el estudiante (por id) con la cuota seleccionada y limpia los params.
+  useEffect(() => {
+    const sid = searchParams.get('student');
+    if (!sid) return;
+    const iid = searchParams.get('installment');
+    setStudent({
+      id: sid,
+      code: '',
+      fullName: '',
+      gradeSection: '',
+      primaryGuardianName: '',
+      primaryGuardianPhone: '',
+      debtAmount: '0.00',
+    });
+    setExtras([]);
+    setMethod('EFECTIVO');
+    setReceived('');
+    setOperationNumber('');
+    setSelectedIds(iid ? [iid] : []);
+    const next = new URLSearchParams(searchParams);
+    next.delete('student');
+    next.delete('installment');
+    setSearchParams(next, { replace: true });
+    // Solo al montar: los params se consumen una vez.
+  }, []);
+
   const { data: hits = [], isFetching } = useStudentSearch(student ? '' : debounced);
   const { data: collectibles } = useCollectibles(student?.id ?? null);
   const { data: catalog = [] } = useCashierSaleConcepts();
 
   const installments = collectibles?.installments ?? [];
+
+  // Hidrata el estudiante sintético del enlace profundo con los datos reales.
+  useEffect(() => {
+    if (!student || student.fullName !== '' || !collectibles) return;
+    const s = collectibles.student;
+    setStudent({
+      id: s.id,
+      code: s.code,
+      fullName: s.fullName,
+      gradeSection: s.gradeSection,
+      primaryGuardianName: s.primaryGuardianName ?? '',
+      primaryGuardianPhone: s.primaryGuardianPhone ?? '',
+      debtAmount: s.debtAmount ?? '0.00',
+    });
+  }, [collectibles, student]);
 
   const resetForm = () => {
     setSelectedIds([]);
@@ -153,7 +197,7 @@ function CobrarForm({ canEdit }: { canEdit: boolean }) {
   const items = useMemo(() => {
     const cuotaItems = installments
       .filter((q) => selectedIds.includes(q.id))
-      .map((q) => ({ key: `cuota-${q.id}`, concept: q.concept, cents: toCents(q.amount) }));
+      .map((q) => ({ key: `cuota-${q.id}`, concept: q.concept, cents: toCents(q.totalWithFee ?? q.amount) }));
     const extraItems = extras
       .map((id) => catalog.find((c) => c.id === id))
       .filter((c): c is NonNullable<typeof c> => !!c)
@@ -337,6 +381,7 @@ function CobrarForm({ canEdit }: { canEdit: boolean }) {
                 <div>
                   {installments.map((q) => {
                     const on = selectedIds.includes(q.id);
+                    const lateCents = q.lateFee ? toCents(q.lateFee) : 0;
                     return (
                       <label
                         key={q.id}
@@ -360,6 +405,9 @@ function CobrarForm({ canEdit }: { canEdit: boolean }) {
                           <div style={{ font: 'var(--type-label)', color: 'var(--text-strong)' }}>{q.concept}</div>
                           <div style={{ font: 'var(--type-2xs)', color: 'var(--text-muted)' }}>
                             Vence {fmtDayMonth(q.dueDate)}
+                            {lateCents > 0 && (
+                              <span style={{ color: 'var(--danger)' }}> · mora {formatPEN(lateCents)}</span>
+                            )}
                           </div>
                         </div>
                         <Badge tone={q.status === 'VENCIDO' ? 'danger' : 'warning'} dot>
@@ -374,7 +422,7 @@ function CobrarForm({ canEdit }: { canEdit: boolean }) {
                             textAlign: 'right',
                           }}
                         >
-                          {formatPEN(toCents(q.amount))}
+                          {formatPEN(toCents(q.totalWithFee ?? q.amount))}
                         </span>
                       </label>
                     );
