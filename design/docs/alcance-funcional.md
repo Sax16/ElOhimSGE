@@ -122,3 +122,35 @@ R1 (identity + estructura + estudiantes/apoderados + matrícula/cronograma + tar
 - Promoción de estudiantes → pre-matrículas (paso 3–4 del asistente de año): **R2**.
 - Constancias PDF (retiro/traslado, no adeudo), carnet con QR real: post-R1 (impresión básica vía `@media print` ya existe).
 - Recordatorios de pago, cobros en caja, mora efectiva: **R2** (la configuración de mora ya existe en tablas).
+
+## Decisiones de arranque R2 — dinero (jul 2026)
+
+Decididas por el administrador antes de implementar. MANDAN sobre los prototipos `CashierScreen.jsx`, `PaymentsScreen.jsx`, `TreasuryScreen.jsx` y `DashboardScreen.jsx` donde difieran:
+
+### Mora
+- **Fija, una sola vez por cuota**: pasados los días de gracia (config vigente: S/ 5.00, 3 días, `BillingSettings`), la cuota vencida carga la mora una única vez — no recurre por mes ni por día. Se registra en la propia cuota (campo de mora), no como cuota aparte.
+- El **job diario (pg-boss)** materializa el estado `VENCIDO` (hoy derivado por fecha) y carga la mora.
+- **Exoneración de mora: solo Admin**, con motivo obligatorio ≥ 10 caracteres, auditada. En ventanilla la mora siempre se cobra.
+
+### Cobros y caja
+- **Sin pagos parciales**: las cuotas se cobran completas. Deuda que la familia no puede cubrir → compromiso de pago.
+- **Una caja compartida por día**: quien la abre registra el monto inicial y responde por el arqueo al cierre; varios usuarios pueden cobrar sobre ella y cada movimiento registra quién cobró.
+- **Todo cobro exige caja abierta** (efectivo y digital). El arqueo cuenta solo el efectivo; los cobros digitales se listan aparte en el cierre.
+- **Anulación de recibo**: solo mientras la caja de ese día esté abierta; después, la corrección va por devolución. Anular devuelve las cuotas a su estado anterior.
+- **Otros conceptos** (libros, uniformes, buzo…): **catálogo simple** nombre + precio administrable desde Tarifario, sin stock — la integración con Inventario llega en R5.
+- El diálogo "Generar cuotas del mes" del prototipo **no aplica**: el cronograma anual nace completo con la matrícula (decisión R1).
+
+### Recordatorios de pago
+- **Semiautomáticos vía WhatsApp**: el botón "Recordar" abre WhatsApp (enlace `wa.me` al celular del apoderado principal) con el mensaje de deuda prellenado, y el sistema registra el recordatorio (fecha, quién lo envió, a quién). El envío automático masivo queda para Notificaciones (R5).
+
+### Devoluciones
+- Flujo de dos pasos: Secretaría solicita (vinculada a un recibo, motivo obligatorio) → Admin aprueba o rechaza (justificación ≥ 10) → Caja ejecuta.
+- Ejecución: **efectivo de caja o transferencia** (genera el egreso del día), **o aplicación a una cuota pendiente del mismo estudiante cuyo monto coincida exactamente** (queda Pagada con origen "Devolución D-xxxx"). **Sin saldo a favor / cuenta corriente** — si los montos no calzan exacto, se devuelve en dinero.
+
+### Compromisos de pago
+- Secretaría propone → Admin aprueba. Mientras esté vigente y al día, **mora y recordatorios de la deuda original se congelan**; una cuota del plan vencida e impaga (detectada por el job diario) lo marca **Incumplido** y reactiva mora y recordatorios sobre la deuda original.
+
+### Tesorería y dashboard
+- **Planilla llega en R3**: mientras tanto los pagos al personal se registran como gasto manual (categoría "Planilla y personal").
+- **Caja chica**: un solo fondo fijo con responsable y monto configurable; la rendición crea un único gasto consolidado en Gastos (origen: Caja chica) y repone el fondo.
+- **Meta de cobranza del dashboard: derivada** (suma de cuotas del mes según cronogramas), no configurable a mano.
