@@ -10,6 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **R1 (núcleo administrativo) está completo y funcional**: identity (login por usuario o correo, usuarios/roles/permisos), estructura académica (años/niveles/grados/secciones/plan/programas, año cerrado = 409 a nivel API), estudiantes y apoderados (N:M, máx. 3 por estudiante, contacto principal único con auto-promoción), matrícula con asistente de 5 pasos, cronograma de pagos (reglas puras en `packages/shared/src/money/` con tests), tarifario/descuentos (HERMANOS −10% automático al 2° hijo del firmante) y dashboard mínimo. Siguiente: R2 (dinero: caja, pensiones, mora, tesorería).
 
+**IMPORTANTE antes de implementar R2+**: durante R1 el usuario tomó decisiones que reemplazan partes del diseño original (matrícula sin traslado con fecha de ingreso universal, programas con vigencia/ediciones/cuotas propias, apellidos paterno/materno separados, eliminación segura de estructura, etc.). Están en **`design/docs/alcance-funcional.md` § "Decisiones de implementación — cierre R1"** y las precisiones técnicas (índice parcial, centavos, contadores, fechas civiles) en **`design/docs/stack-tecnico.md` § 6**, junto con el punteo de arranque de R2. Esas secciones MANDAN sobre los prototipos `.jsx` donde difieran.
+
 `design/` es el paquete de handoff: los `.jsx` de `design/ui_kits/sge/` siguen siendo la especificación de las pantallas que faltan. Prototipo standalone: `design/ui_kits/sge/index.html`.
 
 ### Comandos

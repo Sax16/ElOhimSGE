@@ -96,3 +96,21 @@ Esto implementa la regla ya validada en el prototipo: *cada movimiento se regist
 5. **R5 — Extensiones**: inventario/activos/biblioteca, pagos en línea, portal apoderado.
 
 Cada release entra a producción y se usa — no big bang.
+
+## 6. Estado de implementación — cierre R1 (jul 2026)
+
+**R1 está implementado** (monorepo pnpm en el repositorio; comandos en `CLAUDE.md`). Precisiones técnicas fijadas durante la construcción — respetarlas en R2+:
+
+- **Workspace**: pnpm (sin Turborepo). `packages/shared` se compila con **tsup** (lo consume Nest); `packages/ui` se consume como fuente TS directa (la compila Vite). `concurrently` para `pnpm dev` (Windows-friendly).
+- **Validación**: Zod como única fuente (schemas en `packages/shared/src/schemas/`), pipe propio `zodBody/zodQuery/zodParam` en Nest — sin class-validator.
+- **Auth**: JWT `{sub, role}` en cookie httpOnly `sge_token` (SameSite=Lax; 12h, 30d con recordarme), **bcryptjs** (sin node-gyp). Los permisos se leen frescos de BD en `/me` y en `PermissionsGuard` (suspensión aplica sin re-login). Login por username o correo (la institución no tiene dominio propio).
+- **Dinero**: **centavos enteros** en `packages/shared/src/money/` (funciones puras con 42 tests Vitest: `buildEnrollmentSchedule`, `buildProgramSchedule`, `billableMonths`, `applyDiscount`; redondeo half-up en un solo punto), `NUMERIC(10,2)` en BD, conversión en la frontera API (`money.util.ts`). Los montos de cuotas son snapshot. Fechas civiles como strings `yyyy-mm-dd` (nunca `new Date(iso)` para mostrar — corrimiento UTC−5).
+- **Prisma**: la unicidad de matrícula es un **índice único parcial** (`WHERE "canceledAt" IS NULL`), no representable en `schema.prisma` → aplicar migraciones con `pnpm db:deploy`; si `migrate dev` reporta drift, revisar el SQL antes de aceptar. Los CHECKs de negocio (DNI 8 dígitos, SIAGIE 14, capacidad>0, anulación exige motivo) viven en las migraciones SQL escritas a mano. La cadena completa de migraciones se replica limpia sobre BD vacía (validado — es el camino de producción).
+- **Códigos correlativos** (`E-####`, `A-####`, `M-YYYY-####`): tabla `CodeCounter` con incremento en transacción. Los contadores **nunca retroceden** (el seed usa GREATEST); los saltos por registros eliminados son normales.
+- **Seed**: idempotente por uniques (institución, usuarios demo, estructura 2026, 40 estudiantes con apellidos separados, 25 apoderados, 39 matrículas con 448 cuotas realistas ~70% al día, programas). `pnpm db:seed`.
+- **Fuentes**: IBM Plex **self-host** (.woff2 en `packages/ui/src/fonts/`, subset latin de Fontsource) — cero dependencia de Google Fonts (internet inestable en Satipo).
+- **Design system**: 28 componentes portados 1:1 del prototipo (hook `useStyleOnce` compartido, clases `esge-`); QA visual en `/dev/kit` (solo dev). Iconos `lucide-react` stroke 1.8.
+- **Fotos**: multer a disco `apps/api/uploads/`, servidas públicas bajo `/api/files` (aceptable en instalación única; endurecer si se expone a Internet).
+- **Auditoría**: `AuditLog` append-only en toda mutación, dentro de la misma `$transaction`.
+
+**Arranque de R2 (dinero)**: los specs son `ui_kits/sge/CashierScreen.jsx` (caja: cobro multi-cuota + otros conceptos, caja del día, arqueo, devoluciones con aprobación), `PaymentsScreen.jsx` (pensiones por estado + compromisos de pago con congelamiento de mora), `TreasuryScreen.jsx` (gastos/ingresos + caja chica) y `DashboardScreen.jsx` (KPIs económicos). Base ya lista de R1: cuotas con estados, `BillingSettings` (mora fija, días de gracia, mora automática), `debt.util` (definición única de deuda vencida), permisos `caja`/`pensiones` en `PERMISSION_MODULES`, y pg-boss decidido (aún sin instalar) para la generación de mora y recordatorios. El estado `VENCIDO` de cuota hoy se deriva por fecha; en R2 el job de mora lo materializa.

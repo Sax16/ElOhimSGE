@@ -87,5 +87,38 @@ Portal apoderado + pago en línea · Notas (interno + SIAGIE) · Inventario · I
 - Estudiante: Activo · Becado · Retirado · **Trasladado** · **Egresado** · **Reservado** (matrícula reservada)
 - Cuota: Pagado · Pendiente · Vencido · **Anulado** · **Exonerado**
 - Empleado: Activo · Licencia · Cesado
-- Matrícula: **Nueva · Ratificada · Trasladado (ingreso)**
+- Matrícula: **Nueva · Ratificada** (el tipo "Traslado (ingreso)" se eliminó del flujo en R1 — ver decisiones abajo; el valor queda en el enum solo por histórico)
 - Asistencia: Presente · Tardanza · Falta · Falta justificada
+
+## Decisiones de implementación — cierre R1 (jul 2026)
+
+R1 (identity + estructura + estudiantes/apoderados + matrícula/cronograma + tarifario + dashboard mínimo) está **implementado y en el repositorio**. Durante la construcción, el usuario (administrador de la I.E.P.) tomó decisiones que **refinan o reemplazan** lo descrito arriba y en los prototipos. Estas decisiones MANDAN sobre este documento y sobre los `.jsx` de `ui_kits/sge/`:
+
+### Identidad y acceso
+- **La institución NO tiene dominio de correo propio**: el personal usa Gmail personal. Login por **`username` único o correo completo** — nunca asumir ni autocompletar `@elohim.edu.pe`. El correo del usuario es dato de contacto, agnóstico del dominio.
+
+### Estudiantes y apoderados
+- **Apellidos separados**: `paternalLastName` (obligatorio) + `maternalLastName` (opcional — cubre personas con un solo apellido). Crucial para actas y documentos oficiales. Ya no existe `lastNames`.
+- **Máximo 3 apoderados por estudiante**. El primer apoderado vinculado queda como contacto principal automáticamente; el principal se cambia con un clic desde la ficha; al quitar al principal, otro se promueve solo (nunca queda un estudiante con apoderados y sin principal). El diálogo de vincular marca "Ya asignado" a los ya vinculados.
+- **Retirados/Trasladados pueden re-matricularse**: al concretar la nueva matrícula vuelven a Activo (los campos de retiro se limpian; el historial queda en auditoría). Egresado sigue bloqueado.
+
+### Matrícula y cronograma
+- **El flujo "Traslado entrante" se eliminó** (junto con el código SIAGIE y el campo colegio de origen, duplicado del colegio de procedencia). Lo reemplaza la **fecha de ingreso** editable del wizard (default hoy, rango [inicio de matrícula del año, hoy]): define desde cuándo se cobran pensiones en TODOS los casos, con la regla del **día de corte** (ingresa hasta ese día → paga el mes; después → gratis). La matrícula de campaña (dic–feb) produce año completo; un ingreso a mitad de año solo los meses restantes. La cuota de matrícula vence en la fecha de ingreso.
+- **Unicidad estudiante+año**: índice único **parcial** (`WHERE canceledAt IS NULL`) — una matrícula anulada no bloquea re-matricular el mismo año.
+- **Descuento HERMANOS (−10%)**: se aplica **solo al 2° hijo y siguientes** del apoderado firmante; se propone automáticamente **únicamente si su aplicación está configurada como Automático** (en Manual queda como opción elegible del selector). Los descuentos afectan solo la pensión, nunca matrícula ni programas.
+- Los montos del cronograma son **snapshot**: cambiar el tarifario nunca altera cronogramas ya generados.
+
+### Programas complementarios (rediseñados)
+- Un programa tiene **vigencia** (mes de inicio y mes de fin, 2..12); las cuotas mensuales se derivan de ella.
+- **Cuotas propias, separadas** del cronograma de pensiones ("Programa · Taller de Danza · Agosto"), con matrícula del programa si la tiene.
+- **Inscripción independiente** de la matrícula escolar (`ProgramEnrollment`): desde la pestaña Programas en cualquier momento del año (requiere matrícula escolar activa; prorrateo con el mismo día de corte si el programa ya empezó), y también como atajo en el wizard.
+- **Reapertura = nueva edición** (nuevo registro; el nombre puede repetirse si el mes de inicio difiere). Ej.: "Reforzamiento · Matemática" anual y una edición Ago–Sep conviven.
+
+### Regla "nada se borra" — alcance acotado
+- Aplica a **registros transaccionales** (dinero, matrículas, historial): solo anulación con justificación ≥10 caracteres.
+- La **estructura/configuración vacía sí se elimina** (con confirmación simple + auditoría): curso; programa sin inscritos; sección sin matrículas; grado sin secciones ni cursos; nivel sin grados; y un **año académico completo** si no está cerrado y no tiene matrículas (doble confirmación escribiendo el nombre). Los botones se deshabilitan con tooltip explicando la dependencia.
+
+### Pendientes que este documento describe y siguen vigentes para releases futuros
+- Promoción de estudiantes → pre-matrículas (paso 3–4 del asistente de año): **R2**.
+- Constancias PDF (retiro/traslado, no adeudo), carnet con QR real: post-R1 (impresión básica vía `@media print` ya existe).
+- Recordatorios de pago, cobros en caja, mora efectiva: **R2** (la configuración de mora ya existe en tablas).
