@@ -404,7 +404,10 @@ function CobrarForm({ canEdit }: { canEdit: boolean }) {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ font: 'var(--type-label)', color: 'var(--text-strong)' }}>{q.concept}</div>
                           <div style={{ font: 'var(--type-2xs)', color: 'var(--text-muted)' }}>
-                            Vence {fmtDayMonth(q.dueDate)}
+                            Vence {fmtDayMonth(q.effectiveDueDate ?? q.dueDate)}
+                            {q.commitmentCode && (
+                              <span style={{ color: 'var(--info, var(--brand))' }}> · Compromiso {q.commitmentCode}</span>
+                            )}
                             {lateCents > 0 && (
                               <span style={{ color: 'var(--danger)' }}> · mora {formatPEN(lateCents)}</span>
                             )}

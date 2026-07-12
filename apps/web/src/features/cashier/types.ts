@@ -98,8 +98,12 @@ export type CollectibleStatus = 'PENDIENTE' | 'VENCIDO';
 export interface Collectible {
   id: string;
   concept: string;
-  /** yyyy-mm-dd. */
+  /** yyyy-mm-dd (fecha original de la cuota). */
   dueDate: string;
+  /** yyyy-mm-dd — la reprogramada si su compromiso está VIGENTE, si no la original. */
+  effectiveDueDate?: string;
+  /** Código del compromiso VIGENTE que la incluye (CP-####), si hay. */
+  commitmentCode?: string | null;
   amount: string;
   /** Mora acumulada en la cuota (0.00 si no aplica). */
   lateFee: string;
