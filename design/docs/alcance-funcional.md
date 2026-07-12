@@ -183,3 +183,13 @@ Decididas por el administrador antes de implementar. MANDAN sobre los prototipos
 - La StatCard "Caja disponible (efectivo + bancos)" del prototipo se reemplaza por **"Resultado acumulado del año"** (no hay saldos bancarios en R2).
 - **Permiso nuevo `tesoreria`** (hasta ahora la nav lo mapeaba a `caja`): los usuarios existentes lo heredan de su permiso de caja vía migración de datos.
 - Correlativos: gastos `G-####`, ingresos `I-####`, rendiciones `REND-####`.
+
+### Dashboard y reportes — decisiones de la etapa 5 (jul 2026)
+El prototipo del dashboard mezcla datos de releases futuros; en R2 se reemplazan por datos reales:
+- Tarjeta "Asistencia hoy" (R4) → **"Caja de hoy"**: estado de la caja del día (abierta/cerrada/sin abrir) + cobrado hoy.
+- Barras "Asistencia por nivel" (R4) → **"Cobranza del mes por nivel"**: % cobrado vs. esperado del mes para Inicial/Primaria/Secundaria + Programas.
+- "Próximos egresos" (necesita planilla R3) → **"Últimos gastos registrados"** (Tesorería); evolucionará a próximos egresos reales en R3.
+- "Pagos recientes" = últimos recibos emitidos. "Principales deudores" = top familias por deuda vencida efectiva (excluye compromisos vigentes al día) con el botón Recordar reutilizando el flujo wa.me.
+- La meta mensual de cobranza es derivada (suma de cuotas de pensión del mes), como ya estaba decidido.
+
+Reportes (pantalla según `ReportsScreen.jsx`, permiso `reportes`): en R2 se habilitan **4 con exportación a Excel (.xlsx real, generado en el API)** — **Morosidad por grado** (resumen por grado + detalle por familia), **Ingresos por concepto** (pensiones/matrículas/programas/ventas/otros por periodo y método), **Caja diaria** (arqueos y movimientos por rango de fechas) y **Padrón de estudiantes** (con apoderado principal y contacto). "Asistencia mensual" y "Planilla anual" aparecen deshabilitados con la nota de su release (R4/R3). La regularización de diferencias de arqueo hacia tesorería se evaluó y quedó **fuera** (decisión del administrador: el registro del faltante/sobrante en el historial es suficiente).
