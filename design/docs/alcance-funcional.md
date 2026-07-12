@@ -172,3 +172,14 @@ Decididas por el administrador antes de implementar. MANDAN sobre los prototipos
 - **Planilla llega en R3**: mientras tanto los pagos al personal se registran como gasto manual (categoría "Planilla y personal").
 - **Caja chica**: un solo fondo fijo con responsable y monto configurable; la rendición crea un único gasto consolidado en Gastos (origen: Caja chica) y repone el fondo.
 - **Meta de cobranza del dashboard: derivada** (suma de cuotas del mes según cronogramas), no configurable a mano.
+
+### Tesorería — decisiones de la etapa 4 (jul 2026)
+- **Otros ingresos en EFECTIVO entran al arqueo**: registrarlos exige caja del día abierta; quedan vinculados a la sesión, aparecen como movimiento del día y suman al efectivo esperado del cierre. Su fecha es siempre la de hoy. Los cobrados por Yape/transferencia/tarjeta no exigen caja (no tocan el cajón).
+- **Los gastos nunca salen del cajón de ventanilla**: se pagan por transferencia o del fondo administrativo (método efectivo permitido, pero sin tocar el arqueo). Única excepción: la **reposición de caja chica** puede tomarse del efectivo de la caja del día y se registra como egreso del arqueo.
+- **Arqueo completo**: efectivo esperado = monto inicial + cobros en efectivo + otros ingresos en efectivo − devoluciones en efectivo − reposición de caja chica en efectivo.
+- **Movimientos manuales editables con auditoría** (quién y qué cambió); eliminar sigue siendo anulación con motivo ≥ 10. El monto/método/anulación de un ingreso en efectivo solo pueden cambiar mientras su caja siga abierta (un arqueo cerrado no se altera).
+- **Categorías de gasto/ingreso en tabla administrable** (seed = las del prototipo + "Planilla y personal"); solo se eliminan si no tienen movimientos, si no se desactivan.
+- La advertencia del prototipo sobre "Materiales y útiles → Compras de almacén" queda como nota informativa (Inventario llega en R5); el origen automático de gastos en R2 es solo **Caja chica**.
+- La StatCard "Caja disponible (efectivo + bancos)" del prototipo se reemplaza por **"Resultado acumulado del año"** (no hay saldos bancarios en R2).
+- **Permiso nuevo `tesoreria`** (hasta ahora la nav lo mapeaba a `caja`): los usuarios existentes lo heredan de su permiso de caja vía migración de datos.
+- Correlativos: gastos `G-####`, ingresos `I-####`, rendiciones `REND-####`.
