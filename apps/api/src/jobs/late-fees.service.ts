@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { PgBoss } from 'pg-boss';
 import { isLateFeeEligible } from '@elohim/shared';
 import { PrismaService } from '../prisma/prisma.service';
+import { commitmentOverrides } from '../common/installment-view.util';
 
 // Fecha civil de hoy (yyyy-mm-dd, local): comparación de vencimientos por string (TZ-independiente).
 function todayISO(): string {
@@ -29,6 +30,7 @@ function dateToISO(date: Date): string {
 export interface LateFeesResult {
   markedOverdue: number;
   feesApplied: number;
+  commitmentsBreached: number;
 }
 
 const QUEUE = 'late-fees-daily';
@@ -61,7 +63,8 @@ export class LateFeesService implements OnModuleInit, OnModuleDestroy {
       await this.boss.work(QUEUE, async () => {
         const result = await this.run();
         this.logger.log(
-          `Job de mora: ${result.markedOverdue} cuotas → VENCIDO, ${result.feesApplied} moras cargadas`,
+          `Job de mora: ${result.markedOverdue} cuotas → VENCIDO, ${result.feesApplied} moras cargadas, ` +
+            `${result.commitmentsBreached} compromisos → INCUMPLIDO`,
         );
       });
       await this.boss.schedule(QUEUE, '30 0 * * *', {}, { tz: 'America/Lima' });
@@ -89,19 +92,54 @@ export class LateFeesService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Corrida idempotente en una sola $transaction:
-   *   (1) VENCIDO: toda cuota PENDIENTE con dueDate < hoy de matrículas no anuladas y
-   *       programEnrollments activos, cuyos años NO estén CERRADO.
-   *   (2) Mora (solo si BillingSettings.autoLateFee): pensiones escolares VENCIDO, sin mora,
-   *       sin exoneración, con la gracia ya cumplida (isLateFeeEligible de shared).
-   * El job automático NO escribe AuditLog (no hay actor); la corrida manual audita aparte.
+   *   (0) INCUMPLIDO: todo compromiso VIGENTE con algún item cuya newDueDate < hoy (sin gracia
+   *       adicional) y su cuota no PAGADO → INCUMPLIDO (breachedAt). Se hace PRIMERO: al dejar de
+   *       estar VIGENTE, sus cuotas pierden la sobrescritura y vuelven a su fecha efectiva original,
+   *       reactivando VENCIDO y mora en los pasos siguientes.
+   *   (1) VENCIDO: toda cuota PENDIENTE cuya FECHA EFECTIVA < hoy, de matrículas no anuladas y
+   *       programEnrollments activos, años NO CERRADO. Una cuota congelada por un compromiso VIGENTE
+   *       (newDueDate futura) NO se marca.
+   *   (2) Mora (solo si BillingSettings.autoLateFee): pensiones escolares VENCIDO, sin mora, sin
+   *       exoneración, con la gracia cumplida (isLateFeeEligible) y NO congeladas por un compromiso.
+   * El job automático NO escribe AuditLog (no hay actor); la corrida manual audita el resumen aparte.
    */
   async run(): Promise<LateFeesResult> {
     const today = todayISO();
     const threshold = isoToDate(today);
 
     return this.prisma.$transaction(async (tx) => {
-      // (1) Materializa VENCIDO. findMany + updateMany por id (relaciones no van en updateMany).
-      const toOverdue = await tx.installment.findMany({
+      // (0) Incumplimiento de compromisos VIGENTE (al día siguiente de la fecha pactada, sin gracia).
+      const vigentes = await tx.paymentCommitment.findMany({
+        where: { status: 'VIGENTE' },
+        select: {
+          id: true,
+          items: {
+            select: {
+              newDueDate: true,
+              installment: { select: { status: true } },
+            },
+          },
+        },
+      });
+      const breachedIds = vigentes
+        .filter((c) =>
+          c.items.some(
+            (it) =>
+              it.installment.status !== 'PAGADO' &&
+              it.installment.status !== 'ANULADO' &&
+              dateToISO(it.newDueDate) < today,
+          ),
+        )
+        .map((c) => c.id);
+      if (breachedIds.length > 0) {
+        await tx.paymentCommitment.updateMany({
+          where: { id: { in: breachedIds } },
+          data: { status: 'INCUMPLIDO', breachedAt: new Date() },
+        });
+      }
+
+      // (1) Materializa VENCIDO por fecha efectiva. findMany candidatos + filtra congeladas.
+      const pendingPast = await tx.installment.findMany({
         where: {
           status: 'PENDIENTE',
           dueDate: { lt: threshold },
@@ -117,7 +155,13 @@ export class LateFeesService implements OnModuleInit, OnModuleDestroy {
         },
         select: { id: true },
       });
-      const overdueIds = toOverdue.map((i) => i.id);
+      const pendingIds = pendingPast.map((i) => i.id);
+      const overrides1 = await commitmentOverrides(tx, pendingIds);
+      // Una cuota con override VIGENTE tiene newDueDate futura ⇒ sigue congelada, no se marca.
+      const overdueIds = pendingIds.filter((id) => {
+        const ov = overrides1.get(id);
+        return !ov || dateToISO(ov.newDueDate) < today;
+      });
       if (overdueIds.length > 0) {
         await tx.installment.updateMany({
           where: { id: { in: overdueIds } },
@@ -140,18 +184,25 @@ export class LateFeesService implements OnModuleInit, OnModuleDestroy {
           },
           select: { id: true, dueDate: true, status: true },
         });
+        // Congeladas por un compromiso VIGENTE: no reciben mora nueva.
+        const frozen = await commitmentOverrides(
+          tx,
+          candidates.map((c) => c.id),
+        );
         const eligibleIds = candidates
-          .filter((c) =>
-            isLateFeeEligible({
-              type: 'PENSION',
-              source: 'ESCOLAR',
-              status: c.status,
-              dueDate: dateToISO(c.dueDate),
-              graceDays: settings.graceDays,
-              today,
-              lateFeeCents: 0,
-              exonerated: false,
-            }),
+          .filter(
+            (c) =>
+              !frozen.has(c.id) &&
+              isLateFeeEligible({
+                type: 'PENSION',
+                source: 'ESCOLAR',
+                status: c.status,
+                dueDate: dateToISO(c.dueDate),
+                graceDays: settings.graceDays,
+                today,
+                lateFeeCents: 0,
+                exonerated: false,
+              }),
           )
           .map((c) => c.id);
         if (eligibleIds.length > 0) {
@@ -166,7 +217,11 @@ export class LateFeesService implements OnModuleInit, OnModuleDestroy {
         }
       }
 
-      return { markedOverdue: overdueIds.length, feesApplied };
+      return {
+        markedOverdue: overdueIds.length,
+        feesApplied,
+        commitmentsBreached: breachedIds.length,
+      };
     });
   }
 }

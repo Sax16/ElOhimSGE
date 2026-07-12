@@ -38,7 +38,16 @@ export interface DayStats {
   cashCount: number;
   digitalCount: number;
   canceledCount: number;
+  /** Devoluciones en efectivo del día (restan del efectivo esperado). E3. */
+  refundsCashAmount: string;
+  /** Cantidad de devoluciones ejecutadas hoy. E3. */
+  refundsCount: number;
 }
+
+/** Tipo de movimiento de la caja: un cobro o una devolución. E3. */
+export type MovementKind = 'COBRO' | 'DEVOLUCION';
+/** Estado mostrado en el movimiento (recibo EMITIDO/ANULADO o devolución DEVUELTA). */
+export type MovementStatus = ReceiptStatus | 'DEVUELTA';
 
 /** Fila de la tabla «Movimientos del día». */
 export interface Movement {
@@ -51,7 +60,9 @@ export interface Movement {
   method: PaymentMethod;
   totalAmount: string;
   cashierName: string;
-  status: ReceiptStatus;
+  status: MovementStatus;
+  /** COBRO (recibo) o DEVOLUCION (egreso D-xxxx). E3. */
+  kind: MovementKind;
 }
 
 /** Respuesta de GET /cashier/day. */
@@ -177,4 +188,105 @@ export interface CreateReceiptBody {
 
 export interface CancelReceiptBody {
   reason: string;
+}
+
+// ---- Devoluciones (R2 · Etapa 3) --------------------------------------------
+
+/** Estado de una devolución (dos pasos + ejecución). */
+export type RefundStatus = 'PENDIENTE_APROBACION' | 'APROBADA' | 'RECHAZADA' | 'DEVUELTA';
+/** Forma en que se ejecuta la devolución. */
+export type RefundMethod = 'EFECTIVO' | 'TRANSFERENCIA' | 'APLICACION_CUOTA';
+/** Filtro de estado en la pestaña Devoluciones. */
+export type RefundStatusFilter = 'TODAS' | RefundStatus;
+
+/** Solicitud de devolución (GET /cashier/refunds). */
+export interface Refund {
+  id: string;
+  code: string;
+  receiptId: string;
+  receiptCode: string;
+  studentId: string;
+  studentName: string;
+  amount: string;
+  reason: string;
+  method: RefundMethod;
+  /** Cuota destino cuando method === 'APLICACION_CUOTA'. */
+  targetInstallmentId: string | null;
+  targetConcept: string | null;
+  status: RefundStatus;
+  requestedByName: string | null;
+  approvedByName: string | null;
+  rejectReason: string | null;
+  executedByName: string | null;
+  /** ISO datetime de la ejecución (cuando quedó DEVUELTA). */
+  executedAt: string | null;
+  operationNumber: string | null;
+  createdAt: string;
+}
+
+/** Respuesta de GET /cashier/refunds. */
+export interface RefundsPage {
+  total: number;
+  items: Refund[];
+}
+
+/** Recibo emitido encontrado en la búsqueda (GET /cashier/receipts/search). */
+export interface ReceiptHit {
+  id: string;
+  code: string;
+  studentName: string;
+  totalAmount: string;
+  /** ISO datetime. */
+  createdAt: string;
+  method: PaymentMethod;
+}
+
+export interface CreateRefundBody {
+  receiptId: string;
+  amount: string;
+  method: RefundMethod;
+  targetInstallmentId?: string;
+  reason: string;
+}
+
+export interface ExecuteRefundBody {
+  operationNumber?: string;
+}
+
+// ---- Historial de cajas (R2 · Etapa 3) --------------------------------------
+
+/** Fila del historial de cajas cerradas/abiertas (GET /cashier/sessions). */
+export interface CashierSessionSummary {
+  id: string;
+  /** yyyy-mm-dd. */
+  date: string;
+  status: CashSessionStatus;
+  openedByName: string;
+  closedByName: string | null;
+  openedAt: string;
+  closedAt: string | null;
+  initialAmount: string;
+  totalAmount: string;
+  cashAmount: string;
+  digitalAmount: string;
+  refundsCashAmount: string;
+  expectedCash: string | null;
+  countedCash: string | null;
+  difference: string | null;
+  closeNotes: string | null;
+  operationsCount: number;
+  canceledCount: number;
+}
+
+/** Respuesta de GET /cashier/sessions. */
+export interface SessionsPage {
+  total: number;
+  items: CashierSessionSummary[];
+}
+
+/** Detalle de una caja (GET /cashier/sessions/:id) — mismos shapes que /day. */
+export interface SessionDetailResponse {
+  session: CashSession;
+  stats: DayStats;
+  movements: Movement[];
 }

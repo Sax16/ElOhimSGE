@@ -86,3 +86,29 @@ export type CashSessionStatus = (typeof CASH_SESSION_STATUSES)[number];
 
 export const RECEIPT_STATUSES = ['EMITIDO', 'ANULADO'] as const;
 export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
+
+// ===== Compromisos y devoluciones (R2 — E3) =====
+
+export const COMMITMENT_STATUSES = [
+  'PROPUESTO',
+  'VIGENTE',
+  'CUMPLIDO',
+  'INCUMPLIDO',
+  'RECHAZADO',
+  'ANULADO',
+] as const;
+export type CommitmentStatus = (typeof COMMITMENT_STATUSES)[number];
+
+export const COMMITMENT_FREQUENCIES = ['MENSUAL', 'QUINCENAL'] as const;
+export type CommitmentFrequency = (typeof COMMITMENT_FREQUENCIES)[number];
+
+export const REFUND_STATUSES = [
+  'PENDIENTE_APROBACION',
+  'APROBADA',
+  'RECHAZADA',
+  'DEVUELTA',
+] as const;
+export type RefundStatus = (typeof REFUND_STATUSES)[number];
+
+export const REFUND_METHODS = ['EFECTIVO', 'TRANSFERENCIA', 'APLICACION_CUOTA'] as const;
+export type RefundMethod = (typeof REFUND_METHODS)[number];

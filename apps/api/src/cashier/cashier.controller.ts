@@ -1,4 +1,5 @@
 import { Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { z } from 'zod';
 import {
   cashSessionCloseSchema,
   cashSessionOpenSchema,
@@ -9,7 +10,14 @@ import {
   type ReceiptCancelInput,
   type ReceiptCreateInput,
 } from '@elohim/shared';
-import { zodBody } from '../common/zod-validation.pipe';
+import { zodBody, zodQuery } from '../common/zod-validation.pipe';
+
+// Paginación del historial de cajas.
+const sessionsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+type SessionsQueryInput = z.infer<typeof sessionsQuerySchema>;
 import { RequirePermission } from '../common/permissions/require-permission.decorator';
 import { CurrentUser, type JwtUser } from '../auth/decorators/current-user.decorator';
 import { CashierService } from './cashier.service';
@@ -23,6 +31,18 @@ export class CashierController {
   @RequirePermission('caja', 'ver')
   getDay() {
     return this.cashier.getDay();
+  }
+
+  @Get('sessions')
+  @RequirePermission('caja', 'ver')
+  listSessions(@(zodQuery(sessionsQuerySchema)) query: SessionsQueryInput) {
+    return this.cashier.listSessions(query.page, query.pageSize);
+  }
+
+  @Get('sessions/:id')
+  @RequirePermission('caja', 'ver')
+  getSession(@Param('id') id: string) {
+    return this.cashier.getSession(id);
   }
 
   @Post('session/open')
@@ -68,6 +88,12 @@ export class CashierController {
     @CurrentUser() actor: JwtUser,
   ) {
     return this.cashier.createReceipt(body, actor.sub);
+  }
+
+  @Get('receipts/search')
+  @RequirePermission('caja', 'ver')
+  searchReceipts(@Query('q') q?: string) {
+    return this.cashier.searchReceipts(q);
   }
 
   @Get('receipts/:id')

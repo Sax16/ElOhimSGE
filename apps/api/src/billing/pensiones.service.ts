@@ -17,6 +17,7 @@ import { AuditService } from '../common/audit/audit.service';
 import { decimalToCents } from '../common/money.util';
 import { LateFeesService } from '../jobs/late-fees.service';
 import { type JwtUser } from '../auth/decorators/current-user.decorator';
+import { commitmentOverrides, type CommitmentOverride } from '../common/installment-view.util';
 
 // ===== Fronteras de dinero y fecha =====
 function money(value: Prisma.Decimal): string {
@@ -187,7 +188,11 @@ export class PensionesService {
       include: installmentInclude,
     });
 
-    const items = rows.map((r) => this.mapItem(r, today));
+    const overrides = await commitmentOverrides(
+      this.prisma,
+      rows.map((r) => r.id),
+    );
+    const items = rows.map((r) => this.mapItem(r, today, overrides.get(r.id)));
     // Orden: dueDate asc, luego nombre del estudiante.
     items.sort((a, b) => {
       if (a.dueDate !== b.dueDate) return a.dueDate < b.dueDate ? -1 : 1;
@@ -210,13 +215,19 @@ export class PensionesService {
     return { total, page, pageSize, items: pageItems };
   }
 
-  private mapItem(row: InstallmentRow, today: string) {
+  private mapItem(row: InstallmentRow, today: string, override?: CommitmentOverride) {
     const student = row.enrollment?.student ?? row.programEnrollment!.student;
     const source: 'ESCOLAR' | 'PROGRAMA' = row.enrollmentId ? 'ESCOLAR' : 'PROGRAMA';
     const iso = dateToISO(row.dueDate);
-    // Robustez de lectura: PENDIENTE con vencimiento pasado se reporta VENCIDO (el job aún no corrió).
+    // Fecha efectiva (R2 E3): la reprogramada si un compromiso VIGENTE la incluye, si no la original.
+    const effectiveIso = override ? dateToISO(override.newDueDate) : iso;
+    // Estado mostrado por fecha efectiva: pagada conserva PAGADO; si no, VENCIDO si effectiva < hoy.
     const displayStatus =
-      row.status === 'PENDIENTE' && iso < today ? 'VENCIDO' : row.status;
+      row.status === 'PAGADO' || row.status === 'ANULADO' || row.status === 'EXONERADO'
+        ? row.status
+        : effectiveIso < today
+          ? 'VENCIDO'
+          : 'PENDIENTE';
     const amountCents = decimalToCents(row.amount);
     const feeCents = decimalToCents(row.lateFeeAmount);
     const receipt = row.status === 'PAGADO' ? row.receiptItems[0]?.receipt ?? null : null;
@@ -232,6 +243,8 @@ export class PensionesService {
       type: row.type as 'MATRICULA' | 'PENSION',
       source,
       dueDate: iso,
+      effectiveDueDate: effectiveIso,
+      commitmentCode: override?.commitmentCode ?? null,
       amount: money(row.amount),
       lateFee: money(row.lateFeeAmount),
       totalWithFee: fromCents(amountCents + feeCents),
@@ -285,7 +298,8 @@ export class PensionesService {
       include: installmentInclude,
     });
     if (!row) throw new NotFoundException('Cuota no encontrada');
-    const item = this.mapItem(row, today);
+    const overrides = await commitmentOverrides(this.prisma, [row.id]);
+    const item = this.mapItem(row, today, overrides.get(row.id));
     if (item.guardianId) {
       const map = await this.lastRemindersByGuardian([item.guardianId]);
       item.lastReminderAt = map.get(item.guardianId) ?? null;
@@ -310,8 +324,14 @@ export class PensionesService {
         type: 'PENSION',
         enrollment: { academicYearId: yearId, canceledAt: null },
       },
-      select: { status: true, dueDate: true, amount: true, lateFeeAmount: true },
+      select: { id: true, status: true, dueDate: true, amount: true, lateFeeAmount: true },
     });
+
+    // Fecha efectiva: una cuota congelada por un compromiso VIGENTE no cuenta como vencida.
+    const overrides = await commitmentOverrides(
+      this.prisma,
+      rows.map((r) => r.id),
+    );
 
     let collectedCents = 0;
     let collectedCount = 0;
@@ -324,7 +344,9 @@ export class PensionesService {
     for (const r of rows) {
       const iso = dateToISO(r.dueDate);
       const m = Number(iso.slice(5, 7));
-      const past = iso < today;
+      // Fecha efectiva para vencimiento/morosidad; el mes de la métrica usa la fecha original.
+      const effIso = dateToISO(overrides.get(r.id)?.newDueDate ?? r.dueDate);
+      const pastEff = effIso < today;
       const amountCents = decimalToCents(r.amount);
       const feeCents = decimalToCents(r.lateFeeAmount);
 
@@ -339,13 +361,13 @@ export class PensionesService {
         }
       }
 
-      // Morosidad acumulada del año (montos con mora).
-      if (r.status === 'VENCIDO' || (r.status === 'PENDIENTE' && past)) {
+      // Morosidad acumulada del año (montos con mora): por fecha efectiva (compromiso VIGENTE congela).
+      if ((r.status === 'VENCIDO' || r.status === 'PENDIENTE') && pastEff) {
         overdueCount += 1;
         overdueCents += amountCents + feeCents;
       }
 
-      if (iso <= today) dueToDateCount += 1;
+      if (effIso <= today) dueToDateCount += 1;
     }
 
     const overdueRate =
@@ -471,6 +493,7 @@ export class PensionesService {
           },
         },
         select: {
+          id: true,
           concept: true,
           amount: true,
           lateFeeAmount: true,
@@ -479,9 +502,15 @@ export class PensionesService {
           programEnrollment: { select: { studentId: true } },
         },
       });
+      // Cuotas congeladas por un compromiso VIGENTE: fuera del recordatorio (deuda congelada).
+      const overdueOverrides = await commitmentOverrides(
+        this.prisma,
+        overdue.map((o) => o.id),
+      );
       for (const o of overdue) {
         const sid = o.enrollment?.studentId ?? o.programEnrollment?.studentId;
         if (!sid) continue;
+        if (overdueOverrides.has(o.id)) continue; // congelada por compromiso VIGENTE
         lines.push({
           studentId: sid,
           childName: childFirstName.get(sid) ?? '',
@@ -506,15 +535,21 @@ export class PensionesService {
           },
         },
         select: {
+          id: true,
           concept: true,
           amount: true,
           dueDate: true,
           enrollment: { select: { studentId: true } },
         },
       });
+      const currentOverrides = await commitmentOverrides(
+        this.prisma,
+        current.map((c) => c.id),
+      );
       for (const c of current) {
         const iso = dateToISO(c.dueDate);
         if (Number(iso.slice(5, 7)) !== currentMonth) continue;
+        if (currentOverrides.has(c.id)) continue; // congelada por compromiso VIGENTE
         const sid = c.enrollment!.studentId;
         lines.push({
           studentId: sid,
@@ -642,7 +677,11 @@ export class PensionesService {
       action: 'lateFees.run',
       entity: 'Installment',
       entityId: 'batch',
-      payload: { markedOverdue: result.markedOverdue, feesApplied: result.feesApplied },
+      payload: {
+        markedOverdue: result.markedOverdue,
+        feesApplied: result.feesApplied,
+        commitmentsBreached: result.commitmentsBreached,
+      },
     });
     return result;
   }

@@ -1,35 +1,14 @@
 // Pestaña «Caja del día»: apertura, totales, movimientos y cierre con arqueo.
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  Dialog,
-  EmptyState,
-  IconButton,
-  Icons,
-  StatCard,
-  Table,
-  Textarea,
-  Tooltip,
-  useToast,
-} from '@elohim/ui';
-import type { TableColumn } from '@elohim/ui';
-import {
-  CASH_SESSION_STATUS_LABELS,
-  PAYMENT_METHOD_LABELS,
-  RECEIPT_STATUS_LABELS,
-  formatPEN,
-  toCents,
-} from '@elohim/shared';
+import { Alert, Badge, Button, Card, Dialog, EmptyState, Icons, StatCard, Textarea, useToast } from '@elohim/ui';
+import { CASH_SESSION_STATUS_LABELS, formatPEN, toCents } from '@elohim/shared';
 import { ApiError } from '../../lib/api';
 import { fmtDate } from '../structure/bits';
 import { useCancelReceipt, useCashierDay, useReceipt } from './api';
-import { fmtTime, methodTone, todayLocalISO } from './bits';
+import { fmtTime, todayLocalISO } from './bits';
 import { OpenSessionDialog, CloseSessionDialog } from './SessionDialogs';
 import { ReceiptDialog } from './ReceiptDialog';
+import { MovementsTable } from './MovementsTable';
 import type { Movement } from './types';
 
 export function CajaDiaTab({ canEdit }: { canEdit: boolean }) {
@@ -72,78 +51,7 @@ export function CajaDiaTab({ canEdit }: { canEdit: boolean }) {
   }
 
   const isOpen = session.status === 'ABIERTA';
-
-  const cols: TableColumn<Movement>[] = [
-    { key: 'code', header: 'Recibo', mono: true, width: 130 },
-    {
-      key: 'createdAt',
-      header: 'Hora',
-      mono: true,
-      align: 'center',
-      width: 74,
-      render: (v) => fmtTime(v as string),
-    },
-    {
-      key: 'studentName',
-      header: 'Estudiante',
-      render: (v) => <span style={{ font: 'var(--type-label)', color: 'var(--text-strong)' }}>{v}</span>,
-    },
-    { key: 'summary', header: 'Concepto' },
-    {
-      key: 'method',
-      header: 'Método',
-      align: 'center',
-      render: (_v, r) => <Badge tone={methodTone(r.method)}>{PAYMENT_METHOD_LABELS[r.method]}</Badge>,
-    },
-    {
-      key: 'totalAmount',
-      header: 'Monto',
-      num: true,
-      mono: true,
-      render: (v, r) =>
-        r.status === 'ANULADO' ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
-            <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)' }}>
-              {formatPEN(toCents(v as string))}
-            </span>
-            <Badge tone="neutral">{RECEIPT_STATUS_LABELS[r.status]}</Badge>
-          </span>
-        ) : (
-          formatPEN(toCents(v as string))
-        ),
-    },
-    {
-      key: 'cashierName',
-      header: 'Cobró',
-      render: (v) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <Avatar name={v as string} size="xs" />
-          <span style={{ font: 'var(--type-caption)' }}>{v}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'acc',
-      header: '',
-      align: 'right',
-      render: (_v, r) => (
-        <div style={{ display: 'inline-flex', gap: 2 }}>
-          <Tooltip content="Ver recibo">
-            <IconButton label="Ver recibo" size="sm" onClick={() => setViewReceiptId(r.id)}>
-              <Icons.Receipt />
-            </IconButton>
-          </Tooltip>
-          {canEdit && isOpen && r.status === 'EMITIDO' && (
-            <Tooltip content="Anular">
-              <IconButton label="Anular" size="sm" variant="danger" onClick={() => setCancelTarget(r)}>
-                <Icons.Trash />
-              </IconButton>
-            </Tooltip>
-          )}
-        </div>
-      ),
-    },
-  ];
+  const hasRefunds = !!stats && stats.refundsCount > 0;
 
   const pendingPrevious = isOpen && session.date !== todayLocalISO();
 
@@ -199,13 +107,17 @@ export function CajaDiaTab({ canEdit }: { canEdit: boolean }) {
       </Card>
 
       {stats && (
-        <div className="esge-cashier-stats">
+        <div className="esge-cashier-stats" data-refunds={hasRefunds ? 'on' : undefined}>
           <StatCard
             label="Cobrado hoy"
             value={formatPEN(toCents(stats.totalAmount))}
             iconTone="success"
             icon={<Icons.Cash />}
-            caption={`${stats.operationsCount} ${stats.operationsCount === 1 ? 'operación' : 'operaciones'}`}
+            caption={
+              hasRefunds
+                ? `${stats.operationsCount} ${stats.operationsCount === 1 ? 'operación' : 'operaciones'} · neto de devoluciones no incluido`
+                : `${stats.operationsCount} ${stats.operationsCount === 1 ? 'operación' : 'operaciones'}`
+            }
           />
           <StatCard
             label="Efectivo"
@@ -227,17 +139,24 @@ export function CajaDiaTab({ canEdit }: { canEdit: boolean }) {
             icon={<Icons.Trash />}
             caption="hoy"
           />
+          {hasRefunds && (
+            <StatCard
+              label="Devuelto"
+              value={formatPEN(toCents(stats.refundsCashAmount))}
+              iconTone="danger"
+              icon={<Icons.ArrowRight />}
+              caption={`${stats.refundsCount} ${stats.refundsCount === 1 ? 'devolución' : 'devoluciones'} en efectivo`}
+            />
+          )}
         </div>
       )}
 
       <Card flush title="Movimientos del día">
-        <Table
-          columns={cols}
-          data={movements}
-          rowKey="id"
-          hover
-          zebra
-          emptyText="Aún no hay movimientos hoy."
+        <MovementsTable
+          movements={movements}
+          canCancel={canEdit && isOpen}
+          onViewReceipt={setViewReceiptId}
+          onCancel={setCancelTarget}
         />
       </Card>
 

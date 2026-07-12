@@ -3,6 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../lib/api';
 import { cashierKeys } from '../cashier/api';
 import type {
+  Commitment,
+  CommitmentsPage,
+  CommitmentsQuery,
+  CreateCommitmentBody,
+  EligibleInstallmentsResponse,
   InstallmentsPage,
   InstallmentsQuery,
   InstallmentRow,
@@ -19,6 +24,9 @@ export const paymentsKeys = {
   stats: (yearId: string | undefined, month: number | null) =>
     ['payments', 'stats', yearId ?? '', month] as const,
   reminderPreview: (guardianId: string) => ['payments', 'reminder-preview', guardianId] as const,
+  commitments: (q: CommitmentsQuery) => ['payments', 'commitments', q] as const,
+  eligibleInstallments: (guardianId: string) =>
+    ['payments', 'eligible-installments', guardianId] as const,
 };
 
 /** Invalida todo lo que depende de cuotas: lista/stats de Pensiones y cobrables de Caja. */
@@ -107,6 +115,82 @@ export function useRunLateFees() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => apiFetch<LateFeeRunResult>('/billing/late-fees/run', { method: 'POST' }),
+    onSuccess: () => invalidateBilling(qc),
+  });
+}
+
+// ---- Compromisos de pago (R2 · Etapa 3) -------------------------------------
+
+function commitmentsQueryString(q: CommitmentsQuery): string {
+  const p = new URLSearchParams();
+  if (q.yearId) p.set('yearId', q.yearId);
+  if (q.status !== 'TODOS') p.set('status', q.status);
+  const term = q.q.trim();
+  if (term) p.set('q', term);
+  p.set('page', String(q.page));
+  p.set('pageSize', String(q.pageSize));
+  return p.toString();
+}
+
+/** Lista paginada de compromisos según filtros. */
+export function useCommitments(query: CommitmentsQuery) {
+  return useQuery<CommitmentsPage>({
+    queryKey: paymentsKeys.commitments(query),
+    queryFn: () => apiFetch<CommitmentsPage>(`/billing/commitments?${commitmentsQueryString(query)}`),
+    enabled: !!query.yearId,
+    placeholderData: (prev) => prev,
+  });
+}
+
+/** Cuotas vencidas del apoderado, elegibles para refinanciar. */
+export function useEligibleInstallments(guardianId: string | null) {
+  return useQuery<EligibleInstallmentsResponse>({
+    queryKey: paymentsKeys.eligibleInstallments(guardianId ?? ''),
+    queryFn: () =>
+      apiFetch<EligibleInstallmentsResponse>(
+        `/billing/commitments/eligible-installments?guardianId=${encodeURIComponent(guardianId!)}`,
+      ),
+    enabled: !!guardianId,
+    retry: false,
+  });
+}
+
+/** Propone un compromiso (Secretaría). Queda PROPUESTO hasta la aprobación del Admin. */
+export function useCreateCommitment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateCommitmentBody) =>
+      apiFetch<Commitment>('/billing/commitments', { method: 'POST', body }),
+    onSuccess: () => invalidateBilling(qc),
+  });
+}
+
+/** Aprueba un compromiso propuesto (solo Admin). */
+export function useApproveCommitment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<Commitment>(`/billing/commitments/${id}/approve`, { method: 'POST' }),
+    onSuccess: () => invalidateBilling(qc),
+  });
+}
+
+/** Rechaza un compromiso propuesto con justificación ≥ 10 (solo Admin). */
+export function useRejectCommitment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      apiFetch<Commitment>(`/billing/commitments/${id}/reject`, { method: 'POST', body: { reason } }),
+    onSuccess: () => invalidateBilling(qc),
+  });
+}
+
+/** Anula un compromiso vigente con justificación ≥ 10 (solo Admin). */
+export function useCancelCommitment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      apiFetch<Commitment>(`/billing/commitments/${id}/cancel`, { method: 'POST', body: { reason } }),
     onSuccess: () => invalidateBilling(qc),
   });
 }

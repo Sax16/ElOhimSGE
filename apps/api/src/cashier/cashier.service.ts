@@ -11,6 +11,12 @@ import { AuditService } from '../common/audit/audit.service';
 import { nextCode } from '../common/code-counter.util';
 import { decimalToCents } from '../common/money.util';
 import { debtCentsByStudent } from '../common/debt.util';
+import { commitmentOverrides } from '../common/installment-view.util';
+import { recalcEnrollmentStatuses } from '../common/enrollment-status.util';
+import {
+  recalcCommitmentsForInstallments,
+  type CommitmentTransition,
+} from '../common/commitment-recalc.util';
 
 type DbClient = Prisma.TransactionClient | PrismaService;
 
@@ -119,6 +125,47 @@ const sessionInclude = {
 
 type SessionRow = Prisma.CashSessionGetPayload<{ include: typeof sessionInclude }>;
 
+// Indicadores de una caja (día o historial).
+interface SessionStats {
+  totalAmount: string;
+  cashAmount: string;
+  digitalAmount: string;
+  operationsCount: number;
+  cashCount: number;
+  digitalCount: number;
+  canceledCount: number;
+  refundsCashAmount: string;
+  refundsCount: number;
+}
+
+function emptyStats(): SessionStats {
+  return {
+    totalAmount: '0.00',
+    cashAmount: '0.00',
+    digitalAmount: '0.00',
+    operationsCount: 0,
+    cashCount: 0,
+    digitalCount: 0,
+    canceledCount: 0,
+    refundsCashAmount: '0.00',
+    refundsCount: 0,
+  };
+}
+
+// Fila de movimiento del arqueo: un cobro (recibo) o una devolución ejecutada.
+interface Movement {
+  kind: 'COBRO' | 'DEVOLUCION';
+  id: string;
+  code: string;
+  createdAt: string;
+  studentName: string;
+  summary: string;
+  method: string;
+  totalAmount: string;
+  cashierName: string | null;
+  status: string;
+}
+
 @Injectable()
 export class CashierService {
   constructor(
@@ -196,38 +243,33 @@ export class CashierService {
   // GET /cashier/day — la caja relevante con indicadores y movimientos:
   // la de HOY si existe; si no, una ABIERTA de un día anterior pendiente de cierre.
   async getDay() {
+    const session = await this.findRelevantSession();
+    if (!session) {
+      return { session: null, stats: emptyStats(), movements: [] as Movement[] };
+    }
+    const view = await this.buildSessionView(session.id);
+    return { session: this.mapSession(session), ...view };
+  }
+
+  // La caja de HOY, o si no existe una ABIERTA de un día anterior pendiente de cierre.
+  private async findRelevantSession(): Promise<SessionRow | null> {
     const todayDate = isoToDate(todayISO());
-    let session = await this.prisma.cashSession.findUnique({
+    const today = await this.prisma.cashSession.findUnique({
       where: { date: todayDate },
       include: sessionInclude,
     });
-    if (!session) {
-      session = await this.prisma.cashSession.findFirst({
-        where: { status: 'ABIERTA' },
-        orderBy: { date: 'desc' },
-        include: sessionInclude,
-      });
-    }
+    if (today) return today;
+    return this.prisma.cashSession.findFirst({
+      where: { status: 'ABIERTA' },
+      orderBy: { date: 'desc' },
+      include: sessionInclude,
+    });
+  }
 
-    if (!session) {
-      return {
-        session: null,
-        stats: {
-          totalAmount: '0.00',
-          cashAmount: '0.00',
-          digitalAmount: '0.00',
-          operationsCount: 0,
-          cashCount: 0,
-          digitalCount: 0,
-          canceledCount: 0,
-        },
-        movements: [],
-      };
-    }
-
+  // Indicadores + filas de movimientos (cobros y devoluciones) de una caja, ordenados por fecha desc.
+  private async buildSessionView(sessionId: string): Promise<{ stats: SessionStats; movements: Movement[] }> {
     const receipts = await this.prisma.receipt.findMany({
-      where: { cashSessionId: session.id },
-      orderBy: { createdAt: 'desc' },
+      where: { cashSessionId: sessionId },
       select: {
         id: true,
         code: true,
@@ -240,7 +282,60 @@ export class CashierService {
         items: { select: { concept: true, quantity: true } },
       },
     });
+    const refunds = await this.prisma.refund.findMany({
+      where: { cashSessionId: sessionId, status: 'DEVUELTA' },
+      select: {
+        id: true,
+        code: true,
+        executedAt: true,
+        amount: true,
+        reason: true,
+        method: true,
+        executedBy: { select: { fullName: true } },
+        student: { select: { firstNames: true, paternalLastName: true, maternalLastName: true } },
+      },
+    });
 
+    const stats = this.aggregate(receipts, refunds);
+
+    const cobros: Movement[] = receipts.map((r) => ({
+      kind: 'COBRO',
+      id: r.id,
+      code: r.code,
+      createdAt: r.createdAt.toISOString(),
+      studentName: fullName(r.student),
+      summary: r.items
+        .map((i) => (i.quantity > 1 ? `${i.concept} ×${i.quantity}` : i.concept))
+        .join(' + '),
+      method: r.method,
+      totalAmount: money(r.totalAmount),
+      cashierName: r.cashier.fullName,
+      status: r.status,
+    }));
+    const devoluciones: Movement[] = refunds.map((rf) => ({
+      kind: 'DEVOLUCION',
+      id: rf.id,
+      code: rf.code,
+      createdAt: (rf.executedAt ?? new Date()).toISOString(),
+      studentName: fullName(rf.student),
+      summary: rf.reason,
+      method: rf.method,
+      totalAmount: money(rf.amount),
+      cashierName: rf.executedBy?.fullName ?? null,
+      status: 'DEVUELTA',
+    }));
+
+    const movements = [...cobros, ...devoluciones].sort((a, b) =>
+      a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0,
+    );
+    return { stats, movements };
+  }
+
+  // Suma indicadores de una caja a partir de sus recibos y devoluciones ejecutadas.
+  private aggregate(
+    receipts: { method: string; totalAmount: Prisma.Decimal; status: string }[],
+    refunds: { method: string; amount: Prisma.Decimal }[],
+  ): SessionStats {
     let cashCents = 0;
     let digitalCents = 0;
     let cashCount = 0;
@@ -262,34 +357,80 @@ export class CashierService {
         digitalCount += 1;
       }
     }
-
-    const movements = receipts.map((r) => ({
-      id: r.id,
-      code: r.code,
-      createdAt: r.createdAt.toISOString(),
-      studentName: fullName(r.student),
-      summary: r.items
-        .map((i) => (i.quantity > 1 ? `${i.concept} ×${i.quantity}` : i.concept))
-        .join(' + '),
-      method: r.method,
-      totalAmount: money(r.totalAmount),
-      cashierName: r.cashier.fullName,
-      status: r.status,
-    }));
-
+    let refundsCashCents = 0;
+    let refundsCount = 0;
+    for (const rf of refunds) {
+      if (rf.method === 'EFECTIVO') {
+        refundsCashCents += decimalToCents(rf.amount);
+        refundsCount += 1;
+      }
+    }
     return {
-      session: this.mapSession(session),
-      stats: {
-        totalAmount: fromCents(cashCents + digitalCents),
-        cashAmount: fromCents(cashCents),
-        digitalAmount: fromCents(digitalCents),
-        operationsCount,
-        cashCount,
-        digitalCount,
-        canceledCount,
-      },
-      movements,
+      totalAmount: fromCents(cashCents + digitalCents),
+      cashAmount: fromCents(cashCents),
+      digitalAmount: fromCents(digitalCents),
+      operationsCount,
+      cashCount,
+      digitalCount,
+      canceledCount,
+      refundsCashAmount: fromCents(refundsCashCents),
+      refundsCount,
     };
+  }
+
+  // GET /cashier/sessions — historial de cajas (desc por fecha) con sus indicadores derivados.
+  async listSessions(page: number, pageSize: number) {
+    const total = await this.prisma.cashSession.count();
+    const sessions = await this.prisma.cashSession.findMany({
+      orderBy: { date: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: sessionInclude,
+    });
+    const items = [];
+    for (const s of sessions) {
+      const receipts = await this.prisma.receipt.findMany({
+        where: { cashSessionId: s.id },
+        select: { method: true, totalAmount: true, status: true },
+      });
+      const refunds = await this.prisma.refund.findMany({
+        where: { cashSessionId: s.id, status: 'DEVUELTA' },
+        select: { method: true, amount: true },
+      });
+      const stats = this.aggregate(receipts, refunds);
+      items.push({
+        id: s.id,
+        date: dateToISO(s.date),
+        status: s.status,
+        openedByName: s.openedBy.fullName,
+        closedByName: s.closedBy?.fullName ?? null,
+        openedAt: s.openedAt.toISOString(),
+        closedAt: s.closedAt ? s.closedAt.toISOString() : null,
+        initialAmount: money(s.initialAmount),
+        totalAmount: stats.totalAmount,
+        cashAmount: stats.cashAmount,
+        digitalAmount: stats.digitalAmount,
+        refundsCashAmount: stats.refundsCashAmount,
+        expectedCash: moneyOrNull(s.expectedCash),
+        countedCash: moneyOrNull(s.countedCash),
+        difference: moneyOrNull(s.difference),
+        closeNotes: s.closeNotes,
+        operationsCount: stats.operationsCount,
+        canceledCount: stats.canceledCount,
+      });
+    }
+    return { total, items };
+  }
+
+  // GET /cashier/sessions/:id — una caja del historial con sus indicadores y movimientos.
+  async getSession(id: string) {
+    const session = await this.prisma.cashSession.findUnique({
+      where: { id },
+      include: sessionInclude,
+    });
+    if (!session) throw new NotFoundException('Caja no encontrada');
+    const view = await this.buildSessionView(session.id);
+    return { session: this.mapSession(session), ...view };
   }
 
   // POST /cashier/session/open — abre la caja de HOY (una por día, sin reapertura).
@@ -350,13 +491,19 @@ export class CashierService {
     });
     if (!session) throw new NotFoundException('No hay ninguna caja abierta');
 
-    // Efectivo esperado = monto inicial + efectivo de recibos EMITIDO de la sesión.
+    // Efectivo esperado = inicial + efectivo de recibos EMITIDO − devoluciones EFECTIVO de la sesión.
     const cashReceipts = await this.prisma.receipt.findMany({
       where: { cashSessionId: session.id, status: 'EMITIDO', method: 'EFECTIVO' },
       select: { totalAmount: true },
     });
     let expectedCents = decimalToCents(session.initialAmount);
     for (const r of cashReceipts) expectedCents += decimalToCents(r.totalAmount);
+
+    const cashRefunds = await this.prisma.refund.findMany({
+      where: { cashSessionId: session.id, status: 'DEVUELTA', method: 'EFECTIVO' },
+      select: { amount: true },
+    });
+    for (const r of cashRefunds) expectedCents -= decimalToCents(r.amount);
 
     const expected = fromCents(expectedCents);
     const countedCents = decimalToCents(input.countedCash);
@@ -491,17 +638,26 @@ export class CashierService {
       },
     });
 
-    const threshold = startOfToday();
+    // Fecha efectiva (R2 E3): estado y commitmentCode derivan del compromiso VIGENTE que la incluya.
+    const overrides = await commitmentOverrides(
+      this.prisma,
+      rows.map((i) => i.id),
+    );
+    const today = todayISO();
     const installments = rows.map((i) => {
       const totalCents = decimalToCents(i.amount) + decimalToCents(i.lateFeeAmount);
+      const override = overrides.get(i.id);
+      const effectiveDueDate = override ? dateToISO(override.newDueDate) : dateToISO(i.dueDate);
       return {
         id: i.id,
         concept: i.concept,
         dueDate: dateToISO(i.dueDate),
+        effectiveDueDate,
+        commitmentCode: override?.commitmentCode ?? null,
         amount: money(i.amount),
         lateFee: money(i.lateFeeAmount),
         totalWithFee: fromCents(totalCents),
-        status: i.dueDate < threshold ? 'VENCIDO' : 'PENDIENTE',
+        status: effectiveDueDate < today ? 'VENCIDO' : 'PENDIENTE',
         type: i.type,
         source: i.enrollmentId ? 'ESCOLAR' : 'PROGRAMA',
       };
@@ -681,7 +837,11 @@ export class CashierService {
           data: { status: 'PAGADO' },
         });
       }
-      await this.recalcEnrollmentStatuses(tx, [...enrollmentIds]);
+      await recalcEnrollmentStatuses(tx, [...enrollmentIds]);
+
+      // (6b) Compromisos: si el pago completa todos los items de uno VIGENTE → CUMPLIDO.
+      const transitions = await recalcCommitmentsForInstallments(tx, installmentIds);
+      await this.auditCommitmentTransitions(tx, transitions, actorId);
 
       // (7) Auditoría.
       await this.audit.log(
@@ -706,6 +866,45 @@ export class CashierService {
     });
 
     return this.getReceiptDto(this.prisma, receiptId);
+  }
+
+  // GET /cashier/receipts/search?q= — recibos EMITIDO por código o nombre de estudiante (máx 8).
+  // Base para el flujo de devoluciones.
+  async searchReceipts(q?: string) {
+    const term = (q ?? '').trim();
+    if (!term) return [];
+    const tokens = term.split(/\s+/).filter(Boolean);
+    const receipts = await this.prisma.receipt.findMany({
+      where: {
+        status: 'EMITIDO',
+        AND: tokens.map((t) => ({
+          OR: [
+            { code: { contains: t, mode: 'insensitive' as const } },
+            { student: { firstNames: { contains: t, mode: 'insensitive' as const } } },
+            { student: { paternalLastName: { contains: t, mode: 'insensitive' as const } } },
+            { student: { maternalLastName: { contains: t, mode: 'insensitive' as const } } },
+          ],
+        })),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 8,
+      select: {
+        id: true,
+        code: true,
+        totalAmount: true,
+        createdAt: true,
+        method: true,
+        student: { select: { firstNames: true, paternalLastName: true, maternalLastName: true } },
+      },
+    });
+    return receipts.map((r) => ({
+      id: r.id,
+      code: r.code,
+      studentName: fullName(r.student),
+      totalAmount: money(r.totalAmount),
+      createdAt: r.createdAt.toISOString(),
+      method: r.method,
+    }));
   }
 
   // GET /cashier/receipts/:id — reimpresión.
@@ -780,7 +979,11 @@ export class CashierService {
         },
       });
 
-      await this.recalcEnrollmentStatuses(tx, [...enrollmentIds]);
+      await recalcEnrollmentStatuses(tx, [...enrollmentIds]);
+
+      // Compromisos: si una cuota del plan se desmarca, un compromiso CUMPLIDO vuelve a VIGENTE.
+      const transitions = await recalcCommitmentsForInstallments(tx, installmentIds);
+      await this.auditCommitmentTransitions(tx, transitions, actorId);
 
       await this.audit.log(
         {
@@ -797,25 +1000,23 @@ export class CashierService {
     return this.getReceiptDto(this.prisma, id);
   }
 
-  /**
-   * Recalcula Enrollment.status con el mismo criterio del seed/debt.util:
-   * PENDIENTE_PAGO si le quedan cuotas vencidas (VENCIDO o PENDIENTE con dueDate < hoy),
-   * COMPLETA en caso contrario. No toca matrículas anuladas.
-   */
-  private async recalcEnrollmentStatuses(tx: Prisma.TransactionClient, enrollmentIds: string[]) {
-    if (enrollmentIds.length === 0) return;
-    const threshold = startOfToday();
-    for (const id of enrollmentIds) {
-      const overdue = await tx.installment.count({
-        where: {
-          enrollmentId: id,
-          OR: [{ status: 'VENCIDO' }, { status: 'PENDIENTE', dueDate: { lt: threshold } }],
+  // Audita las transiciones de compromiso derivadas de un cambio de pago (dentro de la misma tx).
+  private async auditCommitmentTransitions(
+    tx: Prisma.TransactionClient,
+    transitions: CommitmentTransition[],
+    actorId: string,
+  ) {
+    for (const t of transitions) {
+      await this.audit.log(
+        {
+          userId: actorId,
+          action: t.to === 'CUMPLIDO' ? 'commitment.fulfill' : 'commitment.reopen',
+          entity: 'PaymentCommitment',
+          entityId: t.commitmentId,
+          payload: { code: t.code, from: t.from, to: t.to },
         },
-      });
-      await tx.enrollment.update({
-        where: { id },
-        data: { status: overdue > 0 ? 'PENDIENTE_PAGO' : 'COMPLETA' },
-      });
+        tx,
+      );
     }
   }
 }

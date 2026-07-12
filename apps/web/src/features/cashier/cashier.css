@@ -17,6 +17,10 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
+/* Con devoluciones aparece una 5.ª StatCard (Devuelto). */
+.esge-cashier-stats[data-refunds='on'] {
+  grid-template-columns: repeat(5, 1fr);
+}
 
 @media (max-width: 1023px) {
   .esge-cobrar-grid {
@@ -25,13 +29,15 @@
   .esge-cobrar-summary {
     position: static;
   }
-  .esge-cashier-stats {
+  .esge-cashier-stats,
+  .esge-cashier-stats[data-refunds='on'] {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 767px) {
-  .esge-cashier-stats {
+  .esge-cashier-stats,
+  .esge-cashier-stats[data-refunds='on'] {
     grid-template-columns: 1fr;
   }
 }

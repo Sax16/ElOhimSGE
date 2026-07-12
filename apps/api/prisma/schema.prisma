@@ -147,6 +147,33 @@ enum ReceiptStatus {
   ANULADO
 }
 
+enum CommitmentStatus {
+  PROPUESTO
+  VIGENTE
+  CUMPLIDO
+  INCUMPLIDO
+  RECHAZADO
+  ANULADO
+}
+
+enum CommitmentFrequency {
+  MENSUAL
+  QUINCENAL
+}
+
+enum RefundStatus {
+  PENDIENTE_APROBACION
+  APROBADA
+  RECHAZADA
+  DEVUELTA
+}
+
+enum RefundMethod {
+  EFECTIVO
+  TRANSFERENCIA
+  APLICACION_CUOTA
+}
+
 // ===== Identity / Configuración =====
 
 model User {
@@ -173,6 +200,12 @@ model User {
   receiptsCanceled             Receipt[]           @relation("ReceiptCanceledBy")
   lateFeesExonerated           Installment[]       @relation("InstallmentLateFeeExoneratedBy")
   remindersSent                ReminderLog[]       @relation("ReminderSentBy")
+  commitmentsProposed          PaymentCommitment[] @relation("CommitmentProposedBy")
+  commitmentsApproved          PaymentCommitment[] @relation("CommitmentApprovedBy")
+  commitmentsCanceled          PaymentCommitment[] @relation("CommitmentCanceledBy")
+  refundsRequested             Refund[]            @relation("RefundRequestedBy")
+  refundsApproved              Refund[]            @relation("RefundApprovedBy")
+  refundsExecuted              Refund[]            @relation("RefundExecutedBy")
 }
 
 // Singleton (id = 1): datos institucionales de la pestaña Configuración > Institución.
@@ -369,19 +402,19 @@ model Discount {
 // ===== Personas =====
 
 model Student {
-  id               String      @id @default(cuid())
-  code             String      @unique // "E-1042"
+  id               String        @id @default(cuid())
+  code             String        @unique // "E-1042"
   firstNames       String
   paternalLastName String // apellido paterno (obligatorio)
   maternalLastName String? // apellido materno (opcional: cubre personas con un solo apellido)
-  dni              String      @unique @db.Char(8)
-  birthDate      DateTime      @db.Date
-  sex            Sex
-  address        String
-  previousSchool String?
-  photoUrl       String?
-  status         StudentStatus @default(ACTIVO)
-  shift          Shift?
+  dni              String        @unique @db.Char(8)
+  birthDate        DateTime      @db.Date
+  sex              Sex
+  address          String
+  previousSchool   String?
+  photoUrl         String?
+  status           StudentStatus @default(ACTIVO)
+  shift            Shift?
 
   // Salud y emergencia (ficha)
   allergies             String? // visible para tutor y auxiliar
@@ -401,6 +434,7 @@ model Student {
   enrollments        Enrollment[]
   programEnrollments ProgramEnrollment[]
   receipts           Receipt[]
+  refunds            Refund[]
 }
 
 model Guardian {
@@ -415,9 +449,10 @@ model Guardian {
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
 
-  students          StudentGuardian[]
-  enrollmentsSigned Enrollment[]      @relation("SigningGuardian")
-  reminderLogs      ReminderLog[]
+  students           StudentGuardian[]
+  enrollmentsSigned  Enrollment[]        @relation("SigningGuardian")
+  reminderLogs       ReminderLog[]
+  paymentCommitments PaymentCommitment[]
 }
 
 // Relación N:M estudiante↔apoderado. Desvincular = active:false (soft), nunca DELETE.
@@ -474,20 +509,20 @@ model Enrollment {
 // Una cuota pertenece a una matrícula ESCOLAR (enrollmentId) o a una inscripción de PROGRAMA
 // (programEnrollmentId) — exactamente una de las dos (CHECK en la BD).
 model Installment {
-  id                  String            @id @default(cuid())
+  id                  String             @id @default(cuid())
   enrollmentId        String?
-  enrollment          Enrollment?       @relation(fields: [enrollmentId], references: [id])
+  enrollment          Enrollment?        @relation(fields: [enrollmentId], references: [id])
   programEnrollmentId String?
   programEnrollment   ProgramEnrollment? @relation(fields: [programEnrollmentId], references: [id])
   type                InstallmentType
   concept             String // "Matrícula" | "Pensión Marzo" | "Programa · Taller de Danza · Marzo"
   sequence            Int // 0 = matrícula, 1..N = cuotas
-  dueDate             DateTime          @db.Date
-  baseAmount          Decimal           @db.Decimal(10, 2) // snapshot del tarifario
-  discountAmount      Decimal           @default(0) @db.Decimal(10, 2)
-  programsAmount      Decimal           @default(0) @db.Decimal(10, 2)
-  amount              Decimal           @db.Decimal(10, 2) // total = base - descuento + programas
-  status              InstallmentStatus @default(PENDIENTE)
+  dueDate             DateTime           @db.Date
+  baseAmount          Decimal            @db.Decimal(10, 2) // snapshot del tarifario
+  discountAmount      Decimal            @default(0) @db.Decimal(10, 2)
+  programsAmount      Decimal            @default(0) @db.Decimal(10, 2)
+  amount              Decimal            @db.Decimal(10, 2) // total = base - descuento + programas
+  status              InstallmentStatus  @default(PENDIENTE)
 
   // Mora fija (R2 — E2): una sola vez por cuota, solo pensión escolar. 0 = sin mora / exonerada.
   lateFeeAmount            Decimal   @default(0) @db.Decimal(10, 2)
@@ -501,7 +536,9 @@ model Installment {
   cancelReason String?
   canceledById String?
 
-  receiptItems ReceiptItem[]
+  receiptItems     ReceiptItem[]
+  commitmentItems  CommitmentInstallment[]
+  refundsTargeting Refund[]                @relation("RefundTargetInstallment")
 
   @@unique([enrollmentId, sequence])
   @@unique([programEnrollmentId, sequence])
@@ -558,33 +595,35 @@ model CashSession {
   closeNotes    String?
 
   receipts Receipt[]
+  refunds  Refund[]
 }
 
 // Recibo interno numerado (R-2026-#####). Registra quién cobró; anulación mientras la caja siga abierta.
 model Receipt {
-  id             String        @id @default(cuid())
-  code           String        @unique // "R-2026-04313"
-  cashSessionId  String
-  cashSession    CashSession   @relation(fields: [cashSessionId], references: [id])
-  studentId      String
-  student        Student       @relation(fields: [studentId], references: [id])
-  guardianName   String? // snapshot del apoderado principal al cobrar
-  guardianPhone  String?
-  method         PaymentMethod
+  id              String        @id @default(cuid())
+  code            String        @unique // "R-2026-04313"
+  cashSessionId   String
+  cashSession     CashSession   @relation(fields: [cashSessionId], references: [id])
+  studentId       String
+  student         Student       @relation(fields: [studentId], references: [id])
+  guardianName    String? // snapshot del apoderado principal al cobrar
+  guardianPhone   String?
+  method          PaymentMethod
   operationNumber String?
-  totalAmount    Decimal       @db.Decimal(10, 2)
-  receivedAmount Decimal?      @db.Decimal(10, 2) // solo EFECTIVO
-  changeAmount   Decimal?      @db.Decimal(10, 2) // vuelto (solo EFECTIVO)
-  status         ReceiptStatus @default(EMITIDO)
-  cashierId      String
-  cashier        User          @relation("ReceiptCashier", fields: [cashierId], references: [id])
-  createdAt      DateTime      @default(now())
-  canceledAt     DateTime?
-  cancelReason   String?
-  canceledById   String?
-  canceledBy     User?         @relation("ReceiptCanceledBy", fields: [canceledById], references: [id])
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  receivedAmount  Decimal?      @db.Decimal(10, 2) // solo EFECTIVO
+  changeAmount    Decimal?      @db.Decimal(10, 2) // vuelto (solo EFECTIVO)
+  status          ReceiptStatus @default(EMITIDO)
+  cashierId       String
+  cashier         User          @relation("ReceiptCashier", fields: [cashierId], references: [id])
+  createdAt       DateTime      @default(now())
+  canceledAt      DateTime?
+  cancelReason    String?
+  canceledById    String?
+  canceledBy      User?         @relation("ReceiptCanceledBy", fields: [canceledById], references: [id])
 
-  items ReceiptItem[]
+  items   ReceiptItem[]
+  refunds Refund[]
 
   @@index([cashSessionId])
   @@index([studentId])
@@ -604,6 +643,92 @@ model ReceiptItem {
   quantity      Int          @default(1)
   unitAmount    Decimal      @db.Decimal(10, 2)
   amount        Decimal      @db.Decimal(10, 2) // unitAmount × quantity
+}
+
+// ===== Compromisos de pago (R2 — E3) =====
+
+// Un compromiso reprograma 1:1 cuotas VENCIDAS de los hijos del apoderado firmante:
+// Secretaría propone → Admin aprueba (VIGENTE). Mientras VIGENTE y al día, la "fecha efectiva"
+// de cada cuota es su newDueDate — de ahí se derivan estado, deuda, mora y recordatorios (congelamiento).
+model PaymentCommitment {
+  id           String              @id @default(cuid())
+  code         String              @unique // "CP-0001"
+  guardianId   String
+  guardian     Guardian            @relation(fields: [guardianId], references: [id])
+  proposedById String
+  proposedBy   User                @relation("CommitmentProposedBy", fields: [proposedById], references: [id])
+  approvedById String?
+  approvedBy   User?               @relation("CommitmentApprovedBy", fields: [approvedById], references: [id])
+  status       CommitmentStatus    @default(PROPUESTO)
+  frequency    CommitmentFrequency
+  firstDueDate DateTime            @db.Date
+  totalAmount  Decimal             @db.Decimal(10, 2) // snapshot Σ (amount + mora) al proponer
+
+  rejectReason String?
+  cancelReason String?
+  canceledById String?
+  canceledBy   User?   @relation("CommitmentCanceledBy", fields: [canceledById], references: [id])
+
+  approvedAt  DateTime?
+  breachedAt  DateTime? // el job lo marcó INCUMPLIDO
+  fulfilledAt DateTime? // última cuota pagada → CUMPLIDO
+  createdAt   DateTime  @default(now())
+
+  items CommitmentInstallment[]
+}
+
+// Cuota reprogramada por un compromiso: nueva fecha y snapshot del monto (amount + mora) al proponer.
+// Una cuota no puede estar en dos compromisos PROPUESTO/VIGENTE a la vez (validado en el service).
+model CommitmentInstallment {
+  id            String            @id @default(cuid())
+  commitmentId  String
+  commitment    PaymentCommitment @relation(fields: [commitmentId], references: [id], onDelete: Cascade)
+  installmentId String
+  installment   Installment       @relation(fields: [installmentId], references: [id])
+  sequence      Int
+  newDueDate    DateTime          @db.Date
+  amount        Decimal           @db.Decimal(10, 2)
+
+  @@unique([installmentId, commitmentId])
+}
+
+// ===== Devoluciones (R2 — E3) =====
+
+// Devolución vinculada a un recibo EMITIDO: Secretaría solicita → Admin aprueba/rechaza → Caja ejecuta.
+// Ejecución: EFECTIVO (egreso del arqueo del día), TRANSFERENCIA (n° de operación) o APLICACION_CUOTA
+// (marca una cuota del mismo estudiante como PAGADO, monto exacto — sin saldo a favor).
+model Refund {
+  id                  String       @id @default(cuid())
+  code                String       @unique // "D-0001"
+  receiptId           String
+  receipt             Receipt      @relation(fields: [receiptId], references: [id])
+  studentId           String
+  student             Student      @relation(fields: [studentId], references: [id])
+  requestedById       String
+  requestedBy         User         @relation("RefundRequestedBy", fields: [requestedById], references: [id])
+  amount              Decimal      @db.Decimal(10, 2)
+  reason              String
+  method              RefundMethod
+  targetInstallmentId String?
+  targetInstallment   Installment? @relation("RefundTargetInstallment", fields: [targetInstallmentId], references: [id])
+  status              RefundStatus @default(PENDIENTE_APROBACION)
+
+  approvedById String?
+  approvedBy   User?     @relation("RefundApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  rejectReason String?
+
+  executedById    String?
+  executedBy      User?        @relation("RefundExecutedBy", fields: [executedById], references: [id])
+  executedAt      DateTime?
+  cashSessionId   String?
+  cashSession     CashSession? @relation(fields: [cashSessionId], references: [id])
+  operationNumber String?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([receiptId])
 }
 
 // Secuencias de códigos legibles: "student" → E-####, "guardian" → A-####, "enrollment:2026" → M-2026-####

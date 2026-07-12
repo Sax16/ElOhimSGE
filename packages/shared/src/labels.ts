@@ -4,6 +4,8 @@
 import {
   type ActiveStatus,
   type CashSessionStatus,
+  type CommitmentFrequency,
+  type CommitmentStatus,
   type DiscountApplication,
   type EnrollmentStatus,
   type EnrollmentType,
@@ -18,6 +20,8 @@ import {
   type ProgramStatus,
   type ProgramType,
   type ReceiptStatus,
+  type RefundMethod,
+  type RefundStatus,
   type Sex,
   type Shift,
   type StudentStatus,
@@ -158,4 +162,31 @@ export const CASH_SESSION_STATUS_LABELS: Record<CashSessionStatus, string> = {
 export const RECEIPT_STATUS_LABELS: Record<ReceiptStatus, string> = {
   EMITIDO: 'Emitido',
   ANULADO: 'Anulado',
+};
+
+export const COMMITMENT_STATUS_LABELS: Record<CommitmentStatus, string> = {
+  PROPUESTO: 'Propuesto',
+  VIGENTE: 'Vigente',
+  CUMPLIDO: 'Cumplido',
+  INCUMPLIDO: 'Incumplido',
+  RECHAZADO: 'Rechazado',
+  ANULADO: 'Anulado',
+};
+
+export const COMMITMENT_FREQUENCY_LABELS: Record<CommitmentFrequency, string> = {
+  MENSUAL: 'Mensual',
+  QUINCENAL: 'Quincenal',
+};
+
+export const REFUND_STATUS_LABELS: Record<RefundStatus, string> = {
+  PENDIENTE_APROBACION: 'Pendiente de aprobación',
+  APROBADA: 'Aprobada',
+  RECHAZADA: 'Rechazada',
+  DEVUELTA: 'Devuelta',
+};
+
+export const REFUND_METHOD_LABELS: Record<RefundMethod, string> = {
+  EFECTIVO: 'Efectivo en caja',
+  TRANSFERENCIA: 'Transferencia',
+  APLICACION_CUOTA: 'Aplicación a cuota',
 };

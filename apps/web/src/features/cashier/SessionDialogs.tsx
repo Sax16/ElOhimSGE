@@ -96,8 +96,12 @@ export function CloseSessionDialog({
   const [counted, setCounted] = useState('');
   const [notes, setNotes] = useState('');
 
+  const refundsCents = stats.refundsCashAmount != null ? toCents(stats.refundsCashAmount) : 0;
+  const hasRefunds = refundsCents > 0;
   const expectedCents =
-    session.expectedCash != null ? toCents(session.expectedCash) : toCents(session.initialAmount) + toCents(stats.cashAmount);
+    session.expectedCash != null
+      ? toCents(session.expectedCash)
+      : toCents(session.initialAmount) + toCents(stats.cashAmount) - refundsCents;
 
   useEffect(() => {
     if (open) {
@@ -132,6 +136,9 @@ export function CloseSessionDialog({
     ['Monto inicial', formatPEN(toCents(session.initialAmount))],
     ['Cobros en efectivo', formatPEN(toCents(stats.cashAmount))],
     ['Cobros digitales', formatPEN(toCents(stats.digitalAmount))],
+    ...(hasRefunds
+      ? ([['Devoluciones en efectivo', `− ${formatPEN(refundsCents)}`]] as [string, string][])
+      : []),
     ['Efectivo esperado', formatPEN(expectedCents)],
   ];
 

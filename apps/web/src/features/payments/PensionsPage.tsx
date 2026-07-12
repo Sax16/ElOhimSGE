@@ -43,6 +43,7 @@ import {
   useRunLateFees,
   useSendReminder,
 } from './api';
+import { CommitmentsTab } from './CommitmentsTab';
 import type { InstallmentRow, InstallmentsQuery, PensionStatusFilter, PensionTypeFilter } from './types';
 import './payments.css';
 
@@ -106,6 +107,9 @@ export function PensionsPage() {
   const [term, setTerm] = useState('');
   const [debounced, setDebounced] = useState('');
   const [page, setPage] = useState(1);
+  const [commitmentsTotal, setCommitmentsTotal] = useState(0);
+
+  const isCommitments = tab === 'comp';
 
   // Diálogos.
   const [reminderTarget, setReminderTarget] = useState<{ id: string; name: string } | null>(null);
@@ -170,13 +174,27 @@ export function PensionsPage() {
       key: 'concept',
       header: 'Concepto',
       render: (v, r) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span>{v}</span>
-          {r.source === 'PROGRAMA' && <Tag>Programa</Tag>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>{v}</span>
+            {r.source === 'PROGRAMA' && <Tag>Programa</Tag>}
+          </div>
+          {r.commitmentCode && (
+            <span style={{ font: 'var(--type-2xs)', color: 'var(--info)' }}>
+              Compromiso {r.commitmentCode}
+              {r.effectiveDueDate ? ` · vence ${fmtDayMonth(r.effectiveDueDate)}` : ''}
+            </span>
+          )}
         </div>
       ),
     },
-    { key: 'dueDate', header: 'Vence', mono: true, align: 'center', render: (v) => fmtDayMonth(v as string) },
+    {
+      key: 'dueDate',
+      header: 'Vence',
+      mono: true,
+      align: 'center',
+      render: (v, r) => fmtDayMonth((r.effectiveDueDate ?? (v as string)) as string),
+    },
     {
       key: 'totalWithFee',
       header: 'Monto',
@@ -314,68 +332,84 @@ export function PensionsPage() {
           ) : undefined
         }
       >
-        <div className="esge-pensions-filters">
-          <Select
-            label="Mes"
-            options={[
-              { value: '', label: 'Todo el año' },
-              ...Array.from({ length: 10 }, (_, i) => ({ value: String(i + 3), label: MONTH_NAMES[i + 3] ?? '' })),
-            ]}
-            value={month == null ? '' : String(month)}
-            onChange={(e) => setMonth(e.target.value === '' ? null : Number(e.target.value))}
-            containerStyle={{ width: 160 }}
-          />
-          <Select
-            label="Tipo"
-            options={TYPE_OPTIONS}
-            value={type}
-            onChange={(e) => setType(e.target.value as PensionTypeFilter)}
-            containerStyle={{ width: 170 }}
-          />
-          <div className="esge-pensions-filters__search">
-            <Input
-              label="Buscar"
-              placeholder="Nombre, código o DNI…"
-              iconLeft={<Icons.Search />}
-              value={term}
-              onChange={(e) => setTerm(e.target.value)}
+        {!isCommitments && (
+          <div className="esge-pensions-filters">
+            <Select
+              label="Mes"
+              options={[
+                { value: '', label: 'Todo el año' },
+                ...Array.from({ length: 10 }, (_, i) => ({ value: String(i + 3), label: MONTH_NAMES[i + 3] ?? '' })),
+              ]}
+              value={month == null ? '' : String(month)}
+              onChange={(e) => setMonth(e.target.value === '' ? null : Number(e.target.value))}
+              containerStyle={{ width: 160 }}
             />
+            <Select
+              label="Tipo"
+              options={TYPE_OPTIONS}
+              value={type}
+              onChange={(e) => setType(e.target.value as PensionTypeFilter)}
+              containerStyle={{ width: 170 }}
+            />
+            <div className="esge-pensions-filters__search">
+              <Input
+                label="Buscar"
+                placeholder="Nombre, código o DNI…"
+                iconLeft={<Icons.Search />}
+                value={term}
+                onChange={(e) => setTerm(e.target.value)}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div style={{ padding: '0 16px', borderBottom: '1px solid var(--border-subtle)' }}>
           <Tabs
             value={tab}
             onChange={setTab}
-            items={TABS.map((t) => ({
-              id: t.id,
-              label: t.label,
-              // Solo el total de la consulta activa; evita 4 queries.
-              count: t.id === tab ? total : undefined,
-            }))}
+            items={[
+              ...TABS.map((t) => ({
+                id: t.id,
+                label: t.label,
+                // Solo el total de la consulta activa; evita 4 queries.
+                count: t.id === tab ? total : undefined,
+              })),
+              { id: 'comp', label: 'Compromisos', count: isCommitments ? commitmentsTotal : undefined },
+            ]}
           />
         </div>
 
-        {!isLoading && rows.length === 0 ? (
-          <EmptyState
-            icon={<Icons.Search />}
-            title="Sin cuotas"
-            description="No hay cuotas que coincidan con estos filtros."
+        {isCommitments ? (
+          <CommitmentsTab
+            yearId={yearId}
+            canMutate={canMutate}
+            isAdmin={isAdmin}
+            onTotalChange={setCommitmentsTotal}
           />
         ) : (
-          <Table
-            columns={cols}
-            data={rows}
-            rowKey="id"
-            hover
-            emptyText={isLoading ? 'Cargando cuotas…' : 'Sin cuotas.'}
-          />
-        )}
+          <>
+            {!isLoading && rows.length === 0 ? (
+              <EmptyState
+                icon={<Icons.Search />}
+                title="Sin cuotas"
+                description="No hay cuotas que coincidan con estos filtros."
+              />
+            ) : (
+              <Table
+                columns={cols}
+                data={rows}
+                rowKey="id"
+                hover
+                emptyText={isLoading ? 'Cargando cuotas…' : 'Sin cuotas.'}
+              />
+            )}
 
-        {total > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px' }}>
-            <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />
-          </div>
+            {total > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px' }}>
+                <Pagination page={page} pageCount={pageCount} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />
+              </div>
+            )}
+          </>
         )}
       </Card>
 

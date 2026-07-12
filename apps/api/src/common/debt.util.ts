@@ -1,16 +1,17 @@
 import { type Prisma, type PrismaClient } from '@prisma/client';
 import { decimalToCents } from './money.util';
+import { commitmentOverrides, dateToISO, todayISO } from './installment-view.util';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
 /**
  * Deuda vencida por estudiante, en centavos.
  *
- * Definición única (compartida por estudiantes y apoderados): Σ de las cuotas
- * (Installment) con status VENCIDO, o PENDIENTE cuya fecha de vencimiento ya pasó,
- * sobre TODAS las matrículas ESCOLARES del estudiante y sus inscripciones ACTIVAS a
- * programas complementarios (cuotas propias del programa). El monto vencido incluye la
- * mora fija de la cuota (amount + lateFeeAmount) — R2 E2.
+ * Definición única (compartida por estudiantes y apoderados): Σ de las cuotas (Installment)
+ * no pagadas cuya FECHA EFECTIVA ya pasó, sobre TODAS las matrículas ESCOLARES del estudiante y
+ * sus inscripciones ACTIVAS a programas. El monto vencido incluye la mora fija (amount +
+ * lateFeeAmount) — R2 E2. Fecha efectiva = newDueDate si un compromiso VIGENTE la incluye, si no
+ * dueDate (R2 E3): una cuota congelada por un compromiso al día NO suma deuda vencida.
  */
 export async function debtCentsByStudent(
   client: DbClient,
@@ -19,30 +20,36 @@ export async function debtCentsByStudent(
   const debt = new Map<string, number>();
   if (studentIds.length === 0) return debt;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = todayISO();
 
   const rows = await client.installment.findMany({
     where: {
-      OR: [{ status: 'VENCIDO' }, { status: 'PENDIENTE', dueDate: { lt: today } }],
-      AND: {
-        OR: [
-          { enrollment: { studentId: { in: studentIds } } },
-          { programEnrollment: { studentId: { in: studentIds }, canceledAt: null } },
-        ],
-      },
+      status: { in: ['PENDIENTE', 'VENCIDO'] },
+      OR: [
+        { enrollment: { studentId: { in: studentIds } } },
+        { programEnrollment: { studentId: { in: studentIds }, canceledAt: null } },
+      ],
     },
     select: {
+      id: true,
       amount: true,
       lateFeeAmount: true,
+      dueDate: true,
       enrollment: { select: { studentId: true } },
       programEnrollment: { select: { studentId: true } },
     },
   });
 
+  const overrides = await commitmentOverrides(
+    client,
+    rows.map((r) => r.id),
+  );
+
   for (const row of rows) {
     const sid = row.enrollment?.studentId ?? row.programEnrollment?.studentId;
     if (!sid) continue;
+    const eff = overrides.get(row.id)?.newDueDate ?? row.dueDate;
+    if (dateToISO(eff) >= today) continue; // congelada o aún no vence: no es deuda vencida
     const owed = decimalToCents(row.amount) + decimalToCents(row.lateFeeAmount);
     debt.set(sid, (debt.get(sid) ?? 0) + owed);
   }
