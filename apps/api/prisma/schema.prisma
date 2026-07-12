@@ -174,6 +174,21 @@ enum RefundMethod {
   APLICACION_CUOTA
 }
 
+enum TreasuryKind {
+  GASTO
+  INGRESO
+}
+
+enum TreasuryOrigin {
+  MANUAL
+  CAJA_CHICA
+}
+
+enum PettyRenditionSource {
+  EFECTIVO_CAJA
+  TRANSFERENCIA
+}
+
 // ===== Identity / Configuración =====
 
 model User {
@@ -189,23 +204,29 @@ model User {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  tutorOf                      Section[]           @relation("SectionTutor")
-  courses                      Course[]            @relation("CourseTeacher")
-  enrollmentsRegistered        Enrollment[]        @relation("RegisteredBy")
-  programEnrollmentsRegistered ProgramEnrollment[] @relation("ProgramEnrollmentRegisteredBy")
+  tutorOf                      Section[]            @relation("SectionTutor")
+  courses                      Course[]             @relation("CourseTeacher")
+  enrollmentsRegistered        Enrollment[]         @relation("RegisteredBy")
+  programEnrollmentsRegistered ProgramEnrollment[]  @relation("ProgramEnrollmentRegisteredBy")
   auditLogs                    AuditLog[]
-  cashSessionsOpened           CashSession[]       @relation("CashSessionOpenedBy")
-  cashSessionsClosed           CashSession[]       @relation("CashSessionClosedBy")
-  receiptsCashiered            Receipt[]           @relation("ReceiptCashier")
-  receiptsCanceled             Receipt[]           @relation("ReceiptCanceledBy")
-  lateFeesExonerated           Installment[]       @relation("InstallmentLateFeeExoneratedBy")
-  remindersSent                ReminderLog[]       @relation("ReminderSentBy")
-  commitmentsProposed          PaymentCommitment[] @relation("CommitmentProposedBy")
-  commitmentsApproved          PaymentCommitment[] @relation("CommitmentApprovedBy")
-  commitmentsCanceled          PaymentCommitment[] @relation("CommitmentCanceledBy")
-  refundsRequested             Refund[]            @relation("RefundRequestedBy")
-  refundsApproved              Refund[]            @relation("RefundApprovedBy")
-  refundsExecuted              Refund[]            @relation("RefundExecutedBy")
+  cashSessionsOpened           CashSession[]        @relation("CashSessionOpenedBy")
+  cashSessionsClosed           CashSession[]        @relation("CashSessionClosedBy")
+  receiptsCashiered            Receipt[]            @relation("ReceiptCashier")
+  receiptsCanceled             Receipt[]            @relation("ReceiptCanceledBy")
+  lateFeesExonerated           Installment[]        @relation("InstallmentLateFeeExoneratedBy")
+  remindersSent                ReminderLog[]        @relation("ReminderSentBy")
+  commitmentsProposed          PaymentCommitment[]  @relation("CommitmentProposedBy")
+  commitmentsApproved          PaymentCommitment[]  @relation("CommitmentApprovedBy")
+  commitmentsCanceled          PaymentCommitment[]  @relation("CommitmentCanceledBy")
+  refundsRequested             Refund[]             @relation("RefundRequestedBy")
+  refundsApproved              Refund[]             @relation("RefundApprovedBy")
+  refundsExecuted              Refund[]             @relation("RefundExecutedBy")
+  treasuryMovementsRegistered  TreasuryMovement[]   @relation("TreasuryMovementRegisteredBy")
+  treasuryMovementsCanceled    TreasuryMovement[]   @relation("TreasuryMovementCanceledBy")
+  pettyCashFundResponsibleOf   PettyCashFund[]      @relation("PettyCashFundResponsible")
+  pettyCashExpensesRegistered  PettyCashExpense[]   @relation("PettyCashExpenseRegisteredBy")
+  pettyCashExpensesCanceled    PettyCashExpense[]   @relation("PettyCashExpenseCanceledBy")
+  pettyCashRenditionsMade      PettyCashRendition[] @relation("PettyCashRenditionRegisteredBy")
 }
 
 // Singleton (id = 1): datos institucionales de la pestaña Configuración > Institución.
@@ -594,8 +615,10 @@ model CashSession {
   difference    Decimal?          @db.Decimal(10, 2) // countedCash − expectedCash
   closeNotes    String?
 
-  receipts Receipt[]
-  refunds  Refund[]
+  receipts            Receipt[]
+  refunds             Refund[]
+  treasuryMovements   TreasuryMovement[]
+  pettyCashRenditions PettyCashRendition[]
 }
 
 // Recibo interno numerado (R-2026-#####). Registra quién cobró; anulación mientras la caja siga abierta.
@@ -729,6 +752,107 @@ model Refund {
 
   @@index([status, createdAt])
   @@index([receiptId])
+}
+
+// ===== Tesorería (R2 — E4): gastos, otros ingresos y caja chica =====
+
+// Categoría administrable de gasto/ingreso. Se elimina solo si no tiene movimientos (si no, se desactiva).
+model TreasuryCategory {
+  id        String       @id @default(cuid())
+  kind      TreasuryKind
+  name      String
+  status    ActiveStatus @default(ACTIVO)
+  createdAt DateTime     @default(now())
+
+  movements TreasuryMovement[]
+
+  @@unique([kind, name])
+}
+
+// Movimiento de dinero de tesorería: un gasto (G-####) o un otro ingreso (I-####).
+// origin MANUAL = registrado a mano (editable/anulable); CAJA_CHICA = generado por una rendición
+// (no editable, se corrige por su rendición). Un INGRESO en EFECTIVO se vincula a la caja del día
+// (cashSessionId) y suma al arqueo; los gastos nunca tocan el cajón salvo la reposición de caja chica.
+model TreasuryMovement {
+  id             String           @id @default(cuid())
+  code           String           @unique // "G-0001" | "I-0001"
+  kind           TreasuryKind
+  categoryId     String
+  category       TreasuryCategory @relation(fields: [categoryId], references: [id])
+  description    String
+  amount         Decimal          @db.Decimal(10, 2)
+  method         PaymentMethod
+  date           DateTime         @db.Date
+  supplier       String?
+  voucherNumber  String?
+  notes          String?
+  origin         TreasuryOrigin   @default(MANUAL)
+  originRef      String? // "REND-0001" cuando origin = CAJA_CHICA
+  cashSessionId  String?
+  cashSession    CashSession?     @relation(fields: [cashSessionId], references: [id])
+  registeredById String
+  registeredBy   User             @relation("TreasuryMovementRegisteredBy", fields: [registeredById], references: [id])
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  canceledAt     DateTime?
+  cancelReason   String?
+  canceledById   String?
+  canceledBy     User?            @relation("TreasuryMovementCanceledBy", fields: [canceledById], references: [id])
+
+  rendition PettyCashRendition?
+
+  @@index([kind, date])
+  @@index([cashSessionId])
+}
+
+// Fondo fijo de caja chica (singleton id = 1): monto + responsable configurables (solo ADMIN).
+model PettyCashFund {
+  id            Int      @id @default(1)
+  amount        Decimal  @default(500.00) @db.Decimal(10, 2)
+  responsibleId String?
+  responsible   User?    @relation("PettyCashFundResponsible", fields: [responsibleId], references: [id])
+  updatedAt     DateTime @updatedAt
+}
+
+// Gasto menor contra el fondo de caja chica. Anulable con motivo mientras no esté rendido;
+// la rendición lo consolida (renditionId) en un gasto de tesorería y repone el fondo.
+model PettyCashExpense {
+  id             String              @id @default(cuid())
+  date           DateTime            @db.Date
+  concept        String
+  amount         Decimal             @db.Decimal(10, 2)
+  voucherNumber  String?
+  registeredById String
+  registeredBy   User                @relation("PettyCashExpenseRegisteredBy", fields: [registeredById], references: [id])
+  renditionId    String?
+  rendition      PettyCashRendition? @relation(fields: [renditionId], references: [id])
+  createdAt      DateTime            @default(now())
+  canceledAt     DateTime?
+  cancelReason   String?
+  canceledById   String?
+  canceledBy     User?               @relation("PettyCashExpenseCanceledBy", fields: [canceledById], references: [id])
+
+  @@index([renditionId])
+}
+
+// Rendición de caja chica (REND-####): consolida los gastos menores no rendidos en UN gasto de
+// tesorería (treasuryMovementId, origin CAJA_CHICA) y repone el fondo. Origen del dinero:
+// EFECTIVO_CAJA (egresa de la caja del día, vincula cashSessionId) o TRANSFERENCIA (libre).
+model PettyCashRendition {
+  id                 String               @id @default(cuid())
+  code               String               @unique // "REND-0001"
+  totalAmount        Decimal              @db.Decimal(10, 2)
+  expensesCount      Int
+  source             PettyRenditionSource
+  treasuryMovementId String               @unique
+  treasuryMovement   TreasuryMovement     @relation(fields: [treasuryMovementId], references: [id])
+  cashSessionId      String?
+  cashSession        CashSession?         @relation(fields: [cashSessionId], references: [id])
+  registeredById     String
+  registeredBy       User                 @relation("PettyCashRenditionRegisteredBy", fields: [registeredById], references: [id])
+  createdAt          DateTime             @default(now())
+
+  expenses PettyCashExpense[]
 }
 
 // Secuencias de códigos legibles: "student" → E-####, "guardian" → A-####, "enrollment:2026" → M-2026-####

@@ -44,22 +44,24 @@ export function MovementsTable({ movements, canCancel = false, onViewReceipt, on
       num: true,
       mono: true,
       render: (v, r) => {
-        if (r.kind === 'DEVOLUCION') {
-          return (
-            <span style={{ color: 'var(--danger)', fontWeight: 600 }}>− {formatPEN(toCents(v as string))}</span>
-          );
-        }
+        const cents = toCents(v as string);
         if (r.status === 'ANULADO') {
           return (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
-              <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)' }}>
-                {formatPEN(toCents(v as string))}
-              </span>
+              <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)' }}>{formatPEN(cents)}</span>
               <Badge tone="neutral">{RECEIPT_STATUS_LABELS.ANULADO}</Badge>
             </span>
           );
         }
-        return formatPEN(toCents(v as string));
+        // Egresos del cajón (devolución o reposición de caja chica) en rojo con −.
+        if (r.kind === 'DEVOLUCION' || r.kind === 'CAJA_CHICA') {
+          return <span style={{ color: 'var(--danger)', fontWeight: 600 }}>− {formatPEN(cents)}</span>;
+        }
+        // Otros ingresos en efectivo (Tesorería) en verde con +.
+        if (r.kind === 'INGRESO') {
+          return <span style={{ color: 'var(--success)', fontWeight: 600 }}>+ {formatPEN(cents)}</span>;
+        }
+        return formatPEN(cents);
       },
     },
     {
@@ -77,7 +79,9 @@ export function MovementsTable({ movements, canCancel = false, onViewReceipt, on
       header: '',
       align: 'right',
       render: (_v, r) =>
-        r.kind === 'DEVOLUCION' ? null : (
+        // Solo los cobros tienen recibo/acciones; devoluciones, otros ingresos y
+        // reposiciones de caja chica se gestionan en su propio módulo.
+        r.kind !== 'COBRO' ? null : (
           <div style={{ display: 'inline-flex', gap: 2 }}>
             <Tooltip content="Ver recibo">
               <IconButton label="Ver recibo" size="sm" onClick={() => onViewReceipt(r.id)}>

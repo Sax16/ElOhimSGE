@@ -29,6 +29,7 @@ const MODULE_LABELS: Record<PermissionModule, string> = {
   tarifario: 'Tarifario',
   caja: 'Caja y cobros',
   pensiones: 'Pensiones',
+  tesoreria: 'Tesorería',
   personal: 'Personal y planilla',
   marcacion: 'Marcación de personal',
   notas: 'Notas',

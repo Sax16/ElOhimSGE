@@ -42,10 +42,14 @@ export interface DayStats {
   refundsCashAmount: string;
   /** Cantidad de devoluciones ejecutadas hoy. E3. */
   refundsCount: number;
+  /** Otros ingresos en efectivo del día (Tesorería), suman al efectivo esperado. E4. */
+  otherIncomeCashAmount: string;
+  /** Reposición de caja chica en efectivo, resta del efectivo esperado. E4. */
+  pettyCashOutAmount: string;
 }
 
-/** Tipo de movimiento de la caja: un cobro o una devolución. E3. */
-export type MovementKind = 'COBRO' | 'DEVOLUCION';
+/** Tipo de movimiento de la caja: cobro, devolución, otro ingreso o reposición de caja chica. E3/E4. */
+export type MovementKind = 'COBRO' | 'DEVOLUCION' | 'INGRESO' | 'CAJA_CHICA';
 /** Estado mostrado en el movimiento (recibo EMITIDO/ANULADO o devolución DEVUELTA). */
 export type MovementStatus = ReceiptStatus | 'DEVUELTA';
 
@@ -274,6 +278,10 @@ export interface CashierSessionSummary {
   cashAmount: string;
   digitalAmount: string;
   refundsCashAmount: string;
+  /** Otros ingresos en efectivo del día (Tesorería). E4. */
+  otherIncomeCashAmount: string;
+  /** Reposición de caja chica en efectivo. E4. */
+  pettyCashOutAmount: string;
   expectedCash: string | null;
   countedCash: string | null;
   difference: string | null;

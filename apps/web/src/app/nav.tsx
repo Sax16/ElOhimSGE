@@ -95,7 +95,7 @@ const NAV_MODULE: Record<string, PermissionModule | null> = {
   caja: 'caja',
   pagos: 'pensiones',
   tarifario: 'tarifario',
-  tesoreria: 'caja',
+  tesoreria: 'tesoreria',
   inventario: 'caja',
   reportes: 'reportes',
   comunicados: 'comunicados',

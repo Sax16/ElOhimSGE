@@ -12,6 +12,7 @@ import { GuardiansModule } from './guardians/guardians.module';
 import { BillingModule } from './billing/billing.module';
 import { EnrollmentModule } from './enrollment/enrollment.module';
 import { CashierModule } from './cashier/cashier.module';
+import { TreasuryModule } from './treasury/treasury.module';
 import { JobsModule } from './jobs/jobs.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { JobsModule } from './jobs/jobs.module';
     BillingModule,
     EnrollmentModule,
     CashierModule,
+    TreasuryModule,
     JobsModule,
     HealthModule,
   ],

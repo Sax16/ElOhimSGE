@@ -17,6 +17,7 @@ import {
   type PaymentMethod,
   type PeriodStatus,
   type PeriodType,
+  type PettyRenditionSource,
   type ProgramStatus,
   type ProgramType,
   type ReceiptStatus,
@@ -25,6 +26,8 @@ import {
   type Sex,
   type Shift,
   type StudentStatus,
+  type TreasuryKind,
+  type TreasuryOrigin,
   type UserRole,
   type UserStatus,
   type YearStatus,
@@ -189,4 +192,19 @@ export const REFUND_METHOD_LABELS: Record<RefundMethod, string> = {
   EFECTIVO: 'Efectivo en caja',
   TRANSFERENCIA: 'Transferencia',
   APLICACION_CUOTA: 'Aplicación a cuota',
+};
+
+export const TREASURY_KIND_LABELS: Record<TreasuryKind, string> = {
+  GASTO: 'Gasto',
+  INGRESO: 'Ingreso',
+};
+
+export const TREASURY_ORIGIN_LABELS: Record<TreasuryOrigin, string> = {
+  MANUAL: 'Manual',
+  CAJA_CHICA: 'Caja chica',
+};
+
+export const PETTY_RENDITION_SOURCE_LABELS: Record<PettyRenditionSource, string> = {
+  EFECTIVO_CAJA: 'Efectivo de caja del día',
+  TRANSFERENCIA: 'Transferencia',
 };

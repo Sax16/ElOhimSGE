@@ -112,3 +112,14 @@ export type RefundStatus = (typeof REFUND_STATUSES)[number];
 
 export const REFUND_METHODS = ['EFECTIVO', 'TRANSFERENCIA', 'APLICACION_CUOTA'] as const;
 export type RefundMethod = (typeof REFUND_METHODS)[number];
+
+// ===== Tesorería (R2 — E4): gastos, otros ingresos y caja chica =====
+
+export const TREASURY_KINDS = ['GASTO', 'INGRESO'] as const;
+export type TreasuryKind = (typeof TREASURY_KINDS)[number];
+
+export const TREASURY_ORIGINS = ['MANUAL', 'CAJA_CHICA'] as const;
+export type TreasuryOrigin = (typeof TREASURY_ORIGINS)[number];
+
+export const PETTY_RENDITION_SOURCES = ['EFECTIVO_CAJA', 'TRANSFERENCIA'] as const;
+export type PettyRenditionSource = (typeof PETTY_RENDITION_SOURCES)[number];

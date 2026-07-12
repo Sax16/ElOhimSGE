@@ -136,6 +136,10 @@ interface SessionStats {
   canceledCount: number;
   refundsCashAmount: string;
   refundsCount: number;
+  // Tesorería (R2 — E4): otros ingresos en efectivo (suman) y reposiciones de caja chica en
+  // efectivo (restan) que también componen el efectivo esperado del arqueo.
+  otherIncomeCashAmount: string;
+  pettyCashOutAmount: string;
 }
 
 function emptyStats(): SessionStats {
@@ -149,12 +153,15 @@ function emptyStats(): SessionStats {
     canceledCount: 0,
     refundsCashAmount: '0.00',
     refundsCount: 0,
+    otherIncomeCashAmount: '0.00',
+    pettyCashOutAmount: '0.00',
   };
 }
 
-// Fila de movimiento del arqueo: un cobro (recibo) o una devolución ejecutada.
+// Fila de movimiento del arqueo: un cobro (recibo), una devolución ejecutada, un otro ingreso en
+// efectivo (INGRESO) o una reposición de caja chica en efectivo (CAJA_CHICA).
 interface Movement {
-  kind: 'COBRO' | 'DEVOLUCION';
+  kind: 'COBRO' | 'DEVOLUCION' | 'INGRESO' | 'CAJA_CHICA';
   id: string;
   code: string;
   createdAt: string;
@@ -295,8 +302,26 @@ export class CashierService {
         student: { select: { firstNames: true, paternalLastName: true, maternalLastName: true } },
       },
     });
+    // Movimientos de tesorería vinculados a la caja: otros ingresos en efectivo (INGRESO) y
+    // reposiciones de caja chica en efectivo (GASTO origen CAJA_CHICA).
+    const treasury = await this.prisma.treasuryMovement.findMany({
+      where: { cashSessionId: sessionId },
+      select: {
+        id: true,
+        code: true,
+        kind: true,
+        origin: true,
+        originRef: true,
+        description: true,
+        method: true,
+        amount: true,
+        canceledAt: true,
+        createdAt: true,
+        registeredBy: { select: { fullName: true } },
+      },
+    });
 
-    const stats = this.aggregate(receipts, refunds);
+    const stats = this.aggregate(receipts, refunds, treasury);
 
     const cobros: Movement[] = receipts.map((r) => ({
       kind: 'COBRO',
@@ -324,17 +349,39 @@ export class CashierService {
       cashierName: rf.executedBy?.fullName ?? null,
       status: 'DEVUELTA',
     }));
+    // Otros ingresos en efectivo (INGRESO, I-xxxx) y reposiciones de caja chica (CAJA_CHICA,
+    // REND-xxxx). El monto va positivo; el kind indica el signo en el arqueo.
+    const tesoreria: Movement[] = treasury.map((t) => ({
+      kind: t.origin === 'CAJA_CHICA' ? 'CAJA_CHICA' : 'INGRESO',
+      id: t.id,
+      code: t.origin === 'CAJA_CHICA' ? t.originRef ?? t.code : t.code,
+      createdAt: t.createdAt.toISOString(),
+      studentName: '',
+      summary: t.origin === 'CAJA_CHICA' ? 'Reposición de caja chica' : t.description,
+      method: t.method,
+      totalAmount: money(t.amount),
+      cashierName: t.registeredBy.fullName,
+      status: t.canceledAt ? 'ANULADO' : 'ACTIVO',
+    }));
 
-    const movements = [...cobros, ...devoluciones].sort((a, b) =>
+    const movements = [...cobros, ...devoluciones, ...tesoreria].sort((a, b) =>
       a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0,
     );
     return { stats, movements };
   }
 
-  // Suma indicadores de una caja a partir de sus recibos y devoluciones ejecutadas.
+  // Suma indicadores de una caja a partir de sus recibos, devoluciones y movimientos de tesorería
+  // vinculados (otros ingresos en efectivo y reposiciones de caja chica en efectivo).
   private aggregate(
     receipts: { method: string; totalAmount: Prisma.Decimal; status: string }[],
     refunds: { method: string; amount: Prisma.Decimal }[],
+    treasury: {
+      kind: string;
+      origin: string;
+      method: string;
+      amount: Prisma.Decimal;
+      canceledAt: Date | null;
+    }[] = [],
   ): SessionStats {
     let cashCents = 0;
     let digitalCents = 0;
@@ -365,6 +412,16 @@ export class CashierService {
         refundsCount += 1;
       }
     }
+    // Otros ingresos en efectivo (INGRESO) suman; reposiciones de caja chica en efectivo
+    // (GASTO origen CAJA_CHICA) restan. Solo movimientos en efectivo y no anulados.
+    let otherIncomeCashCents = 0;
+    let pettyCashOutCents = 0;
+    for (const t of treasury) {
+      if (t.canceledAt || t.method !== 'EFECTIVO') continue;
+      const cents = decimalToCents(t.amount);
+      if (t.kind === 'INGRESO') otherIncomeCashCents += cents;
+      else if (t.kind === 'GASTO' && t.origin === 'CAJA_CHICA') pettyCashOutCents += cents;
+    }
     return {
       totalAmount: fromCents(cashCents + digitalCents),
       cashAmount: fromCents(cashCents),
@@ -375,6 +432,8 @@ export class CashierService {
       canceledCount,
       refundsCashAmount: fromCents(refundsCashCents),
       refundsCount,
+      otherIncomeCashAmount: fromCents(otherIncomeCashCents),
+      pettyCashOutAmount: fromCents(pettyCashOutCents),
     };
   }
 
@@ -397,7 +456,11 @@ export class CashierService {
         where: { cashSessionId: s.id, status: 'DEVUELTA' },
         select: { method: true, amount: true },
       });
-      const stats = this.aggregate(receipts, refunds);
+      const treasury = await this.prisma.treasuryMovement.findMany({
+        where: { cashSessionId: s.id },
+        select: { kind: true, origin: true, method: true, amount: true, canceledAt: true },
+      });
+      const stats = this.aggregate(receipts, refunds, treasury);
       items.push({
         id: s.id,
         date: dateToISO(s.date),
@@ -411,6 +474,8 @@ export class CashierService {
         cashAmount: stats.cashAmount,
         digitalAmount: stats.digitalAmount,
         refundsCashAmount: stats.refundsCashAmount,
+        otherIncomeCashAmount: stats.otherIncomeCashAmount,
+        pettyCashOutAmount: stats.pettyCashOutAmount,
         expectedCash: moneyOrNull(s.expectedCash),
         countedCash: moneyOrNull(s.countedCash),
         difference: moneyOrNull(s.difference),
@@ -491,7 +556,8 @@ export class CashierService {
     });
     if (!session) throw new NotFoundException('No hay ninguna caja abierta');
 
-    // Efectivo esperado = inicial + efectivo de recibos EMITIDO − devoluciones EFECTIVO de la sesión.
+    // Efectivo esperado (arqueo completo) = inicial + cobros en efectivo + otros ingresos en
+    // efectivo − devoluciones en efectivo − reposiciones de caja chica en efectivo.
     const cashReceipts = await this.prisma.receipt.findMany({
       where: { cashSessionId: session.id, status: 'EMITIDO', method: 'EFECTIVO' },
       select: { totalAmount: true },
@@ -504,6 +570,18 @@ export class CashierService {
       select: { amount: true },
     });
     for (const r of cashRefunds) expectedCents -= decimalToCents(r.amount);
+
+    // Tesorería en efectivo de la sesión: otros ingresos suman, reposiciones de caja chica restan.
+    const cashTreasury = await this.prisma.treasuryMovement.findMany({
+      where: { cashSessionId: session.id, method: 'EFECTIVO', canceledAt: null },
+      select: { kind: true, origin: true, amount: true },
+    });
+    for (const t of cashTreasury) {
+      if (t.kind === 'INGRESO') expectedCents += decimalToCents(t.amount);
+      else if (t.kind === 'GASTO' && t.origin === 'CAJA_CHICA') {
+        expectedCents -= decimalToCents(t.amount);
+      }
+    }
 
     const expected = fromCents(expectedCents);
     const countedCents = decimalToCents(input.countedCash);

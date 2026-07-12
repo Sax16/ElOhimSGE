@@ -1,0 +1,48 @@
+/* Layout responsive de Gastos e ingresos (desktop-first; lg ≥1024 / md 768–1023 / sm <768). */
+.esge-treasury-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.esge-treasury-petty-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+/* Resumen: rubros (1.4fr) + gastos por categoría (1fr). */
+.esge-treasury-resumen-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+/* Fila de filtros de Gastos / Otros ingresos. */
+.esge-treasury-filters {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.esge-treasury-filters__search {
+  flex: 1;
+  min-width: 200px;
+}
+
+@media (max-width: 1023px) {
+  .esge-treasury-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .esge-treasury-resumen-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .esge-treasury-stats,
+  .esge-treasury-petty-stats {
+    grid-template-columns: 1fr;
+  }
+  .esge-treasury-filters__search {
+    flex-basis: 100%;
+  }
+}

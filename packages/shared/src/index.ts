@@ -18,3 +18,4 @@ export * from './schemas/cashier';
 export * from './schemas/payments';
 export * from './schemas/commitments';
 export * from './schemas/refunds';
+export * from './schemas/treasury';
