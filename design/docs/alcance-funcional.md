@@ -160,6 +160,14 @@ Decididas por el administrador antes de implementar. MANDAN sobre los prototipos
 ### Compromisos de pago
 - Secretaría propone → Admin aprueba. Mientras esté vigente y al día, **mora y recordatorios de la deuda original se congelan**; una cuota del plan vencida e impaga (detectada por el job diario) lo marca **Incumplido** y reactiva mora y recordatorios sobre la deuda original.
 
+### Compromisos y devoluciones — decisiones de la etapa 3 (jul 2026)
+- **El compromiso reprograma cuotas 1:1** (reemplaza el "plan deuda ÷ N" del prototipo): toma las cuotas VENCIDAS seleccionadas de los hijos del apoderado firmante (pensiones, matrícula y programas) y le asigna a cada una su **nueva fecha** según la frecuencia (mensual/quincenal desde la primera fecha pactada). Los montos no cambian — la cuota conserva su mora ya aplicada (refinanciar no condona; el Admin puede exonerar aparte). Se cobran en Caja como cualquier cuota.
+- **Fecha efectiva de una cuota**: la reprogramada si su compromiso está VIGENTE, si no la original. De ella derivan el estado mostrado (Pendiente/Vencido), la deuda, los recordatorios y la mora — así el congelamiento es una consecuencia, no un flag: mientras el compromiso esté vigente y al día, sus cuotas no aparecen vencidas ni en recordatorios ni generan mora nueva.
+- **Estados**: Propuesto → (Admin) Vigente | Rechazado (justificación ≥ 10). Vigente → Cumplido (última cuota pagada) | Incumplido (el job diario lo marca **al día siguiente de la fecha pactada, sin gracia adicional**) | Anulado (Admin, justificación). Incumplido/Anulado devuelven las cuotas restantes a su condición vencida original (reactiva mora congelada pendiente y recordatorios). Anular el pago de una cuota del plan regresa el compromiso Cumplido → Vigente.
+- **Devoluciones**: solicitud vinculada a un recibo EMITIDO (monto total o parcial, motivo ≥ 10) → Admin aprueba o rechaza (justificación ≥ 10) → Caja ejecuta según la forma pactada: **efectivo** (exige caja del día abierta; genera el egreso del día y descuenta del efectivo esperado del arqueo), **transferencia** (no toca el cajón; n° de operación opcional) o **aplicación exacta a una cuota pendiente del mismo estudiante** (queda Pagada con origen "Devolución D-xxxx", sin recibo). Comprobante de devolución imprimible con el patrón de documento aislado.
+- **Historial de cajas**: pestaña en Caja y cobros con las cajas cerradas (quién abrió/cerró, cobrado, esperado vs. contado, diferencia, observaciones) y el detalle de movimientos de cada día. El reporte formal con exportación sigue en E5.
+- Correlativos: compromisos `CP-####`, devoluciones `D-####`.
+
 ### Tesorería y dashboard
 - **Planilla llega en R3**: mientras tanto los pagos al personal se registran como gasto manual (categoría "Planilla y personal").
 - **Caja chica**: un solo fondo fijo con responsable y monto configurable; la rendición crea un único gasto consolidado en Gastos (origen: Caja chica) y repone el fondo.
