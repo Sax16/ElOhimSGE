@@ -7,6 +7,7 @@ import {
   type CommitmentFrequency,
   type CommitmentStatus,
   type DiscountApplication,
+  type EmploymentType,
   type EnrollmentStatus,
   type EnrollmentType,
   type GuardianRelation,
@@ -25,6 +26,8 @@ import {
   type RefundStatus,
   type Sex,
   type Shift,
+  type StaffRole,
+  type StaffStatus,
   type StudentStatus,
   type TreasuryKind,
   type TreasuryOrigin,
@@ -207,4 +210,25 @@ export const TREASURY_ORIGIN_LABELS: Record<TreasuryOrigin, string> = {
 export const PETTY_RENDITION_SOURCE_LABELS: Record<PettyRenditionSource, string> = {
   EFECTIVO_CAJA: 'Efectivo de caja del día',
   TRANSFERENCIA: 'Transferencia',
+};
+
+export const STAFF_ROLE_LABELS: Record<StaffRole, string> = {
+  DOCENTE: 'Docente',
+  SECRETARIA: 'Secretaría',
+  AUXILIAR: 'Auxiliar',
+  MANTENIMIENTO: 'Mantenimiento',
+  DIRECCION: 'Dirección',
+  PORTERIA: 'Portería',
+};
+
+export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
+  TIEMPO_COMPLETO: 'Tiempo completo',
+  MEDIO_TIEMPO: 'Medio tiempo',
+  POR_HORAS: 'Por horas',
+};
+
+export const STAFF_STATUS_LABELS: Record<StaffStatus, string> = {
+  ACTIVO: 'Activo',
+  LICENCIA: 'Licencia',
+  CESADO: 'Cesado',
 };

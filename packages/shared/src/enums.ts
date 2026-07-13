@@ -123,3 +123,24 @@ export type TreasuryOrigin = (typeof TREASURY_ORIGINS)[number];
 
 export const PETTY_RENDITION_SOURCES = ['EFECTIVO_CAJA', 'TRANSFERENCIA'] as const;
 export type PettyRenditionSource = (typeof PETTY_RENDITION_SOURCES)[number];
+
+// ===== Personal (R3 — E1) =====
+
+export const STAFF_ROLES = [
+  'DOCENTE',
+  'SECRETARIA',
+  'AUXILIAR',
+  'MANTENIMIENTO',
+  'DIRECCION',
+  'PORTERIA',
+] as const;
+export type StaffRole = (typeof STAFF_ROLES)[number];
+
+export const EMPLOYMENT_TYPES = ['TIEMPO_COMPLETO', 'MEDIO_TIEMPO', 'POR_HORAS'] as const;
+export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number];
+
+export const STAFF_STATUSES = ['ACTIVO', 'LICENCIA', 'CESADO'] as const;
+export type StaffStatus = (typeof STAFF_STATUSES)[number];
+
+export const PENSION_KINDS = ['ONP', 'AFP'] as const;
+export type PensionKind = (typeof PENSION_KINDS)[number];

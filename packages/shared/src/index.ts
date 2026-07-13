@@ -20,3 +20,4 @@ export * from './schemas/commitments';
 export * from './schemas/refunds';
 export * from './schemas/treasury';
 export * from './schemas/reports';
+export * from './schemas/staff';

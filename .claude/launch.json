@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@elohim/web", "dev"],
       "port": 5173
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@elohim/api", "start:dev"],
+      "port": 3000
     }
   ]
 }

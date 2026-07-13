@@ -202,3 +202,14 @@ El prototipo del dashboard mezcla datos de releases futuros; en R2 se reemplazan
 - La meta mensual de cobranza es derivada (suma de cuotas de pensión del mes), como ya estaba decidido.
 
 Reportes (pantalla según `ReportsScreen.jsx`, permiso `reportes`): en R2 se habilitan **4 con exportación a Excel (.xlsx real, generado en el API)** — **Morosidad por grado** (resumen por grado + detalle por familia), **Ingresos por concepto** (pensiones/matrículas/programas/ventas/otros por periodo y método), **Caja diaria** (arqueos y movimientos por rango de fechas) y **Padrón de estudiantes** (con apoderado principal y contacto). "Asistencia mensual" y "Planilla anual" aparecen deshabilitados con la nota de su release (R4/R3). La regularización de diferencias de arqueo hacia tesorería se evaluó y quedó **fuera** (decisión del administrador: el registro del faltante/sobrante en el historial es suficiente).
+
+## Decisiones de R3 (personal)
+
+### Decisiones de arranque (jul 2026)
+- **Alcance de planilla en R3: solo la planilla mensual** (sueldo, AFP/ONP, EsSalud, descuentos). Gratificaciones y CTS **quedan fuera de R3** y se siguen registrando como gasto manual en tesorería (categoría "Planilla y personal"). La configuración de planilla en tabla igual guarda los porcentajes de gratificación/CTS para el futuro, con **seed de pequeña empresa (MYPE)** — el régimen laboral real no está confirmado, el Admin lo ajustará en Configuración → Planilla antes de usarlos.
+- **Personal "Por horas": monto editable por mes.** Su fila de planilla sale con el sueldo base como referencia y Secretaría/Admin edita el monto de ese mes según las horas dictadas (no se registran horas ni tarifa por hora).
+- **El pago de planilla (individual o masivo) es solo Admin**, como las exoneraciones de R2. El módulo `personal` no entra en los permisos por defecto de Secretaría (el Admin puede concederlo, y aun así el botón Pagar valida rol en el service).
+- **La planilla nunca toca la caja del día ni su arqueo**: el pago crea su **gasto en tesorería por evento** (badge de origen "Planilla", no editable en Gastos), incluso si el método es efectivo — consistente con "los gastos nunca salen del cajón de ventanilla" de R2. Esto **reemplaza** al registro manual en la categoría "Planilla y personal".
+- **Tardanza solo sobre el ingreso**: la marca de salida es informativa. Las **inasistencias no descuentan automáticamente** (descuento manual con motivo si corresponde).
+- La ficha de empleado es entidad propia (`Staff`) con **vínculo opcional a un usuario del sistema** (necesario para docentes en R4); no todo empleado tiene usuario.
+- Etapas: **E1** Personal (fichas + catálogo AFP + grupos de marcación) → **E2** Marcación y asistencia (portería, reglas, descuento por tardanzas) → **E3** Planilla (cálculo puro en shared con tests, pago, boleta, gasto por evento) → **E4** Integraciones (próximos egresos en dashboard, reportes de asistencia/planilla).

@@ -227,6 +227,7 @@ model User {
   pettyCashExpensesRegistered  PettyCashExpense[]   @relation("PettyCashExpenseRegisteredBy")
   pettyCashExpensesCanceled    PettyCashExpense[]   @relation("PettyCashExpenseCanceledBy")
   pettyCashRenditionsMade      PettyCashRendition[] @relation("PettyCashRenditionRegisteredBy")
+  staff                        Staff?               @relation("UserStaff")
 }
 
 // Singleton (id = 1): datos institucionales de la pestaña Configuración > Institución.
@@ -698,6 +699,9 @@ model PaymentCommitment {
   createdAt   DateTime  @default(now())
 
   items CommitmentInstallment[]
+
+  @@index([guardianId])
+  @@index([status])
 }
 
 // Cuota reprogramada por un compromiso: nueva fecha y snapshot del monto (amount + mora) al proponer.
@@ -713,6 +717,8 @@ model CommitmentInstallment {
   amount        Decimal           @db.Decimal(10, 2)
 
   @@unique([installmentId, commitmentId])
+  @@index([commitmentId])
+  @@index([installmentId])
 }
 
 // ===== Devoluciones (R2 — E3) =====
@@ -853,6 +859,89 @@ model PettyCashRendition {
   createdAt          DateTime             @default(now())
 
   expenses PettyCashExpense[]
+}
+
+// ===== Personal (R3) =====
+
+enum StaffRole {
+  DOCENTE
+  SECRETARIA
+  AUXILIAR
+  MANTENIMIENTO
+  DIRECCION
+  PORTERIA
+}
+
+enum EmploymentType {
+  TIEMPO_COMPLETO
+  MEDIO_TIEMPO
+  POR_HORAS
+}
+
+enum StaffStatus {
+  ACTIVO
+  LICENCIA
+  CESADO
+}
+
+enum PensionKind {
+  ONP
+  AFP
+}
+
+// Régimen pensionario configurable (D5: nada hard-codeado). ONP usa onpRatePct; las AFP usan
+// fondRatePct + commissionRatePct + insuranceRatePct (los tres null para ONP; onpRatePct null para AFP).
+// El cálculo de planilla (R3 — E3) leerá estos porcentajes; aquí solo el catálogo.
+model PensionScheme {
+  id                 String      @id @default(cuid())
+  name               String      @unique // "ONP", "AFP Integra"...
+  kind               PensionKind
+  onpRatePct         Decimal?    @db.Decimal(5, 2) // 13.00 para ONP; null para AFP
+  fundRatePct        Decimal?    @db.Decimal(5, 2) // aporte al fondo (10.00); null para ONP
+  commissionRatePct  Decimal?    @db.Decimal(5, 2) // comisión de la AFP; null para ONP
+  insuranceRatePct   Decimal?    @db.Decimal(5, 2) // prima de seguro; null para ONP
+  active             Boolean     @default(true)
+  sortOrder          Int
+
+  staff Staff[]
+}
+
+// Grupo de marcación (D5: horario/tolerancia configurables por grupo). La marcación en sí llega en
+// R3 — E2; aquí solo el catálogo, porque la ficha muestra el horario efectivo del empleado.
+model MarkingGroup {
+  id           String      @id @default(cuid())
+  name         String      @unique // "Docentes", "Administrativos"...
+  entryTime    String      @db.Char(5) // "07:45"
+  toleranceMin Int
+  roles        StaffRole[] // roles que cubre el grupo
+  sortOrder    Int
+}
+
+// Ficha de empleado (entidad propia; nada se borra — el cese es un cambio de estado, no un DELETE).
+// Vínculo OPCIONAL a un usuario del sistema (userId): necesario para docentes en R4, no todos lo tienen.
+model Staff {
+  id                     String         @id @default(cuid())
+  code                   String         @unique // "P-001"
+  fullName               String
+  dni                    String         @unique @db.Char(8)
+  phone                  String?
+  email                  String?
+  role                   StaffRole
+  area                   String? // "Primaria · Matemática"
+  employmentType         EmploymentType
+  status                 StaffStatus    @default(ACTIVO)
+  baseSalary             Decimal        @db.Decimal(10, 2)
+  hireDate               DateTime?      @db.Date
+  pensionSchemeId        String
+  pensionScheme          PensionScheme  @relation(fields: [pensionSchemeId], references: [id])
+  // Horario individual: sobreescribe el del grupo cuando useIndividualSchedule = true.
+  useIndividualSchedule  Boolean        @default(false)
+  individualEntryTime    String?        @db.Char(5)
+  individualToleranceMin Int?
+  userId                 String?        @unique
+  user                   User?          @relation("UserStaff", fields: [userId], references: [id])
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
 }
 
 // Secuencias de códigos legibles: "student" → E-####, "guardian" → A-####, "enrollment:2026" → M-2026-####
