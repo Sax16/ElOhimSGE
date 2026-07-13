@@ -123,9 +123,11 @@ R1 (identity + estructura + estudiantes/apoderados + matrícula/cronograma + tar
 - Constancias PDF (retiro/traslado, no adeudo), carnet con QR real: post-R1 (impresión básica vía `@media print` ya existe).
 - Recordatorios de pago, cobros en caja, mora efectiva: **R2** (la configuración de mora ya existe en tablas).
 
-## Decisiones de arranque R2 — dinero (jul 2026)
+## Decisiones de R2 — dinero (jul 2026) · R2 CERRADO
 
-Decididas por el administrador antes de implementar. MANDAN sobre los prototipos `CashierScreen.jsx`, `PaymentsScreen.jsx`, `TreasuryScreen.jsx` y `DashboardScreen.jsx` donde difieran:
+**R2 está implementado, validado en navegador por el administrador y en el repositorio** (jul 2026): caja y cobros con recibos y arqueo, pensiones con mora materializada y recordatorios, compromisos de pago y devoluciones (dos pasos), tesorería con caja chica, historial de cajas, dashboard económico y reportes con exportación a Excel. Las decisiones de las secciones siguientes se tomaron durante la construcción y MANDAN sobre los prototipos `CashierScreen.jsx`, `PaymentsScreen.jsx`, `TreasuryScreen.jsx`, `ReportsScreen.jsx` y `DashboardScreen.jsx` donde difieran.
+
+**Pendiente que R2 no cubrió**: la promoción de estudiantes → pre-matrículas (pasos 3–4 del asistente de año, heredada del cierre de R1) sigue sin implementarse — reprogramada para cuando se prepare el año 2027 (R3 o R4).
 
 ### Mora
 - **Fija, una sola vez por cuota**: pasados los días de gracia (config vigente: S/ 5.00, 3 días, `BillingSettings`), la cuota vencida carga la mora una única vez — no recurre por mes ni por día. Se registra en la propia cuota (campo de mora), no como cuota aparte.
