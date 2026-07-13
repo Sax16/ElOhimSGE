@@ -586,7 +586,10 @@ export class EnrollmentService {
     }
   }
 
-  // POST /api/enrollments/:id/cancel — anula la matrícula y sus cuotas pendientes.
+  // POST /api/enrollments/:id/cancel — anula la matrícula = CORRECCIÓN de un error de registro:
+  // anula TODO el cronograma no pagado (PENDIENTE y VENCIDO) → deuda cero. Las PAGADO conservan su
+  // recibo (se corrigen por Devoluciones). Para una salida real del colegio con deuda no condonada,
+  // el camino es Retirar/Trasladar en la ficha del estudiante.
   async cancel(id: string, reason: string, actorId: string) {
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id },
@@ -601,9 +604,15 @@ export class EnrollmentService {
         where: { id },
         data: { canceledAt: now, cancelReason: reason },
       });
+      // Anula pendientes Y vencidas (el estado VENCIDO se materializa desde R2-E2).
       const anulled = await tx.installment.updateMany({
-        where: { enrollmentId: id, status: 'PENDIENTE' },
+        where: { enrollmentId: id, status: { in: ['PENDIENTE', 'VENCIDO'] } },
         data: { status: 'ANULADO', cancelReason: reason, canceledAt: now, canceledById: actorId },
+      });
+      // Cuotas ya pagadas: conservan su recibo (la corrección va por Devoluciones) — se informa
+      // para que la UI pueda avisar sobre devoluciones.
+      const paidCount = await tx.installment.count({
+        where: { enrollmentId: id, status: 'PAGADO' },
       });
       await this.audit.log(
         {
@@ -611,11 +620,11 @@ export class EnrollmentService {
           action: 'enrollment.cancel',
           entity: 'Enrollment',
           entityId: id,
-          payload: { reason, canceledInstallments: anulled.count },
+          payload: { reason, canceledInstallments: anulled.count, paidCount },
         },
         tx,
       );
-      return { id, canceledAt: now, canceledInstallments: anulled.count };
+      return { id, canceledAt: now, canceledInstallments: anulled.count, paidCount };
     });
   }
 

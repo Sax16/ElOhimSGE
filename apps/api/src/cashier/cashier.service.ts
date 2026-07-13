@@ -77,7 +77,10 @@ const studentHitSelect = {
   paternalLastName: true,
   maternalLastName: true,
   enrollments: {
-    where: { canceledAt: null, academicYear: { status: 'ACTIVO' as const } },
+    // Grado a mostrar: la matrícula activa primero; si el estudiante se retiró (matrícula anulada),
+    // cae a su última matrícula del año activo para seguir mostrando el grado (solo display).
+    where: { academicYear: { status: 'ACTIVO' as const } },
+    orderBy: { canceledAt: { sort: 'desc' as const, nulls: 'first' as const } },
     take: 1,
     select: placementSelect,
   },
@@ -106,7 +109,9 @@ const receiptInclude = {
       paternalLastName: true,
       maternalLastName: true,
       enrollments: {
-        where: { canceledAt: null, academicYear: { status: 'ACTIVO' as const } },
+        // Grado del recibo: activa primero; fallback a la última matrícula anulada (retirado).
+        where: { academicYear: { status: 'ACTIVO' as const } },
+        orderBy: { canceledAt: { sort: 'desc' as const, nulls: 'first' as const } },
         take: 1,
         select: placementSelect,
       },
@@ -745,19 +750,18 @@ export class CashierService {
     const rows = await this.prisma.installment.findMany({
       where: {
         // Cobrable = sigue por pagar: PENDIENTE o VENCIDO (el job materializa VENCIDO con su mora).
+        // NO se filtra por matrícula anulada: un retirado con deuda vencida puede venir a pagarla.
         status: { in: ['PENDIENTE', 'VENCIDO'] },
         OR: [
           {
             enrollment: {
               studentId,
-              canceledAt: null,
               academicYear: { status: { not: 'CERRADO' } },
             },
           },
           {
             programEnrollment: {
               studentId,
-              canceledAt: null,
               program: { academicYear: { status: { not: 'CERRADO' } } },
             },
           },

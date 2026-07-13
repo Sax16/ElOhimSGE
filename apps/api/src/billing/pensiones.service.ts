@@ -73,8 +73,12 @@ const studentSelect = {
   firstNames: true,
   paternalLastName: true,
   maternalLastName: true,
+  status: true,
   enrollments: {
-    where: { canceledAt: null, academicYear: { status: 'ACTIVO' as const } },
+    // Placement para el grado: la activa primero; si el estudiante se retiró (matrícula anulada),
+    // cae a su última matrícula del año activo para seguir mostrando el grado.
+    where: { academicYear: { status: 'ACTIVO' as const } },
+    orderBy: { canceledAt: { sort: 'desc' as const, nulls: 'first' as const } },
     take: 1,
     select: placementSelect,
   },
@@ -124,24 +128,25 @@ export class PensionesService {
 
     const and: Prisma.InstallmentWhereInput[] = [];
 
-    // Tipo (define también el origen escolar/programa).
+    // Tipo (define también el origen escolar/programa). La deuda es del estudiante, no de la
+    // matrícula viva: NO se filtra por matrícula/inscripción anulada — la cuota manda (su estado).
     switch (type) {
       case 'PENSION':
-        and.push({ type: 'PENSION', enrollment: { academicYearId: yearId, canceledAt: null } });
+        and.push({ type: 'PENSION', enrollment: { academicYearId: yearId } });
         break;
       case 'MATRICULA':
-        and.push({ type: 'MATRICULA', enrollment: { academicYearId: yearId, canceledAt: null } });
+        and.push({ type: 'MATRICULA', enrollment: { academicYearId: yearId } });
         break;
       case 'PROGRAMA':
         and.push({
-          programEnrollment: { canceledAt: null, program: { academicYearId: yearId } },
+          programEnrollment: { program: { academicYearId: yearId } },
         });
         break;
       case 'TODAS':
         and.push({
           OR: [
-            { enrollment: { academicYearId: yearId, canceledAt: null } },
-            { programEnrollment: { canceledAt: null, program: { academicYearId: yearId } } },
+            { enrollment: { academicYearId: yearId } },
+            { programEnrollment: { program: { academicYearId: yearId } } },
           ],
         });
         break;
@@ -238,6 +243,7 @@ export class PensionesService {
       studentId: student.id,
       studentName: fullName(student),
       studentCode: student.code,
+      studentStatus: student.status,
       gradeSection: gradeSection(student.enrollments[0]),
       concept: row.concept,
       type: row.type as 'MATRICULA' | 'PENSION',
@@ -318,11 +324,12 @@ export class PensionesService {
     });
     if (!year) throw new NotFoundException('Año académico no encontrado');
 
-    // SOLO pensiones escolares del año (matrículas no anuladas).
+    // SOLO pensiones escolares del año. NO se filtra por matrícula anulada: la deuda del retirado
+    // cuenta igual (la cuota manda por su estado); la matrícula anulada dejó sus cuotas en ANULADO.
     const rows = await this.prisma.installment.findMany({
       where: {
         type: 'PENSION',
-        enrollment: { academicYearId: yearId, canceledAt: null },
+        enrollment: { academicYearId: yearId },
       },
       select: { id: true, status: true, dueDate: true, amount: true, lateFeeAmount: true },
     });
@@ -478,14 +485,12 @@ export class PensionesService {
               {
                 enrollment: {
                   studentId: { in: studentIds },
-                  canceledAt: null,
                   academicYear: { status: { not: 'CERRADO' } },
                 },
               },
               {
                 programEnrollment: {
                   studentId: { in: studentIds },
-                  canceledAt: null,
                   program: { academicYear: { status: { not: 'CERRADO' } } },
                 },
               },
@@ -530,7 +535,6 @@ export class PensionesService {
           dueDate: { gte: threshold },
           enrollment: {
             studentId: { in: studentIds },
-            canceledAt: null,
             academicYear: { status: { not: 'CERRADO' } },
           },
         },

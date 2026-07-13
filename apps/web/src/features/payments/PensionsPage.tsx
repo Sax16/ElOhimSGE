@@ -27,7 +27,13 @@ import {
   useToast,
 } from '@elohim/ui';
 import type { BadgeTone, TableColumn } from '@elohim/ui';
-import { INSTALLMENT_STATUS_LABELS, formatPEN, toCents, type InstallmentStatus } from '@elohim/shared';
+import {
+  INSTALLMENT_STATUS_LABELS,
+  STUDENT_STATUS_LABELS,
+  formatPEN,
+  toCents,
+  type InstallmentStatus,
+} from '@elohim/shared';
 import { ApiError } from '../../lib/api';
 import { useCan } from '../../lib/useCan';
 import { useMe } from '../../lib/useMe';
@@ -164,7 +170,12 @@ export function PensionsPage() {
           <Avatar name={r.studentName} size="sm" color="var(--blue-500)" />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <span style={{ font: 'var(--type-label)', color: 'var(--text-strong)' }}>{v}</span>
-            <span style={{ font: 'var(--type-2xs)', color: 'var(--text-muted)' }}>{r.gradeSection}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ font: 'var(--type-2xs)', color: 'var(--text-muted)' }}>{r.gradeSection}</span>
+              {(r.studentStatus === 'RETIRADO' || r.studentStatus === 'TRASLADADO') && (
+                <Tag>{STUDENT_STATUS_LABELS[r.studentStatus]}</Tag>
+              )}
+            </span>
           </div>
         </div>
       ),

@@ -1,6 +1,6 @@
 // DTOs de la pantalla Pensiones (R2 · Etapa 2), según el contrato de la API.
 // Montos como string decimal ("280.00"); fechas civiles "yyyy-mm-dd"; datetimes ISO.
-import type { InstallmentStatus } from '@elohim/shared';
+import type { InstallmentStatus, StudentStatus } from '@elohim/shared';
 
 /** Filtro de tipo de cuota en la barra de Pensiones. */
 export type PensionTypeFilter = 'PENSION' | 'MATRICULA' | 'PROGRAMA' | 'TODAS';
@@ -17,6 +17,8 @@ export interface InstallmentRow {
   studentId: string;
   studentName: string;
   studentCode: string;
+  /** Estado del estudiante (para etiquetar retirados/trasladados en la lista). */
+  studentStatus: StudentStatus;
   gradeSection: string;
   concept: string;
   type: InstallmentRowType;

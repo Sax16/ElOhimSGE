@@ -17,6 +17,13 @@ export async function recalcEnrollmentStatuses(
   const threshold = new Date();
   threshold.setHours(0, 0, 0, 0);
   for (const id of ids) {
+    // Una matrícula anulada no cambia de status (su estado ya no importa): sáltala. Cobrar una
+    // cuota vencida de un retirado no debe reactivar su matrícula anulada.
+    const enrollment = await tx.enrollment.findUnique({
+      where: { id },
+      select: { canceledAt: true },
+    });
+    if (!enrollment || enrollment.canceledAt !== null) continue;
     const overdue = await tx.installment.count({
       where: {
         enrollmentId: id,

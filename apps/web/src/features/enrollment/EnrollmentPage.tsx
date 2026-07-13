@@ -2,6 +2,7 @@
 // Spec: design/ui_kits/sge/EnrollmentScreen.jsx.
 import { useState } from 'react';
 import {
+  Alert,
   Avatar,
   Badge,
   Button,
@@ -363,8 +364,12 @@ function CancelDialog({
     cancel.mutate(
       { id: enrollmentId, reason: reason.trim() },
       {
-        onSuccess: () => {
-          toast('success', 'Matrícula anulada', `${code} · queda en el historial con su justificación.`);
+        onSuccess: (res) => {
+          const detail =
+            res.paidCount > 0
+              ? `${code} · deuda en cero. ${res.paidCount} cuota(s) pagada(s) conservan su recibo — corrígelas por Devoluciones.`
+              : `${code} · queda en el historial con su justificación. Deuda en cero.`;
+          toast('success', 'Matrícula anulada', detail);
           setReason('');
           onDone();
         },
@@ -393,7 +398,12 @@ function CancelDialog({
         </>
       }
     >
-      <div style={{ paddingTop: 4 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
+        <Alert tone="warning" title="Anular corrige un error de registro">
+          Anula TODO el cronograma no pagado, incluidas las cuotas vencidas: la deuda queda en cero.
+          Si el estudiante se retira del colegio, usa Retirar o trasladar en su ficha — así la deuda
+          vencida se conserva.
+        </Alert>
         <Textarea
           label="Motivo de la anulación"
           required

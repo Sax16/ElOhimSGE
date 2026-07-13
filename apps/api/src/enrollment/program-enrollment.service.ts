@@ -293,7 +293,9 @@ export class ProgramEnrollmentService {
     });
   }
 
-  // POST /api/program-enrollments/:id/cancel — cancela la inscripción y anula sus cuotas pendientes.
+  // POST /api/program-enrollments/:id/cancel — cancela la inscripción = CORRECCIÓN de error:
+  // anula TODO el cronograma no pagado (PENDIENTE y VENCIDO) → deuda cero. Las PAGADO conservan su
+  // recibo (corrección por Devoluciones). El retiro del estudiante usa withdraw() (deuda conservada).
   async cancel(id: string, reason: string, actorId: string) {
     const enrollment = await this.prisma.programEnrollment.findUnique({
       where: { id },
@@ -308,9 +310,13 @@ export class ProgramEnrollmentService {
         where: { id },
         data: { canceledAt: now, cancelReason: reason },
       });
+      // Anula pendientes Y vencidas (el estado VENCIDO se materializa desde R2-E2).
       const anulled = await tx.installment.updateMany({
-        where: { programEnrollmentId: id, status: 'PENDIENTE' },
+        where: { programEnrollmentId: id, status: { in: ['PENDIENTE', 'VENCIDO'] } },
         data: { status: 'ANULADO', cancelReason: reason, canceledAt: now, canceledById: actorId },
+      });
+      const paidCount = await tx.installment.count({
+        where: { programEnrollmentId: id, status: 'PAGADO' },
       });
       await this.audit.log(
         {
@@ -318,11 +324,11 @@ export class ProgramEnrollmentService {
           action: 'program_enrollment.cancel',
           entity: 'ProgramEnrollment',
           entityId: id,
-          payload: { reason, canceledInstallments: anulled.count },
+          payload: { reason, canceledInstallments: anulled.count, paidCount },
         },
         tx,
       );
-      return { id, canceledAt: now, canceledInstallments: anulled.count };
+      return { id, canceledAt: now, canceledInstallments: anulled.count, paidCount };
     });
   }
 }

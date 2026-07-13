@@ -213,7 +213,9 @@ export class DashboardService {
         type: 'PENSION',
         status: { notIn: ['ANULADO', 'EXONERADO'] },
         dueDate: { gte: start, lt: end },
-        enrollment: { academicYearId: yearId, canceledAt: null },
+        // La cuota manda: una matrícula anulada dejó sus cuotas en ANULADO (excluidas por estado);
+        // la pensión exigible de un retirado sí cuenta en la meta del mes.
+        enrollment: { academicYearId: yearId },
       },
       select: {
         amount: true,
@@ -243,7 +245,7 @@ export class DashboardService {
       where: {
         status: { notIn: ['ANULADO', 'EXONERADO'] },
         dueDate: { gte: start, lt: end },
-        programEnrollment: { canceledAt: null, program: { academicYearId: yearId } },
+        programEnrollment: { program: { academicYearId: yearId } },
       },
       select: { amount: true, lateFeeAmount: true, status: true },
     });
@@ -349,9 +351,10 @@ export class DashboardService {
   // congeladas por un compromiso VIGENTE (via overdue.util). amount con mora.
   private async topDebtors(yearId: string) {
     const overdue = await overdueInstallments(this.prisma, {
+      // Incluye la deuda vencida de retirados/trasladados (la cuota manda, no la matrícula viva).
       OR: [
-        { enrollment: { academicYearId: yearId, canceledAt: null } },
-        { programEnrollment: { canceledAt: null, program: { academicYearId: yearId } } },
+        { enrollment: { academicYearId: yearId } },
+        { programEnrollment: { program: { academicYearId: yearId } } },
       ],
     });
     if (overdue.length === 0) return [];

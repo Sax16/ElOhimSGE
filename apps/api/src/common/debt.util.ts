@@ -25,9 +25,12 @@ export async function debtCentsByStudent(
   const rows = await client.installment.findMany({
     where: {
       status: { in: ['PENDIENTE', 'VENCIDO'] },
+      // La deuda es del estudiante, no de la matrícula/inscripción viva: se cuenta por el estado de
+      // la cuota, sin filtrar por anulación (una inscripción/matrícula anulada dejó sus cuotas en
+      // ANULADO, excluidas por el filtro de estado; la deuda viva del retirado sí cuenta).
       OR: [
         { enrollment: { studentId: { in: studentIds } } },
-        { programEnrollment: { studentId: { in: studentIds }, canceledAt: null } },
+        { programEnrollment: { studentId: { in: studentIds } } },
       ],
     },
     select: {

@@ -229,18 +229,17 @@ export class CommitmentsService {
     const rows = await this.prisma.installment.findMany({
       where: {
         status: { in: ['PENDIENTE', 'VENCIDO'] },
+        // La deuda del retirado también es refinanciable: no se filtra por matrícula anulada.
         OR: [
           {
             enrollment: {
               studentId: { in: studentIds },
-              canceledAt: null,
               academicYear: { status: { not: 'CERRADO' } },
             },
           },
           {
             programEnrollment: {
               studentId: { in: studentIds },
-              canceledAt: null,
               program: { academicYear: { status: { not: 'CERRADO' } } },
             },
           },

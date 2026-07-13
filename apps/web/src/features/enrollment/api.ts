@@ -88,11 +88,18 @@ export function useCreateEnrollment() {
   });
 }
 
+export interface CancelEnrollmentResult {
+  id: string;
+  canceledAt: string;
+  canceledInstallments: number;
+  paidCount: number;
+}
+
 export function useCancelEnrollment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-      apiFetch<void>(`/enrollments/${id}/cancel`, { method: 'POST', body: { reason } }),
+      apiFetch<CancelEnrollmentResult>(`/enrollments/${id}/cancel`, { method: 'POST', body: { reason } }),
     onSuccess: (_data, { id }) => {
       invalidateEnrollmentGraph(qc);
       void qc.invalidateQueries({ queryKey: enrollmentKeys.detail(id) });

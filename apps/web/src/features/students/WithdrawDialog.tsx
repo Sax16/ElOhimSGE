@@ -106,10 +106,15 @@ export function WithdrawDialog({ student, debtCents, onClose }: WithdrawDialogPr
       {student && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
           {debtCents > 0 && (
-            <Alert tone="warning" title={`Deuda pendiente: ${formatPEN(debtCents)}`}>
-              El retiro no condona la deuda — quedará registrada en la cuenta del apoderado.
+            <Alert tone="warning" title={`Deuda vencida: ${formatPEN(debtCents)}`}>
+              El retiro no condona la deuda vencida — queda cobrable en Caja y en los recordatorios
+              al apoderado. Solo se anulan las cuotas futuras.
             </Alert>
           )}
+          <Alert tone="info" title="Cuotas al retirar">
+            Las cuotas vencidas se conservan y las futuras se anulan. La pensión del mes del retiro
+            se anula o queda exigible según el día de corte configurado.
+          </Alert>
           <RadioGroup name="withdraw-type" value={type} onChange={(e) => setType(e.target.value as 'retiro' | 'traslado')} row>
             <Radio value="retiro" label="Retiro" description="Deja la institución sin destino declarado" />
             <Radio value="traslado" label="Traslado" description="Pasa a otra I.E. — requiere constancia" />

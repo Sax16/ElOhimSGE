@@ -16,6 +16,7 @@ import { AuditService } from '../common/audit/audit.service';
 import { nextCode } from '../common/code-counter.util';
 import { debtCentsByStudent } from '../common/debt.util';
 import { decimalToCents } from '../common/money.util';
+import { todayISO, dateToISO } from '../common/installment-view.util';
 
 // Placement = ubicación del estudiante según su matrícula del año activo (no cancelada).
 const placementSelect = {
@@ -362,6 +363,47 @@ export class StudentsService {
     return { photoUrl };
   }
 
+  /**
+   * Retiro/Traslado = SALIDA REAL del colegio, deuda NO condonada (a diferencia de la anulación de
+   * matrícula, que corrige un error y deja deuda cero). Para el cronograma de una inscripción:
+   *   - VENCIDO: se conserva (deuda viva, cobrable en Caja y en recordatorios).
+   *   - PENDIENTE cuya dueDate ya pasó (vencida aún no materializada): se conserva (como vencida).
+   *   - PENDIENTE futura: se anula, salvo la del MES del retiro, que sigue la REGLA DEL DÍA DE CORTE
+   *     (misma config del ingreso): retiro hasta transferCutoffDay → se anula; después → queda
+   *     exigible (vencerá a fin de mes y el job le aplicará mora normal). Los meses posteriores al
+   *     del retiro siempre se anulan; los anteriores (aún futuros) se conservan (el alumno los cursó).
+   * Devuelve el desglose de IDs a anular y cuántas cuotas quedaron vivas (vencidas/exigibles).
+   */
+  private splitOnWithdraw(
+    installments: { id: string; status: string; dueDate: Date }[],
+    opts: { today: string; retiroMonth: string; retiroMonthAnula: boolean },
+  ): { toAnnul: string[]; keptOwed: number } {
+    const toAnnul: string[] = [];
+    let keptOwed = 0;
+    for (const inst of installments) {
+      if (inst.status === 'VENCIDO') {
+        keptOwed += 1;
+        continue;
+      }
+      if (inst.status !== 'PENDIENTE') continue; // PAGADO/ANULADO/EXONERADO: no se tocan
+      const dueISO = dateToISO(inst.dueDate);
+      if (dueISO < opts.today) {
+        keptOwed += 1; // vencida aún no materializada: se conserva como vencida
+        continue;
+      }
+      const dueMonth = dueISO.slice(0, 7);
+      if (dueMonth > opts.retiroMonth) {
+        toAnnul.push(inst.id); // mes posterior al retiro: siempre se anula
+      } else if (dueMonth === opts.retiroMonth) {
+        if (opts.retiroMonthAnula) toAnnul.push(inst.id);
+        else keptOwed += 1; // exigible según el día de corte
+      } else {
+        keptOwed += 1; // mes anterior al retiro pero aún futuro: el alumno lo cursó, se conserva
+      }
+    }
+    return { toAnnul, keptOwed };
+  }
+
   async withdraw(id: string, input: WithdrawInput, actorId: string) {
     const yearId = await this.activeYearId();
     const student = await this.prisma.student.findUnique({
@@ -378,6 +420,19 @@ export class StudentsService {
     const cancelReason = `${isRetiro ? 'Retiro' : 'Traslado'}: ${input.reason}`;
     const now = new Date();
 
+    // Regla del día de corte para el MES del retiro (fechas civiles, sin TZ).
+    const settings = await this.prisma.billingSettings.findUnique({ where: { id: 1 } });
+    if (!settings) throw new NotFoundException('Falta la configuración de cobranza');
+    const today = todayISO();
+    const effectiveISO = dateToISO(input.effectiveDate);
+    const retiroMonth = effectiveISO.slice(0, 7);
+    const retiroMonthAnula = Number(effectiveISO.slice(8, 10)) <= settings.transferCutoffDay;
+    const splitOpts = { today, retiroMonth, retiroMonthAnula };
+
+    let annulledCount = 0;
+    let keptOverdueCount = 0;
+    let canceledPrograms = 0;
+
     await this.prisma.$transaction(async (tx) => {
       await tx.student.update({
         where: { id },
@@ -388,20 +443,58 @@ export class StudentsService {
         },
       });
 
-      // Matrícula activa del año en curso → se anula (libera la vacante) y se anulan sus cuotas pendientes.
+      // Matrícula escolar activa del año → se anula (libera la vacante); sus cuotas siguen la regla:
+      // vencidas conservadas, futuras anuladas salvo la del mes del retiro según el día de corte.
       const enrollment = await tx.enrollment.findFirst({
         where: { studentId: id, academicYearId: yearId, canceledAt: null },
-        select: { id: true },
+        select: {
+          id: true,
+          installments: { select: { id: true, status: true, dueDate: true } },
+        },
       });
       if (enrollment) {
         await tx.enrollment.update({
           where: { id: enrollment.id },
           data: { canceledAt: now, cancelReason },
         });
-        await tx.installment.updateMany({
-          where: { enrollmentId: enrollment.id, status: 'PENDIENTE' },
-          data: { status: 'ANULADO', cancelReason, canceledAt: now, canceledById: actorId },
+        const { toAnnul, keptOwed } = this.splitOnWithdraw(enrollment.installments, splitOpts);
+        keptOverdueCount += keptOwed;
+        if (toAnnul.length > 0) {
+          await tx.installment.updateMany({
+            where: { id: { in: toAnnul } },
+            data: { status: 'ANULADO', cancelReason, canceledAt: now, canceledById: actorId },
+          });
+          annulledCount += toAnnul.length;
+        }
+      }
+
+      // Inscripciones a programas ACTIVAS del año → se cancelan; sus cuotas siguen la misma regla.
+      const programEnrollments = await tx.programEnrollment.findMany({
+        where: {
+          studentId: id,
+          canceledAt: null,
+          program: { academicYearId: yearId },
+        },
+        select: {
+          id: true,
+          installments: { select: { id: true, status: true, dueDate: true } },
+        },
+      });
+      for (const pe of programEnrollments) {
+        await tx.programEnrollment.update({
+          where: { id: pe.id },
+          data: { canceledAt: now, cancelReason },
         });
+        canceledPrograms += 1;
+        const { toAnnul, keptOwed } = this.splitOnWithdraw(pe.installments, splitOpts);
+        keptOverdueCount += keptOwed;
+        if (toAnnul.length > 0) {
+          await tx.installment.updateMany({
+            where: { id: { in: toAnnul } },
+            data: { status: 'ANULADO', cancelReason, canceledAt: now, canceledById: actorId },
+          });
+          annulledCount += toAnnul.length;
+        }
       }
 
       await this.audit.log(
@@ -414,13 +507,24 @@ export class StudentsService {
             type: input.type,
             reason: input.reason,
             destinationSchool: input.destinationSchool ?? null,
+            effectiveDate: effectiveISO,
+            annulledInstallments: annulledCount,
+            keptOverdueInstallments: keptOverdueCount,
+            canceledPrograms,
           },
         },
         tx,
       );
     });
 
-    return { id, status: newStatus, certificateStub: true };
+    return {
+      id,
+      status: newStatus,
+      certificateStub: true,
+      annulledInstallments: annulledCount,
+      keptOverdueInstallments: keptOverdueCount,
+      canceledPrograms,
+    };
   }
 
   private mapConflict(error: unknown, message: string): Error {

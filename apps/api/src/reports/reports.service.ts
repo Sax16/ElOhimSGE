@@ -160,12 +160,17 @@ export class ReportsService {
   private async delinquencyData(yearId: string) {
     const { groups, sectionMap } = await this.buildGroups(yearId);
 
-    // Matrículas escolares no anuladas del año → censo de estudiantes por grupo + su placement/apoderado.
+    // Matrículas escolares del año (incluye anuladas para ubicar a retirados/trasladados con deuda
+    // en su grado). El censo por grupo (denominador de morosidad) cuenta SOLO las activas; la
+    // activa se prefiere para el placement (orden: no anuladas primero). La deuda del retirado
+    // aparece en el detalle con su grado aunque su matrícula esté anulada.
     const enrollments = await this.prisma.enrollment.findMany({
-      where: { academicYearId: yearId, canceledAt: null },
+      where: { academicYearId: yearId },
+      orderBy: { canceledAt: { sort: 'desc', nulls: 'first' } },
       select: {
         studentId: true,
         sectionId: true,
+        canceledAt: true,
         type: true,
         student: {
           select: {
@@ -200,7 +205,12 @@ export class ReportsService {
     for (const e of enrollments) {
       const sec = sectionMap.get(e.sectionId);
       if (!sec) continue;
-      studentsByGroup.set(sec.groupKey, (studentsByGroup.get(sec.groupKey) ?? 0) + 1);
+      // El censo (denominador de morosidad) solo cuenta matrículas activas.
+      if (e.canceledAt === null) {
+        studentsByGroup.set(sec.groupKey, (studentsByGroup.get(sec.groupKey) ?? 0) + 1);
+      }
+      // Placement por estudiante: la activa gana (orden nulls-first); no re-sobreescribir.
+      if (studentInfo.has(e.studentId)) continue;
       studentInfo.set(e.studentId, {
         studentId: e.studentId,
         groupKey: sec.groupKey,
@@ -214,11 +224,12 @@ export class ReportsService {
       });
     }
 
-    // Deuda vencida efectiva del año (pensiones + matrícula + programas), con mora.
+    // Deuda vencida efectiva del año (pensiones + matrícula + programas), con mora. Incluye la
+    // deuda de retirados/trasladados: la cuota manda por su estado, no la matrícula viva.
     const overdue = await overdueInstallments(this.prisma, {
       OR: [
-        { enrollment: { academicYearId: yearId, canceledAt: null } },
-        { programEnrollment: { canceledAt: null, program: { academicYearId: yearId } } },
+        { enrollment: { academicYearId: yearId } },
+        { programEnrollment: { program: { academicYearId: yearId } } },
       ],
     });
 

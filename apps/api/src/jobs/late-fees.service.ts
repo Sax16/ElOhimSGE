@@ -143,11 +143,12 @@ export class LateFeesService implements OnModuleInit, OnModuleDestroy {
         where: {
           status: 'PENDIENTE',
           dueDate: { lt: threshold },
+          // La cuota manda por su estado: una matrícula anulada dejó sus cuotas en ANULADO (no
+          // PENDIENTE), y la deuda viva de un retirado debe materializar VENCIDO y su mora igual.
           OR: [
-            { enrollment: { canceledAt: null, academicYear: { status: { not: 'CERRADO' } } } },
+            { enrollment: { academicYear: { status: { not: 'CERRADO' } } } },
             {
               programEnrollment: {
-                canceledAt: null,
                 program: { academicYear: { status: { not: 'CERRADO' } } },
               },
             },
