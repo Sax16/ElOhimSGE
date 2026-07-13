@@ -40,6 +40,9 @@ const TreasuryPage = lazy(() =>
 const DashboardPage = lazy(() =>
   import('../features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })),
 );
+const ReportsPage = lazy(() =>
+  import('../features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
+);
 
 function Loading() {
   return (
@@ -95,6 +98,8 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
           <TreasuryPage />
         ) : id === 'dash' ? (
           <DashboardPage />
+        ) : id === 'reportes' ? (
+          <ReportsPage />
         ) : (
           <PlaceholderPage />
         )}

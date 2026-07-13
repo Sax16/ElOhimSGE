@@ -14,6 +14,8 @@ import { EnrollmentModule } from './enrollment/enrollment.module';
 import { CashierModule } from './cashier/cashier.module';
 import { TreasuryModule } from './treasury/treasury.module';
 import { JobsModule } from './jobs/jobs.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { JobsModule } from './jobs/jobs.module';
     CashierModule,
     TreasuryModule,
     JobsModule,
+    DashboardModule,
+    ReportsModule,
     HealthModule,
   ],
 })

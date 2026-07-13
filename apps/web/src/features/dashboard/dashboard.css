@@ -1,0 +1,87 @@
+/* Layout responsive del Dashboard económico (desktop-first; lg ≥1024 / md 768–1023 / sm <768). */
+.esge-dash {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.esge-dash-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.esge-dash-main {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.esge-dash-eco {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* Fila genérica de las listas «Últimos gastos» / «Principales deudores». */
+.esge-dash-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+.esge-dash-row__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.esge-dash-row__icon svg {
+  width: 17px;
+  height: 17px;
+}
+.esge-dash-row__main {
+  flex: 1;
+  min-width: 0;
+}
+.esge-dash-row__title {
+  font: var(--type-label);
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.esge-dash-row__sub {
+  font: var(--type-2xs);
+  color: var(--text-muted);
+}
+.esge-dash-row__amount {
+  font: var(--type-label);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.esge-dash-clickable {
+  cursor: pointer;
+}
+
+@media (max-width: 1023px) {
+  .esge-dash-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .esge-dash-main,
+  .esge-dash-eco {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .esge-dash-stats {
+    grid-template-columns: 1fr;
+  }
+}

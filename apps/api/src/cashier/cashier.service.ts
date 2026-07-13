@@ -437,6 +437,49 @@ export class CashierService {
     };
   }
 
+  // Indicadores de una caja (una query por origen) → SessionStats.
+  private async statsForSession(sessionId: string): Promise<SessionStats> {
+    const receipts = await this.prisma.receipt.findMany({
+      where: { cashSessionId: sessionId },
+      select: { method: true, totalAmount: true, status: true },
+    });
+    const refunds = await this.prisma.refund.findMany({
+      where: { cashSessionId: sessionId, status: 'DEVUELTA' },
+      select: { method: true, amount: true },
+    });
+    const treasury = await this.prisma.treasuryMovement.findMany({
+      where: { cashSessionId: sessionId },
+      select: { kind: true, origin: true, method: true, amount: true, canceledAt: true },
+    });
+    return this.aggregate(receipts, refunds, treasury);
+  }
+
+  // Fila del historial/reporte de cajas: caja + sus indicadores derivados (mismo shape en ambos).
+  private buildSessionItem(s: SessionRow, stats: SessionStats) {
+    return {
+      id: s.id,
+      date: dateToISO(s.date),
+      status: s.status,
+      openedByName: s.openedBy.fullName,
+      closedByName: s.closedBy?.fullName ?? null,
+      openedAt: s.openedAt.toISOString(),
+      closedAt: s.closedAt ? s.closedAt.toISOString() : null,
+      initialAmount: money(s.initialAmount),
+      totalAmount: stats.totalAmount,
+      cashAmount: stats.cashAmount,
+      digitalAmount: stats.digitalAmount,
+      refundsCashAmount: stats.refundsCashAmount,
+      otherIncomeCashAmount: stats.otherIncomeCashAmount,
+      pettyCashOutAmount: stats.pettyCashOutAmount,
+      expectedCash: moneyOrNull(s.expectedCash),
+      countedCash: moneyOrNull(s.countedCash),
+      difference: moneyOrNull(s.difference),
+      closeNotes: s.closeNotes,
+      operationsCount: stats.operationsCount,
+      canceledCount: stats.canceledCount,
+    };
+  }
+
   // GET /cashier/sessions — historial de cajas (desc por fecha) con sus indicadores derivados.
   async listSessions(page: number, pageSize: number) {
     const total = await this.prisma.cashSession.count();
@@ -448,43 +491,59 @@ export class CashierService {
     });
     const items = [];
     for (const s of sessions) {
-      const receipts = await this.prisma.receipt.findMany({
-        where: { cashSessionId: s.id },
-        select: { method: true, totalAmount: true, status: true },
-      });
-      const refunds = await this.prisma.refund.findMany({
-        where: { cashSessionId: s.id, status: 'DEVUELTA' },
-        select: { method: true, amount: true },
-      });
-      const treasury = await this.prisma.treasuryMovement.findMany({
-        where: { cashSessionId: s.id },
-        select: { kind: true, origin: true, method: true, amount: true, canceledAt: true },
-      });
-      const stats = this.aggregate(receipts, refunds, treasury);
-      items.push({
-        id: s.id,
-        date: dateToISO(s.date),
-        status: s.status,
-        openedByName: s.openedBy.fullName,
-        closedByName: s.closedBy?.fullName ?? null,
-        openedAt: s.openedAt.toISOString(),
-        closedAt: s.closedAt ? s.closedAt.toISOString() : null,
-        initialAmount: money(s.initialAmount),
-        totalAmount: stats.totalAmount,
-        cashAmount: stats.cashAmount,
-        digitalAmount: stats.digitalAmount,
-        refundsCashAmount: stats.refundsCashAmount,
-        otherIncomeCashAmount: stats.otherIncomeCashAmount,
-        pettyCashOutAmount: stats.pettyCashOutAmount,
-        expectedCash: moneyOrNull(s.expectedCash),
-        countedCash: moneyOrNull(s.countedCash),
-        difference: moneyOrNull(s.difference),
-        closeNotes: s.closeNotes,
-        operationsCount: stats.operationsCount,
-        canceledCount: stats.canceledCount,
-      });
+      const stats = await this.statsForSession(s.id);
+      items.push(this.buildSessionItem(s, stats));
     }
     return { total, items };
+  }
+
+  // Datos del reporte de Caja diaria (R2 — E5): cajas de un rango [from, to] (inclusive) con sus
+  // indicadores, sus movimientos (con la fecha de la caja) y los totales del periodo. Reutiliza la
+  // misma lógica del historial de cajas (statsForSession / buildSessionView) — un solo cálculo.
+  async reportData(from: Date, to: Date) {
+    const sessions = await this.prisma.cashSession.findMany({
+      where: { date: { gte: from, lte: to } },
+      orderBy: { date: 'asc' },
+      include: sessionInclude,
+    });
+
+    const items: ReturnType<CashierService['buildSessionItem']>[] = [];
+    const movements: (Movement & { sessionDate: string })[] = [];
+    let collected = 0;
+    let cash = 0;
+    let digital = 0;
+    let refunds = 0;
+    let otherIncome = 0;
+    let pettyOut = 0;
+    let differences = 0;
+
+    for (const s of sessions) {
+      const view = await this.buildSessionView(s.id);
+      items.push(this.buildSessionItem(s, view.stats));
+      const sessionDate = dateToISO(s.date);
+      for (const m of view.movements) movements.push({ ...m, sessionDate });
+      collected += decimalToCents(new Prisma.Decimal(view.stats.totalAmount));
+      cash += decimalToCents(new Prisma.Decimal(view.stats.cashAmount));
+      digital += decimalToCents(new Prisma.Decimal(view.stats.digitalAmount));
+      refunds += decimalToCents(new Prisma.Decimal(view.stats.refundsCashAmount));
+      otherIncome += decimalToCents(new Prisma.Decimal(view.stats.otherIncomeCashAmount));
+      pettyOut += decimalToCents(new Prisma.Decimal(view.stats.pettyCashOutAmount));
+      if (s.difference !== null) differences += decimalToCents(s.difference);
+    }
+
+    return {
+      sessions: items,
+      movements,
+      totals: {
+        collected: fromCents(collected),
+        cash: fromCents(cash),
+        digital: fromCents(digital),
+        refunds: fromCents(refunds),
+        otherIncome: fromCents(otherIncome),
+        pettyOut: fromCents(pettyOut),
+        differencesTotal: fromCents(differences),
+      },
+    };
   }
 
   // GET /cashier/sessions/:id — una caja del historial con sus indicadores y movimientos.

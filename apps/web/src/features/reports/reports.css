@@ -1,0 +1,111 @@
+/* Layout responsive de Reportes (desktop-first; lg ≥1024 / md 768–1023 / sm <768). */
+.esge-reports {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Grilla de tarjetas de reporte: 3 → 2 → 1 columnas. */
+.esge-reports-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.esge-report-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.esge-report-card__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.esge-report-card__icon svg {
+  width: 18px;
+  height: 18px;
+}
+.esge-report-card__body {
+  min-width: 0;
+  flex: 1;
+}
+.esge-report-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--type-label);
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.esge-report-card__desc {
+  font: var(--type-caption);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.esge-report-card--disabled {
+  opacity: 0.55;
+}
+
+/* Fila de filtros del reporte activo. */
+.esge-reports-filters {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.esge-reports-filters__spacer {
+  flex: 1;
+  min-width: 12px;
+}
+
+/* Ingresos: dos tablas lado a lado, apiladas en móvil. */
+.esge-reports-income {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+.esge-reports-income > * + * {
+  border-left: 1px solid var(--border-subtle);
+}
+
+/* Fila de totales bajo una tabla de reporte. */
+.esge-reports-total {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 2px solid var(--border-default);
+  font: var(--type-label);
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.esge-reports-total__spacer {
+  flex: 1;
+}
+.esge-reports-total__amount {
+  font-family: var(--font-mono);
+}
+
+@media (max-width: 1023px) {
+  .esge-reports-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .esge-reports-grid {
+    grid-template-columns: 1fr;
+  }
+  .esge-reports-income {
+    grid-template-columns: 1fr;
+  }
+  .esge-reports-income > * + * {
+    border-left: none;
+    border-top: 1px solid var(--border-subtle);
+  }
+}

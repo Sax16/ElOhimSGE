@@ -32,18 +32,17 @@ import { ApiError } from '../../lib/api';
 import { useCan } from '../../lib/useCan';
 import { useMe } from '../../lib/useMe';
 import { useSelectedYear } from '../../lib/useSelectedYear';
-import { fmtDate, fmtDayMonth } from '../structure/bits';
+import { fmtDayMonth } from '../structure/bits';
 import { useReceipt } from '../cashier/api';
 import { ReceiptDialog } from '../cashier/ReceiptDialog';
 import {
   useExonerateLateFee,
   useInstallments,
   usePensionStats,
-  useReminderPreview,
   useRunLateFees,
-  useSendReminder,
 } from './api';
 import { CommitmentsTab } from './CommitmentsTab';
+import { ReminderDialog } from './ReminderDialog';
 import type { InstallmentRow, InstallmentsQuery, PensionStatusFilter, PensionTypeFilter } from './types';
 import './payments.css';
 
@@ -414,7 +413,9 @@ export function PensionsPage() {
       </Card>
 
       <ReminderDialog
-        target={reminderTarget}
+        guardianId={reminderTarget?.id ?? null}
+        guardianName={reminderTarget?.name}
+        open={!!reminderTarget}
         canMutate={canMutate}
         onClose={() => setReminderTarget(null)}
       />
@@ -427,115 +428,6 @@ export function PensionsPage() {
         onClose={() => setViewReceiptId(null)}
       />
     </div>
-  );
-}
-
-// ---- Diálogo Recordar por WhatsApp -----------------------------------------
-function ReminderDialog({
-  target,
-  canMutate,
-  onClose,
-}: {
-  target: { id: string; name: string } | null;
-  canMutate: boolean;
-  onClose: () => void;
-}) {
-  const { toast } = useToast();
-  const preview = useReminderPreview(target?.id ?? null);
-  const send = useSendReminder();
-
-  const data = preview.data;
-  const previewError = preview.error;
-
-  const submit = () => {
-    if (!target || !canMutate) return;
-    send.mutate(target.id, {
-      onSuccess: (r) => {
-        window.open(r.waUrl, '_blank', 'noopener,noreferrer');
-        toast('success', 'Recordatorio registrado', `${r.guardianName} · ${formatPEN(toCents(r.totalAmount))} en ${r.itemsCount} ${r.itemsCount === 1 ? 'cuota' : 'cuotas'}.`);
-        onClose();
-      },
-      onError: (err) =>
-        toast('danger', 'No se pudo registrar', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.'),
-    });
-  };
-
-  const blocked =
-    !canMutate || preview.isLoading || !!previewError || !data || send.isPending;
-
-  return (
-    <Dialog
-      open={!!target}
-      onClose={onClose}
-      icon={<Icons.Send />}
-      title="Recordar deuda por WhatsApp"
-      description={target ? target.name : ''}
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>
-            Cerrar
-          </Button>
-          <Button variant="primary" iconLeft={<Icons.Send />} disabled={blocked} onClick={submit}>
-            Abrir WhatsApp y registrar
-          </Button>
-        </>
-      }
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 4 }}>
-        {preview.isLoading ? (
-          <div style={{ padding: '12px 0', color: 'var(--text-muted)', font: 'var(--type-body)' }}>Cargando…</div>
-        ) : previewError ? (
-          <Alert tone="warning" title="No se puede enviar el recordatorio">
-            {previewError instanceof ApiError ? previewError.message : 'El apoderado no tiene teléfono o deuda que recordar.'}
-          </Alert>
-        ) : data ? (
-          <>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '10px 14px',
-                background: 'var(--surface-sunken)',
-                borderRadius: 'var(--radius-md)',
-              }}
-            >
-              <Avatar name={data.guardianName} size="sm" color="var(--green-500)" />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ font: 'var(--type-label)', color: 'var(--text-strong)' }}>{data.guardianName}</div>
-                <div style={{ font: 'var(--type-2xs)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  {data.phone}
-                </div>
-              </div>
-              <Badge tone="danger" dot>
-                {formatPEN(toCents(data.totalAmount))}
-              </Badge>
-            </div>
-            {data.lastReminderAt && (
-              <div style={{ font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
-                Último recordatorio: {fmtDate(data.lastReminderAt)}
-              </div>
-            )}
-            <div
-              style={{
-                whiteSpace: 'pre-wrap',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--text-xs)',
-                color: 'var(--text-body)',
-                background: 'var(--surface-sunken)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px 14px',
-                maxHeight: 220,
-                overflowY: 'auto',
-              }}
-            >
-              {data.message}
-            </div>
-          </>
-        ) : null}
-      </div>
-    </Dialog>
   );
 }
 

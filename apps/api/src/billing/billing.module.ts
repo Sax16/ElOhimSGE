@@ -15,5 +15,6 @@ import { JobsModule } from '../jobs/jobs.module';
   imports: [JobsModule],
   controllers: [BillingController, PensionesController, CommitmentsController],
   providers: [BillingService, PensionesService, CommitmentsService, YearAccessService],
+  exports: [PensionesService],
 })
 export class BillingModule {}
