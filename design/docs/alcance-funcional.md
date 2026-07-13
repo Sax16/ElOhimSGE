@@ -184,6 +184,13 @@ Decididas por el administrador antes de implementar. MANDAN sobre los prototipos
 - **Permiso nuevo `tesoreria`** (hasta ahora la nav lo mapeaba a `caja`): los usuarios existentes lo heredan de su permiso de caja vía migración de datos.
 - Correlativos: gastos `G-####`, ingresos `I-####`, rendiciones `REND-####`.
 
+### Anulación de matrícula vs. retiro — deuda (jul 2026, correctivo post-E5)
+Detectado al anular una matrícula con cuotas vencidas: R1 anulaba solo cuotas PENDIENTE (antes de que existiera VENCIDO materializado) y las pantallas de dinero filtraban por matrícula no anulada, dejando deuda huérfana e indicadores que "mejoraban" al retirar. Decisión:
+- **La deuda es del estudiante, no de la matrícula viva**: una cuota se debe según SU estado (Pendiente/Vencido), no según si su matrícula fue anulada. Todas las consultas de dinero (pensiones, caja, deuda, mora, recordatorios, compromisos, morosidad, dashboard) dejan de filtrar por matrícula anulada.
+- **Anular matrícula = corrección de error de registro**: anula TODO el cronograma no pagado (pendientes Y vencidas) → deuda cero. Las pagadas conservan su recibo (corrección vía Devoluciones). La UI lo advierte y redirige al retiro cuando corresponde.
+- **Retirar/Trasladar = salida real, deuda no condonada**: se anulan solo las cuotas futuras; las VENCIDAS quedan vivas y cobrables en Caja (el apoderado puede pagar después, recibir recordatorios y firmar compromisos). La pensión del **mes del retiro** sigue la **regla del día de corte** (misma config del ingreso): retiro hasta el día de corte → se anula; después → queda exigible. Aplica también a inscripciones de programas (se cancelan y sus cuotas siguen la misma regla).
+- **La deuda de retirados cuenta igual** en morosidad, vencido acumulado, deudores, recordatorios y reportes (el detalle muestra el estado del estudiante para distinguirlos).
+
 ### Dashboard y reportes — decisiones de la etapa 5 (jul 2026)
 El prototipo del dashboard mezcla datos de releases futuros; en R2 se reemplazan por datos reales:
 - Tarjeta "Asistencia hoy" (R4) → **"Caja de hoy"**: estado de la caja del día (abierta/cerrada/sin abrir) + cobrado hoy.
