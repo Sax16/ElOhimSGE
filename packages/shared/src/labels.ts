@@ -3,6 +3,7 @@
 
 import {
   type ActiveStatus,
+  type AttendanceStatus,
   type CashSessionStatus,
   type CommitmentFrequency,
   type CommitmentStatus,
@@ -14,6 +15,7 @@ import {
   type InstallmentStatus,
   type InstallmentType,
   type InsuranceType,
+  type LateCountPeriod,
   type NotificationChannel,
   type PaymentMethod,
   type PeriodStatus,
@@ -231,4 +233,17 @@ export const STAFF_STATUS_LABELS: Record<StaffStatus, string> = {
   ACTIVO: 'Activo',
   LICENCIA: 'Licencia',
   INACTIVO: 'Inactivo',
+};
+
+export const LATE_COUNT_PERIOD_LABELS: Record<LateCountPeriod, string> = {
+  MES: 'Por mes',
+  BIMESTRE: 'Por bimestre',
+};
+
+export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
+  PUNTUAL: 'Puntual',
+  TARDANZA: 'Tardanza',
+  SIN_MARCAR: 'Sin marcar',
+  FALTA: 'Falta',
+  LICENCIA: 'Licencia',
 };

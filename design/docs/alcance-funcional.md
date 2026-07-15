@@ -214,3 +214,11 @@ Reportes (pantalla según `ReportsScreen.jsx`, permiso `reportes`): en R2 se hab
 - **Estados de empleado: Activo / Licencia / Inactivo** — "Inactivo" reemplaza al "Cesado" del prototipo (decisión del administrador en la validación de E1: término más fácil de entender). El enum es `INACTIVO` también en BD.
 - La ficha de empleado es entidad propia (`Staff`) con **vínculo opcional a un usuario del sistema** (necesario para docentes en R4); no todo empleado tiene usuario.
 - Etapas: **E1** Personal (fichas + catálogo AFP + grupos de marcación) → **E2** Marcación y asistencia (portería, reglas, descuento por tardanzas) → **E3** Planilla (cálculo puro en shared con tests, pago, boleta, gasto por evento) → **E4** Integraciones (próximos egresos en dashboard, reportes de asistencia/planilla).
+
+### Marcación y asistencia — decisiones de la etapa 2 (jul 2026)
+- **Portería solo marca el día de hoy con la hora del servidor** (ingreso y salida; no edita ni retrocede). **Solo el Admin corrige o registra marcas** de cualquier día, con justificación ≥ 10 caracteres y auditoría.
+- **"Sin marcar" se convierte en Falta al terminar el día**: en el histórico y el export, un día hábil pasado sin marca de un empleado activo cuenta como inasistencia (estado derivado, no materializado). Sin descuento automático por falta.
+- **Días hábiles: lunes a viernes.** Sábados/domingos no generan faltas ni cuentan en el resumen (una marca en fin de semana se guarda igual, sin penalizar). Feriados se incorporarán con el calendario académico (R4).
+- **La regla de descuento por tardanzas acumuladas** (N tardanzas del periodo → S/ X, por mes o bimestre) **se configura en E2 pero el ítem de descuento se materializa en E3 al generar la planilla del mes** ("Auto · tardanzas", anulable con justificación). No hay job diario nuevo.
+- Cada marca guarda un **snapshot del horario y la tolerancia vigentes** al momento de marcar: cambiar las reglas rige hacia adelante, las marcas registradas no se recalculan (copy del prototipo).
+- El estado **Licencia** del día viene del estado de la ficha del empleado (no hay permisos por día en R3).

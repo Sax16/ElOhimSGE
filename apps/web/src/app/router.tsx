@@ -44,6 +44,9 @@ const DashboardPage = lazy(() =>
 const ReportsPage = lazy(() =>
   import('../features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
+const PorteriaPage = lazy(() =>
+  import('../features/porteria/PorteriaPage').then((m) => ({ default: m.PorteriaPage })),
+);
 
 function Loading() {
   return (
@@ -103,6 +106,8 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
           <DashboardPage />
         ) : id === 'reportes' ? (
           <ReportsPage />
+        ) : id === 'pmarcacion' ? (
+          <PorteriaPage />
         ) : (
           <PlaceholderPage />
         )}

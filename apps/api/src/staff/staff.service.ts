@@ -9,10 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { nextCode } from '../common/code-counter.util';
 import { dateToISO, isoToDate } from '../common/installment-view.util';
-
-// Horario efectivo de referencia si un rol no está cubierto por ningún grupo de marcación.
-const FALLBACK_ENTRY_TIME = '07:45';
-const FALLBACK_TOLERANCE_MIN = 10;
+import { effectiveSchedule, type MarkingGroupRow } from './effective-schedule.util';
 
 const staffSelect = {
   id: true,
@@ -35,7 +32,6 @@ const staffSelect = {
 } satisfies Prisma.StaffSelect;
 
 type StaffRow = Prisma.StaffGetPayload<{ select: typeof staffSelect }>;
-type MarkingGroupRow = { name: string; entryTime: string; toleranceMin: number; roles: string[] };
 
 // '' del formulario → null en la BD (campos opcionales).
 function blankToNull(value: string | null | undefined): string | null {
@@ -49,30 +45,6 @@ export class StaffService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
   ) {}
-
-  // Horario efectivo: INDIVIDUAL si la ficha lo define; si no, el grupo que cubre su rol (GRUPO).
-  // Sin grupo → GRUPO con groupName null y el fallback defensivo (07:45 / 10 min).
-  private effectiveSchedule(staff: StaffRow, groups: MarkingGroupRow[]) {
-    if (
-      staff.useIndividualSchedule &&
-      staff.individualEntryTime &&
-      staff.individualToleranceMin !== null
-    ) {
-      return {
-        source: 'INDIVIDUAL' as const,
-        groupName: null,
-        entryTime: staff.individualEntryTime,
-        toleranceMin: staff.individualToleranceMin,
-      };
-    }
-    const group = groups.find((g) => g.roles.includes(staff.role));
-    return {
-      source: 'GRUPO' as const,
-      groupName: group?.name ?? null,
-      entryTime: group?.entryTime ?? FALLBACK_ENTRY_TIME,
-      toleranceMin: group?.toleranceMin ?? FALLBACK_TOLERANCE_MIN,
-    };
-  }
 
   private toDto(staff: StaffRow, groups: MarkingGroupRow[]) {
     return {
@@ -93,7 +65,7 @@ export class StaffService {
       individualEntryTime: staff.individualEntryTime,
       individualToleranceMin: staff.individualToleranceMin,
       userId: staff.userId,
-      effectiveSchedule: this.effectiveSchedule(staff, groups),
+      effectiveSchedule: effectiveSchedule(staff, groups),
     };
   }
 

@@ -32,6 +32,7 @@ import {
 } from './bits';
 import { StaffDialog } from './StaffDialog';
 import { StaffFormDialog } from './StaffFormDialog';
+import { AttendanceTab } from './attendance/AttendanceTab';
 import type { StaffDto, StaffRole, StaffStatus } from './types';
 
 type TabId = 'personal' | 'asist' | 'planilla';
@@ -57,7 +58,7 @@ export function StaffPage() {
       />
 
       {tab === 'personal' && <PersonalTab staff={staff} isLoading={isLoading} canEdit={canEdit} />}
-      {tab === 'asist' && <ComingSoon />}
+      {tab === 'asist' && <AttendanceTab />}
       {tab === 'planilla' && <ComingSoon />}
     </div>
   );

@@ -144,3 +144,18 @@ export type StaffStatus = (typeof STAFF_STATUSES)[number];
 
 export const PENSION_KINDS = ['ONP', 'AFP'] as const;
 export type PensionKind = (typeof PENSION_KINDS)[number];
+
+// ===== Marcación y asistencia (R3 — E2) =====
+
+export const LATE_COUNT_PERIODS = ['MES', 'BIMESTRE'] as const;
+export type LateCountPeriod = (typeof LATE_COUNT_PERIODS)[number];
+
+// Estado derivado de asistencia de un empleado en un día (no se materializa en BD).
+export const ATTENDANCE_STATUSES = [
+  'PUNTUAL',
+  'TARDANZA',
+  'SIN_MARCAR',
+  'FALTA',
+  'LICENCIA',
+] as const;
+export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
