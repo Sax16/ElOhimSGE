@@ -17,6 +17,9 @@ import {
   type InsuranceType,
   type LateCountPeriod,
   type NotificationChannel,
+  type PayrollItemKind,
+  type PayrollItemStatus,
+  type PayrollStatus,
   type PaymentMethod,
   type PeriodStatus,
   type PeriodType,
@@ -207,6 +210,7 @@ export const TREASURY_KIND_LABELS: Record<TreasuryKind, string> = {
 export const TREASURY_ORIGIN_LABELS: Record<TreasuryOrigin, string> = {
   MANUAL: 'Manual',
   CAJA_CHICA: 'Caja chica',
+  PLANILLA: 'Planilla',
 };
 
 export const PETTY_RENDITION_SOURCE_LABELS: Record<PettyRenditionSource, string> = {
@@ -229,6 +233,13 @@ export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
   POR_HORAS: 'Por horas',
 };
 
+// Abreviaturas del cargo en planilla: "Docente TC", "Docente PH"... (R3 — E3).
+export const EMPLOYMENT_TYPE_ABBR: Record<EmploymentType, string> = {
+  TIEMPO_COMPLETO: 'TC',
+  MEDIO_TIEMPO: 'MT',
+  POR_HORAS: 'PH',
+};
+
 export const STAFF_STATUS_LABELS: Record<StaffStatus, string> = {
   ACTIVO: 'Activo',
   LICENCIA: 'Licencia',
@@ -246,4 +257,22 @@ export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
   SIN_MARCAR: 'Sin marcar',
   FALTA: 'Falta',
   LICENCIA: 'Licencia',
+};
+
+export const PAYROLL_STATUS_LABELS: Record<PayrollStatus, string> = {
+  PENDIENTE: 'Pendiente',
+  PAGADO: 'Pagado',
+};
+
+export const PAYROLL_ITEM_KIND_LABELS: Record<PayrollItemKind, string> = {
+  AUTO_TARDANZAS: 'Auto · tardanzas',
+  ADELANTO: 'Adelanto de sueldo',
+  DANO_PERDIDA: 'Daño o pérdida',
+  INASISTENCIA: 'Inasistencia injustificada',
+  OTRO: 'Otro',
+};
+
+export const PAYROLL_ITEM_STATUS_LABELS: Record<PayrollItemStatus, string> = {
+  APLICADO: 'Aplicado',
+  ANULADO: 'Anulado',
 };

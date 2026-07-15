@@ -118,7 +118,7 @@ export type RefundMethod = (typeof REFUND_METHODS)[number];
 export const TREASURY_KINDS = ['GASTO', 'INGRESO'] as const;
 export type TreasuryKind = (typeof TREASURY_KINDS)[number];
 
-export const TREASURY_ORIGINS = ['MANUAL', 'CAJA_CHICA'] as const;
+export const TREASURY_ORIGINS = ['MANUAL', 'CAJA_CHICA', 'PLANILLA'] as const;
 export type TreasuryOrigin = (typeof TREASURY_ORIGINS)[number];
 
 export const PETTY_RENDITION_SOURCES = ['EFECTIVO_CAJA', 'TRANSFERENCIA'] as const;
@@ -159,3 +159,24 @@ export const ATTENDANCE_STATUSES = [
   'LICENCIA',
 ] as const;
 export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
+
+// ===== Planilla (R3 — E3) =====
+
+export const PAYROLL_STATUSES = ['PENDIENTE', 'PAGADO'] as const;
+export type PayrollStatus = (typeof PAYROLL_STATUSES)[number];
+
+export const PAYROLL_ITEM_KINDS = [
+  'AUTO_TARDANZAS',
+  'ADELANTO',
+  'DANO_PERDIDA',
+  'INASISTENCIA',
+  'OTRO',
+] as const;
+export type PayrollItemKind = (typeof PAYROLL_ITEM_KINDS)[number];
+
+// Descuentos manuales que Secretaría/Admin puede agregar (el AUTO_TARDANZAS lo crea el sistema).
+export const PAYROLL_MANUAL_ITEM_KINDS = ['ADELANTO', 'DANO_PERDIDA', 'INASISTENCIA', 'OTRO'] as const;
+export type PayrollManualItemKind = (typeof PAYROLL_MANUAL_ITEM_KINDS)[number];
+
+export const PAYROLL_ITEM_STATUSES = ['APLICADO', 'ANULADO'] as const;
+export type PayrollItemStatus = (typeof PAYROLL_ITEM_STATUSES)[number];

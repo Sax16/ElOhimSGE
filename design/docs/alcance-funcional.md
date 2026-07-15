@@ -222,3 +222,12 @@ Reportes (pantalla según `ReportsScreen.jsx`, permiso `reportes`): en R2 se hab
 - **La regla de descuento por tardanzas acumuladas** (N tardanzas del periodo → S/ X, por mes o bimestre) **se configura en E2 pero el ítem de descuento se materializa en E3 al generar la planilla del mes** ("Auto · tardanzas", anulable con justificación). No hay job diario nuevo.
 - Cada marca guarda un **snapshot del horario y la tolerancia vigentes** al momento de marcar: cambiar las reglas rige hacia adelante, las marcas registradas no se recalculan (copy del prototipo).
 - El estado **Licencia** del día viene del estado de la ficha del empleado (no hay permisos por día en R3).
+
+### Planilla — decisiones de la etapa 3 (jul 2026)
+- **La planilla del mes se genera sola al abrirla por primera vez** (filas con snapshot del sueldo, cargo y régimen pensionario del momento, y conteo de tardanzas del periodo). Un botón **"Actualizar"** re-sincroniza las filas PENDIENTES (sueldos cambiados, empleados nuevos, tardanzas recontadas; quita pendientes de empleados ya Inactivo); **cada fila se congela al pagarse**. El monto editado a mano de un "por horas" no se pisa al actualizar.
+- **Entran ACTIVO y LICENCIA** (si la licencia es sin goce, se ajusta el monto o se agrega descuento manual); INACTIVO no entra.
+- **Un gasto de tesorería por evento de pago**: pago individual → 1 gasto "Planilla <mes> · <empleado>"; pago masivo → 1 gasto consolidado "Planilla <mes> · pago masivo (N empleados)". Origen **Planilla** (badge, no editable ni anulable desde Gastos). El gasto es por el **neto pagado**; los aportes retenidos (ONP/AFP) y EsSalud se registran como gasto manual cuando se pagan a las entidades (fuera de R3).
+- **Anular un pago: solo Admin con justificación ≥ 10.** La fila vuelve a Pendiente, la boleta queda invalidada y el gasto vinculado se anula (individual) o se reduce con auditoría (masivo). Todo al historial.
+- **Ítem "Auto · tardanzas"**: se crea al generar/actualizar la planilla si la regla está activa y el conteo alcanza el umbral, una sola vez por periodo (si el Admin lo anula, no se regenera). Conteo MES = mes calendario; BIMESTRE = bimestre académico vigente (sin duplicar el ítem entre sus meses).
+- **PayrollSettings en tabla** (EsSalud 9%, porcentajes futuros de gratificación/CTS con seed MYPE, día de pago null = fin de mes); la UI de configuración llega con E4 — en E3 la boleta lee la tabla.
+- Correlativo de pago masivo `PL-####` (referencia del gasto consolidado). Boleta imprimible con el patrón de documento aislado de R2.

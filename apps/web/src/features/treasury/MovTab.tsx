@@ -127,6 +127,8 @@ export function MovTab({
                 <Button size="sm" variant="link" onClick={() => setRenditionId(r.originRef)}>
                   {TREASURY_ORIGIN_LABELS.CAJA_CHICA} · {r.originRef}
                 </Button>
+              ) : r.origin === 'PLANILLA' ? (
+                <Badge tone="info">Planilla{r.originRef ? ` · ${r.originRef}` : ''}</Badge>
               ) : (
                 <Badge tone="neutral">{TREASURY_ORIGIN_LABELS.MANUAL}</Badge>
               ),
@@ -185,6 +187,16 @@ export function MovTab({
                 disabled={!r.originRef}
                 onClick={() => r.originRef && setRenditionId(r.originRef)}
               >
+                <Icons.Eye />
+              </IconButton>
+            </Tooltip>
+          );
+        }
+        if (r.origin === 'PLANILLA') {
+          // El gasto de planilla se genera y anula desde Personal → Planilla.
+          return (
+            <Tooltip content="Se gestiona en Planilla — no se edita aquí">
+              <IconButton label="Origen Planilla" size="sm" disabled>
                 <Icons.Eye />
               </IconButton>
             </Tooltip>

@@ -6,8 +6,13 @@ import type { PaymentMethod } from '../cashier/types';
 
 /** Tipo de movimiento de tesorería. */
 export type TreasuryKind = 'GASTO' | 'INGRESO';
-/** Origen del movimiento: registrado a mano o derivado de una rendición de caja chica. */
-export type TreasuryOrigin = 'MANUAL' | 'CAJA_CHICA';
+/**
+ * Origen del movimiento: registrado a mano, derivado de una rendición de caja
+ * chica, o generado por un pago de Planilla (R3). Los dos últimos no se editan ni
+ * anulan desde Tesorería. 'PLANILLA' es local: el union de '@elohim/shared' aún no
+ * lo incluye — se castea con seguridad al comparar `origin`.
+ */
+export type TreasuryOrigin = 'MANUAL' | 'CAJA_CHICA' | 'PLANILLA';
 /** Estado del movimiento (auditoría append-only: anular no borra). */
 export type TreasuryStatus = 'ACTIVO' | 'ANULADO';
 /** Origen de la reposición al rendir la caja chica. */

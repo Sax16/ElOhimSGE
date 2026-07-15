@@ -148,6 +148,13 @@ export async function seedStaff(prisma: PrismaClient) {
     create: { id: 1 },
   });
 
+  // ----- Configuración de planilla (R3 — E3): fila única con seed MYPE (idempotente) -----
+  await prisma.payrollSettings.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1 },
+  });
+
   // ----- Secuencia de códigos (marca de agua: la API continúa la numeración; solo sube) -----
   const key = 'staff';
   const current = await prisma.codeCounter.findUnique({ where: { key } });
@@ -159,6 +166,6 @@ export async function seedStaff(prisma: PrismaClient) {
   });
 
   console.log(
-    `  ✓ Personal: ${PENSION_SCHEMES.length} regímenes, ${MARKING_GROUPS.length} grupos de marcación, ${STAFF.length} empleados, MarkingSettings (defaults)`,
+    `  ✓ Personal: ${PENSION_SCHEMES.length} regímenes, ${MARKING_GROUPS.length} grupos de marcación, ${STAFF.length} empleados, MarkingSettings + PayrollSettings (defaults)`,
   );
 }

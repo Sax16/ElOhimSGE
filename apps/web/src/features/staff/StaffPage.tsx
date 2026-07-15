@@ -7,7 +7,6 @@ import {
   Badge,
   Button,
   Card,
-  EmptyState,
   IconButton,
   Icons,
   Input,
@@ -33,6 +32,7 @@ import {
 import { StaffDialog } from './StaffDialog';
 import { StaffFormDialog } from './StaffFormDialog';
 import { AttendanceTab } from './attendance/AttendanceTab';
+import { PayrollTab } from './payroll/PayrollTab';
 import type { StaffDto, StaffRole, StaffStatus } from './types';
 
 type TabId = 'personal' | 'asist' | 'planilla';
@@ -59,20 +59,8 @@ export function StaffPage() {
 
       {tab === 'personal' && <PersonalTab staff={staff} isLoading={isLoading} canEdit={canEdit} />}
       {tab === 'asist' && <AttendanceTab />}
-      {tab === 'planilla' && <ComingSoon />}
+      {tab === 'planilla' && <PayrollTab />}
     </div>
-  );
-}
-
-function ComingSoon() {
-  return (
-    <Card>
-      <EmptyState
-        icon={<Icons.Clock />}
-        title="Disponible próximamente"
-        description="Llega en esta misma R3."
-      />
-    </Card>
   );
 }
 

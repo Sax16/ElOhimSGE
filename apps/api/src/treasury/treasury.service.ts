@@ -237,7 +237,9 @@ export class TreasuryService {
       if (!current) throw new NotFoundException('Movimiento no encontrado');
       if (current.origin !== 'MANUAL') {
         throw new ConflictException(
-          'Un movimiento de caja chica se corrige por su rendición, no aquí',
+          current.origin === 'PLANILLA'
+            ? 'Un gasto de planilla se corrige desde el módulo Personal, no aquí'
+            : 'Un movimiento de caja chica se corrige por su rendición, no aquí',
         );
       }
       if (current.canceledAt) throw new ConflictException('El movimiento está anulado');
@@ -362,7 +364,9 @@ export class TreasuryService {
       if (!current) throw new NotFoundException('Movimiento no encontrado');
       if (current.origin !== 'MANUAL') {
         throw new ConflictException(
-          'Un movimiento de caja chica se corrige por su rendición, no se anula aquí',
+          current.origin === 'PLANILLA'
+            ? 'Un gasto de planilla se anula desde el módulo Personal, no aquí'
+            : 'Un movimiento de caja chica se corrige por su rendición, no se anula aquí',
         );
       }
       if (current.canceledAt) throw new ConflictException('El movimiento ya está anulado');
