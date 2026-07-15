@@ -44,7 +44,7 @@ export const staffCreateSchema = z
   );
 export type StaffCreateInput = z.infer<typeof staffCreateSchema>;
 
-// Actualizar: mismos campos, todos opcionales (incluye status para pasar a LICENCIA/CESADO).
+// Actualizar: mismos campos, todos opcionales (incluye status para pasar a LICENCIA/INACTIVO).
 export const staffUpdateSchema = z
   .object({
     fullName: z.string().min(3, 'Ingresa nombres y apellidos'),

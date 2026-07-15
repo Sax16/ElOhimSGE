@@ -881,7 +881,7 @@ enum EmploymentType {
 enum StaffStatus {
   ACTIVO
   LICENCIA
-  CESADO
+  INACTIVO
 }
 
 enum PensionKind {

@@ -42,7 +42,7 @@ export function StaffPage() {
 
   const { data, isLoading } = useStaff();
   const staff = useMemo(() => data ?? [], [data]);
-  const activeCount = staff.filter((s) => s.status !== 'CESADO').length;
+  const activeCount = staff.filter((s) => s.status !== 'INACTIVO').length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

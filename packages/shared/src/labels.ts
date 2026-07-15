@@ -230,5 +230,5 @@ export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
 export const STAFF_STATUS_LABELS: Record<StaffStatus, string> = {
   ACTIVO: 'Activo',
   LICENCIA: 'Licencia',
-  CESADO: 'Cesado',
+  INACTIVO: 'Inactivo',
 };

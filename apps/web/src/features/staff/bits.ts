@@ -51,18 +51,18 @@ export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
 };
 
 // ---- Estado ----------------------------------------------------------------
-export const STAFF_STATUSES: StaffStatus[] = ['ACTIVO', 'LICENCIA', 'CESADO'];
+export const STAFF_STATUSES: StaffStatus[] = ['ACTIVO', 'LICENCIA', 'INACTIVO'];
 
 export const STAFF_STATUS_LABELS: Record<StaffStatus, string> = {
   ACTIVO: 'Activo',
   LICENCIA: 'Licencia',
-  CESADO: 'Cesado',
+  INACTIVO: 'Inactivo',
 };
 
 export const STAFF_STATUS_TONE: Record<StaffStatus, BadgeTone> = {
   ACTIVO: 'success',
   LICENCIA: 'warning',
-  CESADO: 'neutral',
+  INACTIVO: 'neutral',
 };
 
 // ---- Avatar ----------------------------------------------------------------

@@ -139,7 +139,7 @@ export type StaffRole = (typeof STAFF_ROLES)[number];
 export const EMPLOYMENT_TYPES = ['TIEMPO_COMPLETO', 'MEDIO_TIEMPO', 'POR_HORAS'] as const;
 export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number];
 
-export const STAFF_STATUSES = ['ACTIVO', 'LICENCIA', 'CESADO'] as const;
+export const STAFF_STATUSES = ['ACTIVO', 'LICENCIA', 'INACTIVO'] as const;
 export type StaffStatus = (typeof STAFF_STATUSES)[number];
 
 export const PENSION_KINDS = ['ONP', 'AFP'] as const;

@@ -13,7 +13,7 @@ export type StaffRole =
 
 export type EmploymentType = 'TIEMPO_COMPLETO' | 'MEDIO_TIEMPO' | 'POR_HORAS';
 
-export type StaffStatus = 'ACTIVO' | 'LICENCIA' | 'CESADO';
+export type StaffStatus = 'ACTIVO' | 'LICENCIA' | 'INACTIVO';
 
 export type PensionKind = 'ONP' | 'AFP';
 
