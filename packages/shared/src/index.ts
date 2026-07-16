@@ -24,3 +24,4 @@ export * from './schemas/reports';
 export * from './schemas/staff';
 export * from './schemas/attendance';
 export * from './schemas/payroll';
+export * from './schemas/student-attendance';

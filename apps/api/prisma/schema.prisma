@@ -237,6 +237,9 @@ model User {
   payrollItemsCreated          PayrollItem[]        @relation("PayrollItemCreatedBy")
   payrollItemsCanceled         PayrollItem[]        @relation("PayrollItemCanceledBy")
   payrollBatchesPaid           PayrollBatch[]       @relation("PayrollBatchPaidBy")
+  studentAttendanceMarked      StudentAttendanceEntry[] @relation("StudentAttendanceMarkedBy")
+  studentAttendanceCorrected   StudentAttendanceEntry[] @relation("StudentAttendanceCorrectedBy")
+  courseAssignments            CourseAssignment[]   @relation("CourseAssignmentTeacher")
 }
 
 // Singleton (id = 1): datos institucionales de la pestaña Configuración > Institución.
@@ -348,7 +351,8 @@ model Section {
   tutor         User?      @relation("SectionTutor", fields: [tutorId], references: [id])
   assistantName String? // auxiliar (texto libre hasta que exista el módulo Personal en R3)
 
-  enrollments Enrollment[]
+  enrollments       Enrollment[]
+  courseAssignments CourseAssignment[]
 
   @@unique([gradeLevelId, name, shift])
 }
@@ -361,6 +365,8 @@ model Course {
   weeklyHours  Int
   teacherId    String?
   teacher      User?      @relation("CourseTeacher", fields: [teacherId], references: [id])
+
+  assignments CourseAssignment[]
 
   @@unique([gradeLevelId, name])
 }
@@ -530,7 +536,8 @@ model Enrollment {
   canceledAt   DateTime?
   cancelReason String?
 
-  installments Installment[]
+  installments      Installment[]
+  attendanceEntries StudentAttendanceEntry[]
 
   // Unicidad estudiante+año SOLO para matrículas vigentes: índice único parcial WHERE canceledAt
   // IS NULL (creado por migración SQL, no representable en el schema Prisma). Permite re-matricular
@@ -1133,6 +1140,56 @@ model PayrollSettings {
   ctsDaysPerYear Int      @default(15)
   payDayOfMonth  Int? // null = fin de mes
   updatedAt      DateTime @updatedAt
+}
+
+// ===== Académico (R4 — E1): asistencia de estudiantes + asignación docente =====
+
+enum StudentAttendanceStatus {
+  PRESENTE
+  TARDANZA
+  FALTA
+  JUSTIFICADA
+}
+
+// Asistencia diaria por sección: una toma (conjunto de entradas) por aula y día lectivo (hora Lima).
+// Una entrada por matrícula vigente y día. DOCENTE registra HOY de sus secciones; días pasados solo
+// ADMIN (crea la toma olvidada con el mismo PUT). Cambiar una entrada existente en día pasado exige
+// corrección individual (correctedBy* + motivo + AuditLog). Nada se borra.
+model StudentAttendanceEntry {
+  id               String                  @id @default(cuid())
+  enrollmentId     String
+  enrollment       Enrollment              @relation(fields: [enrollmentId], references: [id])
+  date             DateTime                @db.Date
+  status           StudentAttendanceStatus
+  markedById       String
+  markedBy         User                    @relation("StudentAttendanceMarkedBy", fields: [markedById], references: [id])
+  markedAt         DateTime                @default(now())
+  correctedById    String?
+  correctedBy      User?                   @relation("StudentAttendanceCorrectedBy", fields: [correctedById], references: [id])
+  correctedAt      DateTime?
+  correctionReason String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@unique([enrollmentId, date])
+  @@index([date])
+}
+
+// Asignación docente por curso×sección (fuente de verdad de "qué dicta cada docente" en R4+).
+// Course.teacherId (R1) queda como estaba. Tabla de configuración: se puede quitar (DELETE).
+// Un docente por curso en cada sección (unique curso×sección). Año CERRADO → 409 al mutar.
+model CourseAssignment {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id])
+  sectionId String
+  section   Section  @relation(fields: [sectionId], references: [id])
+  teacherId String
+  teacher   User     @relation("CourseAssignmentTeacher", fields: [teacherId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([courseId, sectionId])
+  @@index([teacherId])
 }
 
 // Secuencias de códigos legibles: "student" → E-####, "guardian" → A-####, "enrollment:2026" → M-2026-####

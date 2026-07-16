@@ -180,3 +180,18 @@ export type PayrollManualItemKind = (typeof PAYROLL_MANUAL_ITEM_KINDS)[number];
 
 export const PAYROLL_ITEM_STATUSES = ['APLICADO', 'ANULADO'] as const;
 export type PayrollItemStatus = (typeof PAYROLL_ITEM_STATUSES)[number];
+
+// ===== Académico (R4 — E1): asistencia de estudiantes =====
+
+// Estado de asistencia de un estudiante en un día (P/T/F/J). Se materializa por matrícula y día.
+export const STUDENT_ATTENDANCE_STATUSES = [
+  'PRESENTE',
+  'TARDANZA',
+  'FALTA',
+  'JUSTIFICADA',
+] as const;
+export type StudentAttendanceStatus = (typeof STUDENT_ATTENDANCE_STATUSES)[number];
+
+// Rol del docente sobre una sección (para la vista "mis secciones").
+export const SECTION_TEACHER_ROLES = ['TUTOR', 'DOCENTE'] as const;
+export type SectionTeacherRole = (typeof SECTION_TEACHER_ROLES)[number];

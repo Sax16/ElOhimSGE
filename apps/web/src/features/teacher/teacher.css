@@ -1,0 +1,11 @@
+/* Portal del docente — grilla de StatCards (desktop-first; sm apila). */
+.esge-teacher-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+@media (max-width: 767px) {
+  .esge-teacher-stats {
+    grid-template-columns: 1fr;
+  }
+}

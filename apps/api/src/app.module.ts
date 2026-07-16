@@ -17,6 +17,7 @@ import { TreasuryModule } from './treasury/treasury.module';
 import { JobsModule } from './jobs/jobs.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ReportsModule } from './reports/reports.module';
+import { StudentAttendanceModule } from './student-attendance/student-attendance.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ReportsModule } from './reports/reports.module';
     JobsModule,
     DashboardModule,
     ReportsModule,
+    StudentAttendanceModule,
     HealthModule,
   ],
 })

@@ -33,6 +33,7 @@ import {
   type Shift,
   type StaffRole,
   type StaffStatus,
+  type StudentAttendanceStatus,
   type StudentStatus,
   type TreasuryKind,
   type TreasuryOrigin,
@@ -275,4 +276,32 @@ export const PAYROLL_ITEM_KIND_LABELS: Record<PayrollItemKind, string> = {
 export const PAYROLL_ITEM_STATUS_LABELS: Record<PayrollItemStatus, string> = {
   APLICADO: 'Aplicado',
   ANULADO: 'Anulado',
+};
+
+// ===== Académico (R4 — E1): asistencia de estudiantes =====
+
+export const STUDENT_ATTENDANCE_STATUS_LABELS: Record<StudentAttendanceStatus, string> = {
+  PRESENTE: 'Presente',
+  TARDANZA: 'Tardanza',
+  FALTA: 'Falta',
+  JUSTIFICADA: 'Justificada',
+};
+
+// Letra para la matriz mensual y celdas compactas (P/T/F/J).
+export const STUDENT_ATTENDANCE_STATUS_LETTERS: Record<StudentAttendanceStatus, string> = {
+  PRESENTE: 'P',
+  TARDANZA: 'T',
+  FALTA: 'F',
+  JUSTIFICADA: 'J',
+};
+
+// Tono del badge (design system): éxito/advertencia/peligro/informativo.
+export const STUDENT_ATTENDANCE_STATUS_TONES: Record<
+  StudentAttendanceStatus,
+  'success' | 'warning' | 'danger' | 'info'
+> = {
+  PRESENTE: 'success',
+  TARDANZA: 'warning',
+  FALTA: 'danger',
+  JUSTIFICADA: 'info',
 };

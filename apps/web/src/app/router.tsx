@@ -47,6 +47,22 @@ const ReportsPage = lazy(() =>
 const PorteriaPage = lazy(() =>
   import('../features/porteria/PorteriaPage').then((m) => ({ default: m.PorteriaPage })),
 );
+const TeacherHomePage = lazy(() =>
+  import('../features/teacher/TeacherHomePage').then((m) => ({ default: m.TeacherHomePage })),
+);
+const TakeAttendancePage = lazy(() =>
+  import('../features/student-attendance/TakeAttendancePage').then((m) => ({
+    default: m.TakeAttendancePage,
+  })),
+);
+const StudentAttendancePage = lazy(() =>
+  import('../features/student-attendance/StudentAttendancePage').then((m) => ({
+    default: m.StudentAttendancePage,
+  })),
+);
+const AssignmentsPage = lazy(() =>
+  import('../features/assignments/AssignmentsPage').then((m) => ({ default: m.AssignmentsPage })),
+);
 
 function Loading() {
   return (
@@ -76,6 +92,8 @@ for (const item of TEACHER_NAV) {
   routeRoles[item.id] = existing ? [...existing, 'DOCENTE'] : ['DOCENTE'];
 }
 for (const item of PORTER_NAV) routeRoles[item.id] = ['PORTERIA'];
+// La toma diaria /tasist también la usa Admin (día editable); asegúrale acceso.
+routeRoles['tasist'] = Array.from(new Set([...(routeRoles['tasist'] ?? []), 'ADMIN']));
 
 const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles]) => ({
   path: id,
@@ -108,6 +126,14 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
           <ReportsPage />
         ) : id === 'pmarcacion' ? (
           <PorteriaPage />
+        ) : id === 'tclases' ? (
+          <TeacherHomePage />
+        ) : id === 'tasist' ? (
+          <TakeAttendancePage />
+        ) : id === 'asist' ? (
+          <StudentAttendancePage />
+        ) : id === 'horarios' ? (
+          <AssignmentsPage />
         ) : (
           <PlaceholderPage />
         )}

@@ -1,0 +1,169 @@
+/* Asistencia de estudiantes — layout responsive (desktop-first; lg ≥1024 / md 768–1023 / sm <768). */
+
+/* Grilla de StatCards del portal docente. */
+.esge-sa-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+@media (max-width: 767px) {
+  .esge-sa-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Fila de un alumno en la toma diaria (avatar + nombre + botones P/T/F/J). */
+.esge-sa-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+.esge-sa-row__idx {
+  font: var(--type-2xs);
+  font-family: var(--font-mono);
+  color: var(--text-subtle);
+  width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.esge-sa-row__name {
+  flex: 1;
+  min-width: 0;
+  font: var(--type-label);
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Grupo de botones circulares de estado. */
+.esge-sa-marks {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.esge-sa-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  font: var(--type-label);
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-default);
+  background: var(--surface-card);
+  color: var(--text-muted);
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+.esge-sa-mark:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+/* En celular los botones crecen para el pulgar y la fila se compacta. */
+@media (max-width: 767px) {
+  .esge-sa-row {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .esge-sa-row__idx {
+    display: none;
+  }
+  .esge-sa-marks {
+    gap: 5px;
+  }
+  .esge-sa-mark {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* Vista "Por día": roster + panel de avisos. */
+.esge-sa-day-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1023px) {
+  .esge-sa-day-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Matriz mensual. */
+.esge-sa-matrix-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.esge-sa-matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  font: var(--type-body);
+  min-width: 100%;
+}
+.esge-sa-matrix th,
+.esge-sa-matrix td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: center;
+  white-space: nowrap;
+}
+.esge-sa-matrix th {
+  font: var(--type-caption);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  position: sticky;
+  top: 0;
+  background: var(--surface-card);
+  z-index: 1;
+}
+/* Columna del estudiante fija a la izquierda. */
+.esge-sa-matrix .esge-sa-name {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--surface-card);
+  z-index: 2;
+  min-width: 200px;
+  font: var(--type-label);
+  color: var(--text-strong);
+}
+.esge-sa-matrix th.esge-sa-name {
+  z-index: 3;
+}
+.esge-sa-matrix .esge-sa-day {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  width: 30px;
+}
+.esge-sa-matrix .esge-sa-day--weekend {
+  color: var(--text-subtle);
+  background: var(--surface-sunken);
+}
+.esge-sa-cell {
+  width: 30px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--text-xs);
+}
+.esge-sa-matrix .esge-sa-total {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-body);
+}
+.esge-sa-matrix .esge-sa-pct {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
