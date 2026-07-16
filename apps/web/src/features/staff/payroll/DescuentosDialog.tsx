@@ -93,7 +93,7 @@ export function DescuentosDialog({
     // addValid ya garantiza kind !== '' (TS lo estrecha a PayrollItemKind aquí).
     if (!addValid) return;
     addItem.mutate(
-      { id: entry.id, body: { kind, amount: parsedAmount, detail: detail.trim() } },
+      { id: entry.id, body: { kind, amount: parsedAmount.toFixed(2), detail: detail.trim() } },
       {
         onSuccess: () => {
           toast('success', 'Descuento registrado', `Se aplicará en la planilla de ${entry.staffName}.`);

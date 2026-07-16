@@ -29,7 +29,7 @@ export function GrossEditDialog({
   const submit = () => {
     if (!entry || !valid) return;
     update.mutate(
-      { id: entry.id, body: { grossAmount: parsed } },
+      { id: entry.id, body: { grossAmount: parsed.toFixed(2) } },
       {
         onSuccess: () => {
           toast('success', 'Monto actualizado', `${entry.staffName} · sueldo del mes ${pen(String(parsed))}.`);

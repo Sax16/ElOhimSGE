@@ -97,13 +97,14 @@ export interface PayrollResponseDto {
 
 // ---- Bodies de mutación -----------------------------------------------------
 
+// Montos como string decimal "1234.00" — la API valida contra NUMERIC(10,2), nunca float.
 export interface UpdateGrossBody {
-  grossAmount: number;
+  grossAmount: string;
 }
 
 export interface AddItemBody {
   kind: PayrollItemKind;
-  amount: number;
+  amount: string;
   detail: string;
 }
 
