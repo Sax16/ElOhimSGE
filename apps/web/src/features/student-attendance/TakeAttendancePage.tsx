@@ -166,7 +166,6 @@ export function TakeAttendancePage() {
           max={today}
           disabled={isDocente}
           onChange={(e) => setDate(e.target.value)}
-          hint={isDocente ? 'Solo hoy' : undefined}
           containerStyle={{ width: 170 }}
         />
         <div style={{ flex: 1 }} />
@@ -232,6 +231,7 @@ export function TakeAttendancePage() {
 
       {/* Aviso de faltas al pie */}
       <Alert tone="info">
+        {isDocente ? 'Solo puedes marcar la asistencia del día de hoy. ' : ''}
         El aviso por falta se envía por WhatsApp al contacto principal desde el botón al guardar.
       </Alert>
 

@@ -39,3 +39,57 @@ body,
 .app__crumb {
   margin-bottom: 4px;
 }
+
+/* ===== Responsive (responsive.md) ===== */
+
+/* Móvil (<768): el sidebar es un drawer sobre overlay, abierto por el hamburger. */
+@media (max-width: 767px) {
+  .app__sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform var(--duration-normal) var(--ease-standard);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* En el drawer siempre se muestra completo, aunque en desktop esté colapsado. */
+  .app__sidebar.esge-sidebar--collapsed {
+    width: var(--sidebar-width);
+  }
+  .app__sidebar.esge-sidebar--collapsed .esge-navitem__label,
+  .app__sidebar.esge-sidebar--collapsed .esge-navitem__badge,
+  .app__sidebar.esge-sidebar--collapsed .esge-sidebar__brandtext {
+    opacity: 1;
+    width: auto;
+    pointer-events: auto;
+  }
+  .app__sidebar.esge-sidebar--collapsed .esge-navitem {
+    justify-content: flex-start;
+    padding: 9px 12px;
+  }
+  .app__sidebar.esge-sidebar--collapsed .esge-sidebar__section {
+    opacity: 1;
+    height: auto;
+    padding: 14px 12px 6px;
+  }
+
+  .app__sidebar--open {
+    transform: translateX(0);
+  }
+
+  .app__nav-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(15, 23, 42, 0.5);
+  }
+
+  /* Topbar sm: búsqueda oculta (título + hamburger + acciones + avatar).
+     El selector lleva .app__main para ganarle al CSS del kit inyectado en runtime. */
+  .app__main .esge-topbar__search {
+    display: none;
+  }
+}

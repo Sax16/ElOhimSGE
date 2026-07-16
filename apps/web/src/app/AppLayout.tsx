@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
@@ -57,6 +58,24 @@ export function AppLayout() {
 
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  // En móvil (<768) el sidebar es un drawer sobre overlay (responsive.md);
+  // el hamburger lo abre en vez de colapsarlo.
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileNavOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileNavOpen]);
+
+  const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
+  const onMenuClick = () => {
+    if (isMobile()) setMobileNavOpen((v) => !v);
+    else toggleSidebar();
+  };
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
   const selectedYearName = useYearStore((s) => s.selectedYearName);
@@ -96,13 +115,20 @@ export function AppLayout() {
 
   return (
     <div className="app">
+      {mobileNavOpen && (
+        <div className="app__nav-overlay" onClick={() => setMobileNavOpen(false)} aria-hidden />
+      )}
       <Sidebar
+        className={mobileNavOpen ? 'app__sidebar app__sidebar--open' : 'app__sidebar'}
         logoSrc="/elohim-insignia.png"
         brandName="Elohim"
         brandSub="SGE"
         items={NAV_BY_ROLE(role, me.permissions)}
         activeId={activeId}
-        onSelect={(id) => navigate('/' + id)}
+        onSelect={(id) => {
+          setMobileNavOpen(false);
+          navigate('/' + id);
+        }}
         collapsed={sidebarCollapsed}
         footer={
           <div
@@ -136,11 +162,11 @@ export function AppLayout() {
       <div className="app__main">
         <Topbar
           menuButton={
-            <IconButton label="Menú" onClick={toggleSidebar}>
+            <IconButton label="Menú">
               <Icons.Dashboard />
             </IconButton>
           }
-          onMenuClick={toggleSidebar}
+          onMenuClick={onMenuClick}
           searchPlaceholder={searchPlaceholderFor(role)}
           actions={
             <>
