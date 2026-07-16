@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Tabs } from '@elohim/ui';
 import { useUsers } from './api';
 import { InstitutionTab } from './InstitutionTab';
+import { PayrollSettingsTab } from './PayrollSettingsTab';
 import { UsersTab } from './UsersTab';
 
 type TabId = 'inst' | 'users' | 'notif' | 'eval' | 'planilla';
@@ -20,13 +21,14 @@ export function SettingsPage() {
         items={[
           { id: 'inst', label: 'Institución' },
           { id: 'users', label: 'Usuarios y roles', count: usersQuery.data?.length },
+          { id: 'planilla', label: 'Planilla' },
           { id: 'notif', label: 'Notificaciones', disabled: true },
           { id: 'eval', label: 'Evaluación', disabled: true },
-          { id: 'planilla', label: 'Planilla', disabled: true },
         ]}
       />
       {tab === 'inst' && <InstitutionTab />}
       {tab === 'users' && <UsersTab />}
+      {tab === 'planilla' && <PayrollSettingsTab />}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 // Las pestañas "Asistencia y marcación" y "Planilla" llegan más adelante en R3.
 // Spec: design/ui_kits/sge/StaffScreen.jsx (pestaña Personal).
 import { useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Avatar,
   Badge,
@@ -38,7 +39,10 @@ import type { StaffDto, StaffRole, StaffStatus } from './types';
 type TabId = 'personal' | 'asist' | 'planilla';
 
 export function StaffPage() {
-  const [tab, setTab] = useState<TabId>('personal');
+  // El Dashboard puede enlazar directo a la pestaña Planilla (state del router).
+  const location = useLocation();
+  const initialTab = (location.state as { tab?: TabId } | null)?.tab ?? 'personal';
+  const [tab, setTab] = useState<TabId>(initialTab);
   const canEdit = useCan('personal', 'editar');
 
   const { data, isLoading } = useStaff();

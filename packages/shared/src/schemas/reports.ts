@@ -35,3 +35,10 @@ export const rosterQuerySchema = z.object({
   levelId: z.string().optional(),
 });
 export type RosterQueryInput = z.infer<typeof rosterQuerySchema>;
+
+// ===== Planilla anual (R3 — E4) =====
+// Todos los meses del año con planilla generada: hoja resumen (por mes) + hoja detalle (por fila).
+export const payrollAnnualQuerySchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
+});
+export type PayrollAnnualQueryInput = z.infer<typeof payrollAnnualQuerySchema>;

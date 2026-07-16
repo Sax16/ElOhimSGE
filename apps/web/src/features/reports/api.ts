@@ -26,6 +26,10 @@ export interface RosterFilters {
   /** Id de nivel, o null para «Todos». */
   levelId: string | null;
 }
+export interface PayrollAnnualFilters {
+  /** Año calendario (p. ej. 2026). */
+  year: number;
+}
 
 // ---- Querystrings (compartidos entre consulta y exportación) ----------------
 function delinquencyQS(f: DelinquencyFilters): string {
@@ -49,6 +53,11 @@ function rosterQS(f: RosterFilters): string {
   const p = new URLSearchParams();
   if (f.yearId) p.set('yearId', f.yearId);
   if (f.levelId) p.set('levelId', f.levelId);
+  return p.toString();
+}
+function payrollAnnualQS(f: PayrollAnnualFilters): string {
+  const p = new URLSearchParams();
+  p.set('year', String(f.year));
   return p.toString();
 }
 
@@ -100,8 +109,13 @@ export function useRosterReport(f: RosterFilters, enabled: boolean) {
 /** Descarga el .xlsx del reporte activo con los filtros aplicados. */
 export function exportReport(
   key: ReportKey,
-  filters: DelinquencyFilters | IncomeFilters | CashFilters | RosterFilters,
+  filters: DelinquencyFilters | IncomeFilters | CashFilters | RosterFilters | PayrollAnnualFilters,
 ): Promise<void> {
+  // La planilla anual tiene su propia ruta (no sigue el patrón /reports/:key/export).
+  if (key === 'payrollAnnual') {
+    const f = filters as PayrollAnnualFilters;
+    return downloadFile(`/reports/payroll-annual?${payrollAnnualQS(f)}`, `planilla-anual-${f.year}.xlsx`);
+  }
   const qs =
     key === 'delinquency'
       ? delinquencyQS(filters as DelinquencyFilters)

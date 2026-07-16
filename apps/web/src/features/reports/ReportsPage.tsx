@@ -35,6 +35,7 @@ import {
   type CashFilters,
   type DelinquencyFilters,
   type IncomeFilters,
+  type PayrollAnnualFilters,
   type RosterFilters,
 } from './api';
 import type {
@@ -87,13 +88,13 @@ interface ReportCardDef {
   soon?: string;
 }
 
-// Orden verbatim del prototipo; Asistencia (R4) y Planilla (R3) quedan deshabilitadas.
+// Orden verbatim del prototipo; Asistencia (R4) queda deshabilitada.
 const CARDS: ReportCardDef[] = [
   { key: 'delinquency', title: 'Morosidad por grado', desc: 'Cuotas vencidas y deuda acumulada por nivel y grado', icon: 'Chart', tone: 'danger' },
   { key: 'income', title: 'Ingresos por concepto', desc: 'Pensiones, matrículas, programas y otros ingresos por periodo', icon: 'Cash', tone: 'success' },
   { key: 'roster', title: 'Padrón de estudiantes', desc: 'Lista completa con apoderado principal, contacto y estado', icon: 'Users', tone: 'brand' },
   { key: null, title: 'Asistencia mensual', desc: 'Estudiantes y personal: faltas, tardanzas y justificaciones', icon: 'Calendar', tone: 'accent', soon: 'R4' },
-  { key: null, title: 'Planilla anual', desc: 'Sueldos, descuentos y aportes por empleado, mes a mes', icon: 'Building', tone: 'brand', soon: 'R3' },
+  { key: 'payrollAnnual', title: 'Planilla anual', desc: 'Sueldos, descuentos y aportes por empleado, mes a mes', icon: 'Building', tone: 'brand' },
   { key: 'cash', title: 'Caja diaria', desc: 'Cobros por método y cobrador, arqueos y anulaciones', icon: 'Receipt', tone: 'success' },
 ];
 
@@ -102,6 +103,7 @@ const REPORT_TITLE: Record<ReportKey, string> = {
   income: 'Ingresos por concepto',
   cash: 'Caja diaria',
   roster: 'Padrón de estudiantes',
+  payrollAnnual: 'Planilla anual',
 };
 
 /** Rango del mes en curso ({ from: 1° del mes, to: hoy }) en fecha civil local. */
@@ -130,12 +132,16 @@ export function ReportsPage() {
   // Filtros de Padrón.
   const [levelId, setLevelId] = useState<string | null>(null);
 
+  // Filtro de Planilla anual.
+  const [annualYear, setAnnualYear] = useState<number>(baseYear);
+
   const [exporting, setExporting] = useState(false);
 
   const delinquencyFilters: DelinquencyFilters = { yearId };
   const incomeFilters: IncomeFilters = { year: incomeYear, month: incomeMonth };
   const cashFilters: CashFilters = { from: range.from, to: range.to };
   const rosterFilters: RosterFilters = { yearId, levelId };
+  const payrollAnnualFilters: PayrollAnnualFilters = { year: annualYear };
 
   const activeFilters =
     active === 'delinquency'
@@ -144,7 +150,9 @@ export function ReportsPage() {
         ? incomeFilters
         : active === 'cash'
           ? cashFilters
-          : rosterFilters;
+          : active === 'payrollAnnual'
+            ? payrollAnnualFilters
+            : rosterFilters;
 
   const onExport = async () => {
     setExporting(true);
@@ -241,6 +249,15 @@ export function ReportsPage() {
           </>
         )}
         {active === 'roster' && <LevelFilter yearId={yearId} levelId={levelId} onChange={setLevelId} />}
+        {active === 'payrollAnnual' && (
+          <Select
+            label="Año"
+            options={Array.from({ length: 4 }, (_, i) => baseYear + 1 - i).map((y) => ({ value: String(y), label: String(y) }))}
+            value={String(annualYear)}
+            onChange={(e) => setAnnualYear(Number(e.target.value))}
+            containerStyle={{ width: 120 }}
+          />
+        )}
 
         <div className="esge-reports-filters__spacer" />
         <Button variant="secondary" iconLeft={<Icons.Download />} disabled={exporting} onClick={onExport}>
@@ -253,6 +270,7 @@ export function ReportsPage() {
       {active === 'income' && <IncomePreview filters={incomeFilters} monthLabel={incomeMonth == null ? 'Todo el año' : MONTH_NAMES[incomeMonth] ?? ''} />}
       {active === 'cash' && <CashPreview filters={cashFilters} />}
       {active === 'roster' && <RosterPreview filters={rosterFilters} />}
+      {active === 'payrollAnnual' && <PayrollAnnualPreview year={annualYear} />}
     </div>
   );
 }
@@ -575,6 +593,21 @@ function RosterPreview({ filters }: { filters: RosterFilters }) {
         </div>
       )}
     </PreviewCard>
+  );
+}
+
+// ---- Vista previa: Planilla anual ------------------------------------------
+// No hay endpoint de datos para la vista previa (solo exportación .xlsx); se
+// muestra una tarjeta informativa con el detalle del Excel a descargar.
+function PayrollAnnualPreview({ year }: { year: number }) {
+  return (
+    <Card flush title="Vista previa · Planilla anual" subtitle={`Planilla ${year}`}>
+      <EmptyState
+        icon={<Icons.Building />}
+        title={`Planilla anual ${year}`}
+        description="El Excel trae una hoja resumen por mes (bruto, descuentos, aportes, neto, pagado vs pendiente, EsSalud) y una hoja de detalle por empleado y mes. Usa «Exportar vista» para descargarlo."
+      />
+    </Card>
   );
 }
 

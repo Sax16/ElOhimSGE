@@ -4,7 +4,7 @@ import type { EnrollmentType, PaymentMethod, StudentStatus } from '@elohim/share
 import type { CashierSessionSummary } from '../cashier/types';
 
 /** Identificador del reporte activo. */
-export type ReportKey = 'delinquency' | 'income' | 'cash' | 'roster';
+export type ReportKey = 'delinquency' | 'income' | 'cash' | 'roster' | 'payrollAnnual';
 
 // ---- Morosidad por grado ----------------------------------------------------
 export interface DelinquencyGroup {

@@ -88,7 +88,13 @@ export interface PayrollStatsDto {
 
 /** Respuesta de GET /payroll y POST /payroll/:periodId/refresh. */
 export interface PayrollResponseDto {
-  period: PayrollPeriodDto;
+  /**
+   * true si el periodo tiene planilla generada. Solo el mes en curso se genera
+   * solo al abrirlo; un mes pasado sin planilla llega con generated=false,
+   * period=null, entries=[] y stats en ceros.
+   */
+  generated: boolean;
+  period: PayrollPeriodDto | null;
   /** Tasa de EsSalud a cargo del colegio ("9.00"). */
   essaludRatePct: string;
   stats: PayrollStatsDto;

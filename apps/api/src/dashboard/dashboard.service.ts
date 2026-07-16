@@ -1,9 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { fromCents } from '@elohim/shared';
+import {
+  computeNetCents,
+  computePensionContributions,
+  fromCents,
+  type PensionSchemeInput,
+} from '@elohim/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { decimalToCents } from '../common/money.util';
 import { todayISO, dateToISO, isoToDate } from '../common/installment-view.util';
+import { limaTodayISO } from '../common/lima-time.util';
 import { overdueInstallments } from '../common/overdue.util';
 import { PensionesService } from '../billing/pensiones.service';
 
@@ -95,6 +101,7 @@ export class DashboardService {
       recentReceipts,
       recentExpenses,
       topDebtors,
+      upcomingPayroll,
     ] = await Promise.all([
       this.students(year.id, year.name),
       this.monthCollected(nowYear, nowMonth),
@@ -104,6 +111,7 @@ export class DashboardService {
       this.recentReceipts(),
       this.recentExpenses(),
       this.topDebtors(year.id),
+      this.upcomingPayroll(),
     ]);
 
     return {
@@ -116,6 +124,129 @@ export class DashboardService {
       recentReceipts,
       recentExpenses,
       topDebtors,
+      upcomingPayroll,
+    };
+  }
+
+  // Número de días del mes (año, mes 1-12).
+  private daysInMonth(year: number, month: number): number {
+    return new Date(Date.UTC(month === 12 ? year + 1 : year, month === 12 ? 0 : month, 0)).getUTCDate();
+  }
+
+  // Régimen pensionario (snapshot) → entrada de las funciones puras de shared.
+  private schemeInput(s: {
+    kind: 'ONP' | 'AFP';
+    name: string;
+    onpRatePct: Prisma.Decimal | null;
+    fundRatePct: Prisma.Decimal | null;
+    commissionRatePct: Prisma.Decimal | null;
+    insuranceRatePct: Prisma.Decimal | null;
+  }): PensionSchemeInput {
+    if (s.kind === 'ONP') return { kind: 'ONP', onpRatePct: Number(s.onpRatePct ?? 0) };
+    return {
+      kind: 'AFP',
+      name: s.name,
+      fundRatePct: Number(s.fundRatePct ?? 0),
+      commissionRatePct: Number(s.commissionRatePct ?? 0),
+      insuranceRatePct: Number(s.insuranceRatePct ?? 0),
+    };
+  }
+
+  /**
+   * Próximos egresos — planilla del mes en curso (Lima) como cuenta por pagar real (E4).
+   * - Periodo generado: pendientes reales (neto de las filas PENDIENTE); estimatedNet null.
+   * - Sin periodo: estimatedNet = Σ netos estimados de Staff ACTIVO/LICENCIA (sueldo base, su
+   *   régimen actual, sin descuentos); generated false. Vence según payDayOfMonth (clamp a los días
+   *   del mes) o el último día del mes si es null.
+   */
+  private async upcomingPayroll() {
+    const today = limaTodayISO();
+    const year = Number(today.slice(0, 4));
+    const month = Number(today.slice(5, 7));
+
+    const days = this.daysInMonth(year, month);
+    const settings = await this.prisma.payrollSettings.upsert({
+      where: { id: 1 },
+      update: {},
+      create: { id: 1 },
+    });
+    const payDay = settings.payDayOfMonth === null ? days : Math.min(settings.payDayOfMonth, days);
+    const dueDate = `${year}-${String(month).padStart(2, '0')}-${String(payDay).padStart(2, '0')}`;
+
+    const period = await this.prisma.payrollPeriod.findUnique({
+      where: { year_month: { year, month } },
+      select: { id: true },
+    });
+
+    if (period) {
+      const entries = await this.prisma.payrollEntry.findMany({
+        where: { periodId: period.id, status: 'PENDIENTE' },
+        select: {
+          grossAmount: true,
+          schemeKind: true,
+          schemeName: true,
+          onpRatePct: true,
+          fundRatePct: true,
+          commissionRatePct: true,
+          insuranceRatePct: true,
+          items: { where: { status: 'APLICADO' }, select: { amount: true } },
+        },
+      });
+      let pendingCents = 0;
+      for (const e of entries) {
+        const grossCents = decimalToCents(e.grossAmount);
+        const contrib = computePensionContributions(
+          grossCents,
+          this.schemeInput({ kind: e.schemeKind, name: e.schemeName, onpRatePct: e.onpRatePct, fundRatePct: e.fundRatePct, commissionRatePct: e.commissionRatePct, insuranceRatePct: e.insuranceRatePct }),
+        );
+        let discountCents = 0;
+        for (const it of e.items) discountCents += decimalToCents(it.amount);
+        pendingCents += computeNetCents(grossCents, contrib.totalCents, discountCents);
+      }
+      return {
+        year,
+        month,
+        generated: true,
+        pendingNet: fromCents(pendingCents),
+        pendingCount: entries.length,
+        paidAll: entries.length === 0,
+        dueDate,
+        estimatedNet: null as string | null,
+      };
+    }
+
+    // Sin periodo: estimado sobre las fichas ACTIVO/LICENCIA (sueldo base, sin descuentos).
+    const staff = await this.prisma.staff.findMany({
+      where: { status: { in: ['ACTIVO', 'LICENCIA'] } },
+      select: {
+        baseSalary: true,
+        pensionScheme: {
+          select: {
+            kind: true,
+            name: true,
+            onpRatePct: true,
+            fundRatePct: true,
+            commissionRatePct: true,
+            insuranceRatePct: true,
+          },
+        },
+      },
+    });
+    let estimatedCents = 0;
+    for (const s of staff) {
+      const grossCents = decimalToCents(s.baseSalary);
+      const contrib = computePensionContributions(grossCents, this.schemeInput(s.pensionScheme));
+      estimatedCents += computeNetCents(grossCents, contrib.totalCents, 0);
+    }
+    return {
+      year,
+      month,
+      generated: false,
+      pendingNet: '0.00',
+      pendingCount: 0,
+      paidAll: false,
+      dueDate,
+      estimatedNet: fromCents(estimatedCents),
     };
   }
 

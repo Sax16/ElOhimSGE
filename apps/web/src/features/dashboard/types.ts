@@ -48,6 +48,24 @@ export interface CollectionByLevel {
   pct: number;
 }
 
+/** Planilla del mes como cuenta por pagar (bloque superior de «Próximos egresos»). */
+export interface UpcomingPayroll {
+  year: number;
+  /** Mes 1..12. */
+  month: number;
+  /** true si el mes ya tiene planilla generada. */
+  generated: boolean;
+  /** Neto pendiente de pago. */
+  pendingNet: string;
+  pendingCount: number;
+  /** true si toda la planilla del mes está pagada. */
+  paidAll: boolean;
+  /** yyyy-mm-dd — día de pago del mes. */
+  dueDate: string;
+  /** Estimado del neto cuando aún no está generada (null si no aplica). */
+  estimatedNet: string | null;
+}
+
 /** Resumen económico del Dashboard. */
 export interface DashboardSummary {
   students: {
@@ -82,4 +100,6 @@ export interface DashboardSummary {
   recentReceipts: RecentReceipt[];
   recentExpenses: RecentExpense[];
   topDebtors: TopDebtor[];
+  /** Planilla del mes en curso como próximo egreso. */
+  upcomingPayroll: UpcomingPayroll;
 }

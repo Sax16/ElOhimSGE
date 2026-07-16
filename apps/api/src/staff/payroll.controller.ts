@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Post, Res } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Post, Put, Res } from '@nestjs/common';
 import { type Response } from 'express';
 import {
   payrollCancelPaymentSchema,
@@ -9,6 +9,8 @@ import {
   payrollPayAllSchema,
   payrollPaySchema,
   payrollQuerySchema,
+  payrollSettingsUpdateSchema,
+  pensionSchemeUpdateSchema,
   type PayrollCancelPaymentInput,
   type PayrollExportQuery,
   type PayrollGrossUpdateInput,
@@ -17,6 +19,8 @@ import {
   type PayrollPayAllInput,
   type PayrollPayInput,
   type PayrollQuery,
+  type PayrollSettingsUpdateInput,
+  type PensionSchemeUpdateInput,
 } from '@elohim/shared';
 import { zodBody, zodQuery } from '../common/zod-validation.pipe';
 import { RequirePermission } from '../common/permissions/require-permission.decorator';
@@ -49,6 +53,33 @@ export class PayrollController {
     );
     res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
     res.send(file.buffer);
+  }
+
+  // Configuración de planilla (settings + catálogo AFP). Rutas estáticas antes de :periodId.
+  // Ver: permiso 'personal'. Editar: solo ADMIN (validado en el service).
+  @Get('settings')
+  @RequirePermission('personal', 'ver')
+  getSettings() {
+    return this.payroll.getSettings();
+  }
+
+  @Put('settings')
+  @RequirePermission('personal', 'ver')
+  updateSettings(
+    @(zodBody(payrollSettingsUpdateSchema)) body: PayrollSettingsUpdateInput,
+    @CurrentUser() actor: JwtUser,
+  ) {
+    return this.payroll.updateSettings(body, actor);
+  }
+
+  @Patch('pension-schemes/:id')
+  @RequirePermission('personal', 'ver')
+  updatePensionScheme(
+    @Param('id') id: string,
+    @(zodBody(pensionSchemeUpdateSchema)) body: PensionSchemeUpdateInput,
+    @CurrentUser() actor: JwtUser,
+  ) {
+    return this.payroll.updatePensionScheme(id, body, actor);
   }
 
   @Post(':periodId/refresh')

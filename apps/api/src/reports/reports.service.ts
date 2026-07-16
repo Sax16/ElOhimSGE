@@ -2,12 +2,18 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   fromCents,
+  computeEssaludCents,
+  computeNetCents,
+  computePensionContributions,
   ENROLLMENT_TYPE_LABELS,
   PAYMENT_METHOD_LABELS,
+  PAYROLL_STATUS_LABELS,
   STUDENT_STATUS_LABELS,
   type CashReportQueryInput,
   type DelinquencyQueryInput,
   type IncomeQueryInput,
+  type PayrollAnnualQueryInput,
+  type PensionSchemeInput,
   type RosterQueryInput,
 } from '@elohim/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -37,6 +43,30 @@ function fullName(s: {
 function pct1(numCents: number, denCents: number): number {
   if (denCents <= 0) return 0;
   return Math.round((numCents / denCents) * 1000) / 10;
+}
+
+const MONTH_NAMES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre',
+];
+
+// Régimen pensionario (snapshot de una fila) → entrada de las funciones puras de shared.
+function schemeInputOf(e: {
+  schemeKind: 'ONP' | 'AFP';
+  schemeName: string;
+  onpRatePct: Prisma.Decimal | null;
+  fundRatePct: Prisma.Decimal | null;
+  commissionRatePct: Prisma.Decimal | null;
+  insuranceRatePct: Prisma.Decimal | null;
+}): PensionSchemeInput {
+  if (e.schemeKind === 'ONP') return { kind: 'ONP', onpRatePct: Number(e.onpRatePct ?? 0) };
+  return {
+    kind: 'AFP',
+    name: e.schemeName,
+    fundRatePct: Number(e.fundRatePct ?? 0),
+    commissionRatePct: Number(e.commissionRatePct ?? 0),
+    insuranceRatePct: Number(e.insuranceRatePct ?? 0),
+  };
 }
 
 // Rango [start, end) de un mes.
@@ -815,5 +845,203 @@ export class ReportsService {
       })),
     );
     return { buffer: await workbookToBuffer(wb), filename: `padron-${year.name}.xlsx` };
+  }
+
+  // ===================== 5) Planilla anual (R3 — E4) =====================
+
+  async payrollAnnualExport(query: PayrollAnnualQueryInput) {
+    const { year } = query;
+    const settings = await this.prisma.payrollSettings.upsert({
+      where: { id: 1 },
+      update: {},
+      create: { id: 1 },
+    });
+    const essaludRatePct = Number(settings.essaludRatePct);
+
+    // Todos los periodos del año con planilla generada (una fila resumen por mes).
+    const periods = await this.prisma.payrollPeriod.findMany({
+      where: { year },
+      orderBy: { month: 'asc' },
+      select: {
+        month: true,
+        entries: {
+          orderBy: { staffName: 'asc' },
+          select: {
+            staffCode: true,
+            staffName: true,
+            position: true,
+            schemeName: true,
+            schemeKind: true,
+            onpRatePct: true,
+            fundRatePct: true,
+            commissionRatePct: true,
+            insuranceRatePct: true,
+            grossAmount: true,
+            status: true,
+            paymentMethod: true,
+            paidAt: true,
+            batch: { select: { code: true } },
+            items: { where: { status: 'APLICADO' }, select: { amount: true } },
+          },
+        },
+      },
+    });
+
+    const wb = newWorkbook();
+
+    interface SummaryRow {
+      month: number;
+      employees: number;
+      grossCents: number;
+      discountCents: number;
+      contribCents: number;
+      netCents: number;
+      paidCents: number;
+      paidCount: number;
+      pendingCents: number;
+      pendingCount: number;
+      essaludCents: number;
+    }
+    const summaries: SummaryRow[] = [];
+    const detailRows: Record<string, CellValue>[] = [];
+    let dGross = 0, dDiscount = 0, dContrib = 0, dNet = 0, dEssalud = 0;
+
+    for (const p of periods) {
+      const s: SummaryRow = {
+        month: p.month,
+        employees: p.entries.length,
+        grossCents: 0, discountCents: 0, contribCents: 0, netCents: 0,
+        paidCents: 0, paidCount: 0, pendingCents: 0, pendingCount: 0, essaludCents: 0,
+      };
+      for (const e of p.entries) {
+        const grossCents = decimalToCents(e.grossAmount);
+        const contrib = computePensionContributions(grossCents, schemeInputOf(e));
+        let discountCents = 0;
+        for (const it of e.items) discountCents += decimalToCents(it.amount);
+        const netCents = computeNetCents(grossCents, contrib.totalCents, discountCents);
+        const essaludCents = computeEssaludCents(grossCents, essaludRatePct);
+
+        s.grossCents += grossCents;
+        s.discountCents += discountCents;
+        s.contribCents += contrib.totalCents;
+        s.netCents += netCents;
+        s.essaludCents += essaludCents;
+        if (e.status === 'PAGADO') {
+          s.paidCents += netCents;
+          s.paidCount += 1;
+        } else {
+          s.pendingCents += netCents;
+          s.pendingCount += 1;
+        }
+
+        detailRows.push({
+          mes: MONTH_NAMES[p.month - 1]!,
+          code: e.staffCode,
+          name: e.staffName,
+          position: e.position,
+          scheme: e.schemeName,
+          gross: num(fromCents(grossCents)),
+          discount: num(fromCents(discountCents)),
+          contrib: num(fromCents(contrib.totalCents)),
+          net: num(fromCents(netCents)),
+          status: PAYROLL_STATUS_LABELS[e.status],
+          method: e.paymentMethod ? PAYMENT_METHOD_LABELS[e.paymentMethod] : '',
+          paidAt: e.paidAt ? datetimeText(e.paidAt.toISOString()) : '',
+          batch: e.batch?.code ?? '',
+        });
+      }
+      summaries.push(s);
+      dGross += s.grossCents;
+      dDiscount += s.discountCents;
+      dContrib += s.contribCents;
+      dNet += s.netCents;
+      dEssalud += s.essaludCents;
+    }
+
+    // ----- Hoja "Resumen" -----
+    const resumenCols = [
+      { header: 'Mes', key: 'mes', width: 14 },
+      { header: 'Empleados', key: 'employees', width: 12 },
+      { header: 'Bruto', key: 'gross', width: 16, money: true },
+      { header: 'Descuentos', key: 'discount', width: 14, money: true },
+      { header: 'Aportes', key: 'contrib', width: 14, money: true },
+      { header: 'Neto', key: 'net', width: 16, money: true },
+      { header: 'Pagado', key: 'paid', width: 16, money: true },
+      { header: 'N.º pagados', key: 'paidCount', width: 12 },
+      { header: 'Pendiente', key: 'pending', width: 16, money: true },
+      { header: 'N.º pendientes', key: 'pendingCount', width: 14 },
+      { header: 'EsSalud (informativo)', key: 'essalud', width: 20, money: true },
+    ];
+    if (summaries.length === 0) {
+      addSheet(wb, 'Resumen', resumenCols, [
+        { mes: `Sin planillas generadas para el año ${year}` },
+      ]);
+    } else {
+      const paidCountT = summaries.reduce((a, s) => a + s.paidCount, 0);
+      const pendingCountT = summaries.reduce((a, s) => a + s.pendingCount, 0);
+      const paidT = summaries.reduce((a, s) => a + s.paidCents, 0);
+      const pendingT = summaries.reduce((a, s) => a + s.pendingCents, 0);
+      addSheet(wb, 'Resumen', resumenCols, [
+        ...summaries.map((s) => ({
+          mes: MONTH_NAMES[s.month - 1]!,
+          employees: s.employees,
+          gross: num(fromCents(s.grossCents)),
+          discount: num(fromCents(s.discountCents)),
+          contrib: num(fromCents(s.contribCents)),
+          net: num(fromCents(s.netCents)),
+          paid: num(fromCents(s.paidCents)),
+          paidCount: s.paidCount,
+          pending: num(fromCents(s.pendingCents)),
+          pendingCount: s.pendingCount,
+          essalud: num(fromCents(s.essaludCents)),
+        })),
+        {
+          mes: 'TOTAL',
+          employees: summaries.reduce((a, s) => a + s.employees, 0),
+          gross: num(fromCents(dGross)),
+          discount: num(fromCents(dDiscount)),
+          contrib: num(fromCents(dContrib)),
+          net: num(fromCents(dNet)),
+          paid: num(fromCents(paidT)),
+          paidCount: paidCountT,
+          pending: num(fromCents(pendingT)),
+          pendingCount: pendingCountT,
+          essalud: num(fromCents(dEssalud)),
+        },
+      ]);
+    }
+
+    // ----- Hoja "Detalle" -----
+    const detalleCols = [
+      { header: 'Mes', key: 'mes', width: 12 },
+      { header: 'Código', key: 'code', width: 12 },
+      { header: 'Empleado', key: 'name', width: 28 },
+      { header: 'Cargo', key: 'position', width: 16 },
+      { header: 'Régimen', key: 'scheme', width: 18 },
+      { header: 'Bruto', key: 'gross', width: 14, money: true },
+      { header: 'Descuentos', key: 'discount', width: 14, money: true },
+      { header: 'Aportes', key: 'contrib', width: 14, money: true },
+      { header: 'Neto', key: 'net', width: 14, money: true },
+      { header: 'Estado', key: 'status', width: 12 },
+      { header: 'Método', key: 'method', width: 16 },
+      { header: 'Fecha de pago', key: 'paidAt', width: 18 },
+      { header: 'Pago masivo', key: 'batch', width: 14 },
+    ];
+    const detalleRows =
+      detailRows.length > 0
+        ? [
+            ...detailRows,
+            {
+              mes: 'TOTAL',
+              gross: num(fromCents(dGross)),
+              discount: num(fromCents(dDiscount)),
+              contrib: num(fromCents(dContrib)),
+              net: num(fromCents(dNet)),
+            },
+          ]
+        : [];
+    addSheet(wb, 'Detalle', detalleCols, detalleRows);
+
+    return { buffer: await workbookToBuffer(wb), filename: `planilla-anual-${year}.xlsx` };
   }
 }

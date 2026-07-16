@@ -70,6 +70,95 @@
   cursor: pointer;
 }
 
+/* Subtítulo de sección dentro de una Card flush (p. ej. «Últimos gastos registrados»). */
+.esge-dash-subhead {
+  padding: 12px 18px 6px;
+  font: var(--type-caption);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  font-weight: 600;
+}
+
+/* Bloque de la planilla del mes como próximo egreso (arriba de «Próximos egresos»). */
+.esge-dash-payroll {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 18px;
+  text-align: left;
+  border: none;
+  border-left: 3px solid transparent;
+  background: var(--surface-sunken);
+  font: inherit;
+  color: var(--text-body);
+}
+button.esge-dash-payroll {
+  cursor: pointer;
+}
+button.esge-dash-payroll:hover {
+  background: var(--surface-hover);
+}
+button.esge-dash-payroll:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+.esge-dash-payroll--due {
+  border-left-color: var(--gold-500);
+  background: var(--surface-accent-soft);
+}
+.esge-dash-payroll--info {
+  border-left-color: var(--info, var(--brand));
+  background: var(--surface-brand-soft);
+}
+.esge-dash-payroll--paid {
+  border-left-color: var(--success);
+  background: var(--success-soft);
+}
+.esge-dash-payroll__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.esge-dash-payroll__icon svg {
+  width: 17px;
+  height: 17px;
+}
+.esge-dash-payroll--due .esge-dash-payroll__icon {
+  color: var(--gold-600);
+}
+.esge-dash-payroll--info .esge-dash-payroll__icon {
+  color: var(--brand);
+}
+.esge-dash-payroll--paid .esge-dash-payroll__icon {
+  color: var(--success);
+}
+.esge-dash-payroll__main {
+  flex: 1;
+  min-width: 0;
+}
+.esge-dash-payroll__title {
+  font: var(--type-label);
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.esge-dash-payroll__sub {
+  font: var(--type-2xs);
+  color: var(--text-muted);
+}
+.esge-dash-payroll > svg {
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 @media (max-width: 1023px) {
   .esge-dash-stats {
     grid-template-columns: repeat(2, 1fr);

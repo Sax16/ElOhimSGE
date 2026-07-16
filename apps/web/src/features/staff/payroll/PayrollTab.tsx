@@ -69,6 +69,9 @@ export function PayrollTab() {
   const stats = data?.stats;
   const period_ = data?.period;
   const essaludRatePct = data?.essaludRatePct ?? '9.00';
+  // Un mes pasado sin planilla llega con generated=false: no hay stats ni tabla ni
+  // acciones, solo el estado vacío. Mientras carga (sin data) se muestra normal.
+  const generated = data ? data.generated : true;
 
   const findEntry = (id: string | null): PayrollEntryDto | null =>
     id ? entries.find((e) => e.id === id) ?? null : null;
@@ -243,7 +246,8 @@ export function PayrollTab() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* StatCards */}
+      {/* StatCards (ocultas cuando el mes no tiene planilla generada) */}
+      {generated && (
       <div className="esge-payroll-stats">
         <StatCard
           label={`Planilla · ${monthName(month)}`}
@@ -273,8 +277,9 @@ export function PayrollTab() {
           caption="tardanzas y manuales"
         />
       </div>
+      )}
 
-      {/* Controles: periodo + acciones */}
+      {/* Controles: periodo + acciones (las acciones se ocultan sin planilla) */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <Select
           label="Periodo"
@@ -284,7 +289,7 @@ export function PayrollTab() {
           containerStyle={{ width: 180 }}
         />
         <div style={{ flex: 1 }} />
-        {canEdit && (
+        {generated && canEdit && (
           <Tooltip content="Trae sueldos y empleados nuevos; no toca filas pagadas">
             <Button
               variant="secondary"
@@ -296,12 +301,12 @@ export function PayrollTab() {
             </Button>
           </Tooltip>
         )}
-        {canExport && (
+        {generated && canExport && (
           <Button variant="secondary" iconLeft={<Icons.Download />} disabled={exporting} onClick={onExport}>
             Exportar planilla
           </Button>
         )}
-        {isAdmin && (
+        {generated && isAdmin && (
           <Button
             variant="accent"
             iconLeft={<Icons.Cash />}
@@ -313,8 +318,16 @@ export function PayrollTab() {
         )}
       </div>
 
-      {/* Tabla */}
-      {!isLoading && entries.length === 0 ? (
+      {/* Tabla (o estado vacío según generación / empleados) */}
+      {!isLoading && data && !generated ? (
+        <Card>
+          <EmptyState
+            icon={<Icons.Building />}
+            title="Sin planilla generada"
+            description="Solo el mes en curso se genera automáticamente al abrirlo."
+          />
+        </Card>
+      ) : !isLoading && entries.length === 0 ? (
         <Card>
           <EmptyState
             icon={<Icons.Building />}

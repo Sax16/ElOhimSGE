@@ -24,7 +24,7 @@ import { fmtDayMonth } from '../structure/bits';
 import { fmtTime, methodTone } from '../cashier/bits';
 import { ReminderDialog } from '../payments/ReminderDialog';
 import { useDashboardSummary } from './api';
-import type { RecentReceipt, TopDebtor } from './types';
+import type { RecentReceipt, TopDebtor, UpcomingPayroll } from './types';
 import './dashboard.css';
 
 const MONTH_NAMES = [
@@ -250,14 +250,21 @@ export function DashboardPage() {
       <div className="esge-dash-eco">
         <Card
           flush
-          title="Últimos gastos"
-          subtitle="Movimientos recientes de Tesorería"
+          title="Próximos egresos"
+          subtitle="Planilla del mes y últimos movimientos de Tesorería"
           actions={
             <Button variant="ghost" size="sm" iconRight={<Icons.ChevronRight />} onClick={() => navigate('/tesoreria')}>
               Ver todos
             </Button>
           }
         >
+          {data && (
+            <PayrollDue
+              payroll={data.upcomingPayroll}
+              onGoToPayroll={() => navigate('/docentes', { state: { tab: 'planilla' } })}
+            />
+          )}
+          <div className="esge-dash-subhead">Últimos gastos registrados</div>
           {data && data.recentExpenses.length === 0 ? (
             <EmptyState
               icon={<Icons.Chart />}
@@ -330,6 +337,63 @@ export function DashboardPage() {
         canMutate={canRemind}
         onClose={() => setReminderGuardian(null)}
       />
+    </div>
+  );
+}
+
+/** Bloque superior de «Próximos egresos»: la planilla del mes como cuenta por pagar. */
+function PayrollDue({ payroll, onGoToPayroll }: { payroll: UpcomingPayroll; onGoToPayroll: () => void }) {
+  const month = MONTH_NAMES[payroll.month] ?? '';
+
+  // No generada: aún no es una cuenta por pagar firme; se muestra el estimado.
+  if (!payroll.generated) {
+    return (
+      <div className="esge-dash-payroll esge-dash-payroll--info">
+        <span className="esge-dash-payroll__icon">
+          <Icons.Building />
+        </span>
+        <div className="esge-dash-payroll__main">
+          <div className="esge-dash-payroll__title">Planilla {month} aún no generada</div>
+          <div className="esge-dash-payroll__sub">
+            {payroll.estimatedNet != null
+              ? `Estimado ${formatPEN(toCents(payroll.estimatedNet))}`
+              : 'Se genera al abrir la pestaña Planilla del mes en curso.'}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Generada con pendientes: cuenta por pagar real, clic para ir a pagar.
+  if (payroll.pendingCount > 0) {
+    return (
+      <button type="button" className="esge-dash-payroll esge-dash-payroll--due" onClick={onGoToPayroll}>
+        <span className="esge-dash-payroll__icon">
+          <Icons.Clock />
+        </span>
+        <div className="esge-dash-payroll__main">
+          <div className="esge-dash-payroll__title">
+            Planilla {month} · {formatPEN(toCents(payroll.pendingNet))}
+          </div>
+          <div className="esge-dash-payroll__sub">
+            {payroll.pendingCount} por pagar · vence {fmtDayMonth(payroll.dueDate)}
+          </div>
+        </div>
+        <Icons.ChevronRight />
+      </button>
+    );
+  }
+
+  // Generada y al día.
+  return (
+    <div className="esge-dash-payroll esge-dash-payroll--paid">
+      <span className="esge-dash-payroll__icon">
+        <Icons.Check />
+      </span>
+      <div className="esge-dash-payroll__main">
+        <div className="esge-dash-payroll__title">Planilla {month} al día</div>
+        <div className="esge-dash-payroll__sub">Todos los empleados están pagados.</div>
+      </div>
     </div>
   );
 }

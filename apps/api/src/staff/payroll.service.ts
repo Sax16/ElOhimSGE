@@ -16,7 +16,9 @@ import {
   type PayrollGrossUpdateInput,
   type PayrollItemCreateInput,
   type PayrollPayInput,
+  type PayrollSettingsUpdateInput,
   type PensionSchemeInput,
+  type PensionSchemeUpdateInput,
 } from '@elohim/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
@@ -399,6 +401,27 @@ export class PayrollService {
       select: { id: true, year: true, month: true },
     });
     if (!period) {
+      // Solo el mes en curso (Lima) se genera solo: un mes pasado/futuro sin planilla no crea
+      // periodos fantasma — la UI muestra "Sin planilla generada" (decisión de E4).
+      const isCurrentMonth = year === ty && month === tm;
+      if (!isCurrentMonth) {
+        const settings = await this.payrollSettings();
+        return {
+          period: null,
+          generated: false,
+          essaludRatePct: settings.essaludRatePct.toFixed(2),
+          stats: {
+            totalNet: '0.00',
+            paidNet: '0.00',
+            paidCount: 0,
+            pendingNet: '0.00',
+            pendingCount: 0,
+            discountsTotal: '0.00',
+            employeeCount: 0,
+          },
+          entries: [],
+        };
+      }
       const id = await this.generatePeriod(year, month, actor.sub);
       period = { id, year, month };
     }
@@ -443,6 +466,7 @@ export class PayrollService {
 
     return {
       period: { id: period.id, year: period.year, month: period.month },
+      generated: true,
       essaludRatePct: settings.essaludRatePct.toFixed(2),
       stats: {
         totalNet: fromCents(totalNet),
@@ -949,6 +973,205 @@ export class PayrollService {
       return entry.periodId;
     });
     return this.buildPayload(periodId);
+  }
+
+  // ===== Configuración de planilla + catálogo AFP (R3 — E4) =====
+
+  // Payload compartido por GET/PUT settings y (parcialmente) por el PATCH de régimen.
+  private async settingsPayload() {
+    const [settings, schemes, counts] = await Promise.all([
+      this.payrollSettings(),
+      this.prisma.pensionScheme.findMany({
+        orderBy: { sortOrder: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          kind: true,
+          active: true,
+          sortOrder: true,
+          onpRatePct: true,
+          fundRatePct: true,
+          commissionRatePct: true,
+          insuranceRatePct: true,
+        },
+      }),
+      // staffCount = empleados NO INACTIVO (ACTIVO/LICENCIA) por régimen.
+      this.prisma.staff.groupBy({
+        by: ['pensionSchemeId'],
+        where: { status: { not: 'INACTIVO' } },
+        _count: { _all: true },
+      }),
+    ]);
+    const countBy = new Map(counts.map((c) => [c.pensionSchemeId, c._count._all]));
+    return {
+      settings: {
+        essaludRatePct: settings.essaludRatePct.toFixed(2),
+        gratiRatePct: settings.gratiRatePct.toFixed(2),
+        gratiBonusPct: settings.gratiBonusPct.toFixed(2),
+        ctsDaysPerYear: settings.ctsDaysPerYear,
+        payDayOfMonth: settings.payDayOfMonth,
+      },
+      pensionSchemes: schemes.map((p) => this.schemeDto(p, countBy.get(p.id) ?? 0)),
+    };
+  }
+
+  private schemeDto(
+    p: {
+      id: string;
+      name: string;
+      kind: 'ONP' | 'AFP';
+      active: boolean;
+      sortOrder: number;
+      onpRatePct: Prisma.Decimal | null;
+      fundRatePct: Prisma.Decimal | null;
+      commissionRatePct: Prisma.Decimal | null;
+      insuranceRatePct: Prisma.Decimal | null;
+    },
+    staffCount: number,
+  ) {
+    return {
+      id: p.id,
+      name: p.name,
+      kind: p.kind,
+      active: p.active,
+      sortOrder: p.sortOrder,
+      onpRatePct: p.onpRatePct ? p.onpRatePct.toFixed(2) : null,
+      fundRatePct: p.fundRatePct ? p.fundRatePct.toFixed(2) : null,
+      commissionRatePct: p.commissionRatePct ? p.commissionRatePct.toFixed(2) : null,
+      insuranceRatePct: p.insuranceRatePct ? p.insuranceRatePct.toFixed(2) : null,
+      staffCount,
+    };
+  }
+
+  // GET /api/payroll/settings (permiso personal · ver).
+  async getSettings() {
+    return this.settingsPayload();
+  }
+
+  // PUT /api/payroll/settings (solo ADMIN).
+  async updateSettings(input: PayrollSettingsUpdateInput, actor: JwtUser) {
+    if (actor.role !== 'ADMIN') {
+      throw new ForbiddenException('Solo un administrador puede editar la configuración de planilla');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.payrollSettings.upsert({
+        where: { id: 1 },
+        create: {
+          id: 1,
+          essaludRatePct: new Prisma.Decimal(input.essaludRatePct),
+          gratiRatePct: new Prisma.Decimal(input.gratiRatePct),
+          gratiBonusPct: new Prisma.Decimal(input.gratiBonusPct),
+          ctsDaysPerYear: input.ctsDaysPerYear,
+          payDayOfMonth: input.payDayOfMonth,
+        },
+        update: {
+          essaludRatePct: new Prisma.Decimal(input.essaludRatePct),
+          gratiRatePct: new Prisma.Decimal(input.gratiRatePct),
+          gratiBonusPct: new Prisma.Decimal(input.gratiBonusPct),
+          ctsDaysPerYear: input.ctsDaysPerYear,
+          payDayOfMonth: input.payDayOfMonth,
+        },
+      });
+      await this.audit.log(
+        {
+          userId: actor.sub,
+          action: 'payroll.settings.update',
+          entity: 'PayrollSettings',
+          entityId: '1',
+          payload: {
+            essaludRatePct: input.essaludRatePct,
+            gratiRatePct: input.gratiRatePct,
+            gratiBonusPct: input.gratiBonusPct,
+            ctsDaysPerYear: input.ctsDaysPerYear,
+            payDayOfMonth: input.payDayOfMonth,
+          },
+        },
+        tx,
+      );
+    });
+    return this.settingsPayload();
+  }
+
+  // PATCH /api/payroll/pension-schemes/:id (solo ADMIN). Los cambios rigen para generaciones/refresh
+  // futuros; los snapshots de filas ya generadas NO se tocan. Desactivar es libre.
+  async updatePensionScheme(id: string, input: PensionSchemeUpdateInput, actor: JwtUser) {
+    if (actor.role !== 'ADMIN') {
+      throw new ForbiddenException('Solo un administrador puede editar los regímenes pensionarios');
+    }
+    const scheme = await this.prisma.pensionScheme.findUnique({
+      where: { id },
+      select: { id: true, kind: true },
+    });
+    if (!scheme) throw new NotFoundException('Régimen pensionario no encontrado');
+
+    // Coherencia por kind: ONP solo admite onpRatePct; AFP admite fondo/comisión/seguro.
+    if (scheme.kind === 'ONP') {
+      if (
+        input.fundRatePct !== undefined ||
+        input.commissionRatePct !== undefined ||
+        input.insuranceRatePct !== undefined
+      ) {
+        throw new BadRequestException('Un régimen ONP solo admite la tasa ONP');
+      }
+    } else if (input.onpRatePct !== undefined) {
+      throw new BadRequestException('Un régimen AFP no usa la tasa ONP (fondo, comisión y seguro)');
+    }
+
+    const data: Prisma.PensionSchemeUpdateInput = {};
+    const payload: Record<string, unknown> = {};
+    if (input.onpRatePct !== undefined) {
+      data.onpRatePct = new Prisma.Decimal(input.onpRatePct);
+      payload.onpRatePct = input.onpRatePct;
+    }
+    if (input.fundRatePct !== undefined) {
+      data.fundRatePct = new Prisma.Decimal(input.fundRatePct);
+      payload.fundRatePct = input.fundRatePct;
+    }
+    if (input.commissionRatePct !== undefined) {
+      data.commissionRatePct = new Prisma.Decimal(input.commissionRatePct);
+      payload.commissionRatePct = input.commissionRatePct;
+    }
+    if (input.insuranceRatePct !== undefined) {
+      data.insuranceRatePct = new Prisma.Decimal(input.insuranceRatePct);
+      payload.insuranceRatePct = input.insuranceRatePct;
+    }
+    if (input.active !== undefined) {
+      data.active = input.active;
+      payload.active = input.active;
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.pensionScheme.update({
+        where: { id },
+        data,
+        select: {
+          id: true,
+          name: true,
+          kind: true,
+          active: true,
+          sortOrder: true,
+          onpRatePct: true,
+          fundRatePct: true,
+          commissionRatePct: true,
+          insuranceRatePct: true,
+        },
+      });
+      await this.audit.log(
+        {
+          userId: actor.sub,
+          action: 'payroll.pensionScheme.update',
+          entity: 'PensionScheme',
+          entityId: id,
+          payload: payload as Prisma.InputJsonValue,
+        },
+        tx,
+      );
+      return row;
+    });
+    const staffCount = await this.prisma.staff.count({
+      where: { pensionSchemeId: id, status: { not: 'INACTIVO' } },
+    });
+    return this.schemeDto(updated, staffCount);
   }
 
   // ===== GET /api/payroll/export =====

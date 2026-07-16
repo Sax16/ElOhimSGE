@@ -4,10 +4,12 @@ import {
   cashReportQuerySchema,
   delinquencyQuerySchema,
   incomeQuerySchema,
+  payrollAnnualQuerySchema,
   rosterQuerySchema,
   type CashReportQueryInput,
   type DelinquencyQueryInput,
   type IncomeQueryInput,
+  type PayrollAnnualQueryInput,
   type RosterQueryInput,
 } from '@elohim/shared';
 import { zodQuery } from '../common/zod-validation.pipe';
@@ -92,5 +94,15 @@ export class ReportsController {
     @Res() res: Response,
   ) {
     this.send(res, await this.reports.rosterExport(query));
+  }
+
+  // ===== Planilla anual (R3 — E4) =====
+  @Get('payroll-annual')
+  @RequirePermission('reportes', 'ver')
+  async payrollAnnual(
+    @(zodQuery(payrollAnnualQuerySchema)) query: PayrollAnnualQueryInput,
+    @Res() res: Response,
+  ) {
+    this.send(res, await this.reports.payrollAnnualExport(query));
   }
 }

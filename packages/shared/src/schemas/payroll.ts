@@ -65,3 +65,35 @@ export const payrollExportQuerySchema = z.object({
   month: z.coerce.number().int().min(1).max(12).optional(),
 });
 export type PayrollExportQuery = z.infer<typeof payrollExportQuerySchema>;
+
+// ===== Configuración de planilla (R3 — E4, solo ADMIN en el service) =====
+
+// Porcentaje decimal como string (nunca float), con rango configurable [min, max].
+const pctString = (max: number, label: string) =>
+  z
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/, 'Porcentaje inválido')
+    .refine((v) => Number(v) >= 0 && Number(v) <= max, label);
+
+// PUT /api/payroll/settings — EsSalud, gratificación/CTS (futuros) y día de pago.
+export const payrollSettingsUpdateSchema = z.object({
+  essaludRatePct: pctString(30, 'El porcentaje de EsSalud debe estar entre 0 y 30'),
+  gratiRatePct: pctString(100, 'El porcentaje de gratificación debe estar entre 0 y 100'),
+  gratiBonusPct: pctString(100, 'El bono de gratificación debe estar entre 0 y 100'),
+  ctsDaysPerYear: z.coerce.number().int().min(0).max(60),
+  payDayOfMonth: z.coerce.number().int().min(1).max(31).nullable(),
+});
+export type PayrollSettingsUpdateInput = z.infer<typeof payrollSettingsUpdateSchema>;
+
+// PATCH /api/payroll/pension-schemes/:id — tasas del régimen y activación (solo ADMIN).
+// La coherencia (ONP solo onpRatePct; AFP las otras tres) se valida en el service según su kind.
+export const pensionSchemeUpdateSchema = z
+  .object({
+    onpRatePct: pctString(100, 'La tasa ONP debe estar entre 0 y 100').optional(),
+    fundRatePct: pctString(100, 'La tasa de fondo debe estar entre 0 y 100').optional(),
+    commissionRatePct: pctString(100, 'La comisión debe estar entre 0 y 100').optional(),
+    insuranceRatePct: pctString(100, 'El seguro debe estar entre 0 y 100').optional(),
+    active: z.boolean().optional(),
+  })
+  .refine((b) => Object.keys(b).length > 0, 'No hay cambios que aplicar');
+export type PensionSchemeUpdateInput = z.infer<typeof pensionSchemeUpdateSchema>;
