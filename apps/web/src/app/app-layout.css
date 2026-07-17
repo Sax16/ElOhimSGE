@@ -42,22 +42,20 @@ body,
 
 /* ===== Responsive (responsive.md) ===== */
 
-/* Móvil (<768): el sidebar es un drawer sobre overlay, abierto por el hamburger. */
+/* Móvil (<768): el sidebar es un drawer sobre overlay, abierto por el hamburger.
+   Selector aside.app__sidebar: gana en especificidad al CSS del kit inyectado en
+   runtime (width del modo colapsado y transition de width). */
 @media (max-width: 767px) {
-  .app__sidebar {
+  aside.app__sidebar {
     position: fixed;
     top: 0;
     bottom: 0;
     left: 0;
     z-index: 60;
+    width: var(--sidebar-width); /* el drawer siempre completo, aunque esté colapsado */
     transform: translateX(-100%);
     transition: transform var(--duration-normal) var(--ease-standard);
     box-shadow: var(--shadow-lg);
-  }
-
-  /* En el drawer siempre se muestra completo, aunque en desktop esté colapsado. */
-  .app__sidebar.esge-sidebar--collapsed {
-    width: var(--sidebar-width);
   }
   .app__sidebar.esge-sidebar--collapsed .esge-navitem__label,
   .app__sidebar.esge-sidebar--collapsed .esge-navitem__badge,
@@ -76,7 +74,7 @@ body,
     padding: 14px 12px 6px;
   }
 
-  .app__sidebar--open {
+  aside.app__sidebar--open {
     transform: translateX(0);
   }
 

@@ -76,6 +76,18 @@ export function AppLayout() {
     if (isMobile()) setMobileNavOpen((v) => !v);
     else toggleSidebar();
   };
+
+  // Tablet (768–1023): el sidebar arranca colapsado a iconos (responsive.md)
+  // y se re-colapsa/expande al cruzar el breakpoint; el toggle manual sigue
+  // disponible dentro de cada rango.
+  const setSidebarCollapsed = useUiStore((s) => s.setSidebarCollapsed);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px) and (max-width: 1023px)');
+    const apply = () => setSidebarCollapsed(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [setSidebarCollapsed]);
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
   const selectedYearName = useYearStore((s) => s.selectedYearName);
