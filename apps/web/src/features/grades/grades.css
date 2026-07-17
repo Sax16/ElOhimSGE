@@ -27,28 +27,6 @@
   opacity: 0.7;
 }
 
-/* Logro del bimestre: punto de estado + select. */
-.esge-logro {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-.esge-logro__select {
-  width: 72px;
-}
-.esge-logro__dot {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-full);
-  flex-shrink: 0;
-}
-.esge-logro__dot[data-auto='true'] {
-  background: var(--brand);
-}
-.esge-logro__dot[data-auto='false'] {
-  background: var(--gold-500);
-}
-
 /* Grupo de aspectos: separador con eyebrow entre formativos y apoderado. */
 .esge-aspect-group-head {
   padding: 10px 16px;

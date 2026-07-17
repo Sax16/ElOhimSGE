@@ -25,10 +25,14 @@ interface DocRow {
 export interface ReportCardDocProps {
   reportCard: ReportCard;
   institutionName: string;
+  /** 'general' = columnas de los 4 bimestres; un periodId = solo ese bimestre. */
+  periodView: 'general' | string;
 }
 
-export function ReportCardDoc({ reportCard: rc, institutionName }: ReportCardDocProps) {
-  const periods = [...rc.periods].sort((a, b) => a.order - b.order);
+export function ReportCardDoc({ reportCard: rc, institutionName, periodView }: ReportCardDocProps) {
+  const allPeriods = [...rc.periods].sort((a, b) => a.order - b.order);
+  const general = periodView === 'general';
+  const periods = general ? allPeriods : allPeriods.filter((p) => p.id === periodView);
   const student = rc.student;
 
   const columns: TableColumn<DocRow>[] = [
@@ -65,9 +69,11 @@ export function ReportCardDoc({ reportCard: rc, institutionName }: ReportCardDoc
     .filter(Boolean)
     .join(' · ');
 
+  // La asistencia es por bimestre: en la vista General no se muestra.
   const att = rc.attendance;
-  const attLine =
-    att.pct == null
+  const attLine = general
+    ? null
+    : att.pct == null
       ? 'Asistencia del bimestre: sin registro'
       : `Asistencia del bimestre: ${att.pct}% · ${att.tardanzas} ${att.tardanzas === 1 ? 'tardanza' : 'tardanzas'}` +
         (att.faltas ? ` · ${att.faltas} ${att.faltas === 1 ? 'falta' : 'faltas'}` : '');
@@ -85,7 +91,7 @@ export function ReportCardDoc({ reportCard: rc, institutionName }: ReportCardDoc
             {student.fullName} · {subline}
           </div>
         </div>
-        <Badge tone="brand">{rc.period.name}</Badge>
+        <Badge tone="brand">{general ? 'General' : (periods[0]?.name ?? rc.period.name)}</Badge>
       </div>
 
       {/* Cursos */}
@@ -114,7 +120,7 @@ export function ReportCardDoc({ reportCard: rc, institutionName }: ReportCardDoc
       {/* Pie */}
       <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', font: 'var(--type-caption)', color: 'var(--text-muted)' }}>
         <span>AD Logro destacado · A Logrado · B En proceso · C En inicio</span>
-        <span>{attLine}</span>
+        {attLine && <span>{attLine}</span>}
       </div>
     </Card>
   );

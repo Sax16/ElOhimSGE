@@ -74,7 +74,9 @@ export const gradeSheetQuerySchema = z.object({
 });
 export type GradeSheetQuery = z.infer<typeof gradeSheetQuerySchema>;
 
-// PUT /api/grades/sheet — guarda la captura de competencias (y ajustes manuales de logro).
+// PUT /api/grades/sheet — guarda la captura de competencias. El "logro del
+// bimestre" es SIEMPRE automático (promedio de competencias): no se acepta
+// ajuste manual, ni para docente ni para Admin (regla de negocio, jul 2026).
 export const gradeSheetSaveSchema = z.object({
   sectionId: z.string().min(1, 'Selecciona una sección'),
   courseId: z.string().min(1, 'Selecciona un curso'),
@@ -86,15 +88,6 @@ export const gradeSheetSaveSchema = z.object({
       letter: gradeLetterOrNull,
     }),
   ),
-  // Ajuste manual del "logro del bimestre": letra → auto=false; null → vuelve al automático.
-  results: z
-    .array(
-      z.object({
-        enrollmentId: z.string().min(1),
-        letter: gradeLetterOrNull,
-      }),
-    )
-    .optional(),
   reason: correctionReason.optional(),
 });
 export type GradeSheetSaveInput = z.infer<typeof gradeSheetSaveSchema>;

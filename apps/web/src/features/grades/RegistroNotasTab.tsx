@@ -6,6 +6,7 @@ import { useLocation } from 'react-router-dom';
 import {
   Alert,
   Avatar,
+  Badge,
   Button,
   Card,
   Icons,
@@ -24,16 +25,16 @@ import { exportGradeSheet, useGradeSheet, useMyCourses, useSaveGradeSheet } from
 import {
   GRADE_LETTERS,
   GRADE_LETTER_LABELS,
+  GRADE_LETTER_TONES,
   computeCourseResult,
   courseCondition,
   shortCompetency,
 } from './bits';
-import { LogroSelect, NotaSelect } from './NotaSelect';
+import { NotaSelect } from './NotaSelect';
 import { ReasonDialog } from './ReasonDialog';
 import type { GradeLetter, SheetStudent } from './types';
 
 type Letters = Record<string, Record<string, GradeLetter | null>>; // enrollmentId → competencyId → letra
-type Manual = Record<string, GradeLetter>; // enrollmentId → logro ajustado (ausente = automático)
 
 const composite = (sectionId: string, courseId: string) => `${sectionId}|${courseId}`;
 
@@ -93,19 +94,16 @@ export function RegistroNotasTab() {
   const editable = (sheet?.editable ?? false) || (isAdmin && !!periodClosed);
   const requireReason = editable && !!periodClosed;
 
-  // Estado editable: notas por competencia y ajustes de logro.
+  // Estado editable: notas por competencia. El logro del bimestre es SIEMPRE
+  // automático (regla de negocio): no hay ajuste manual, ni para Admin.
   const [letters, setLetters] = useState<Letters>({});
-  const [manual, setManual] = useState<Manual>({});
   useEffect(() => {
     if (!sheet) return;
     const nextLetters: Letters = {};
-    const nextManual: Manual = {};
     for (const s of sheet.students) {
       nextLetters[s.enrollmentId] = { ...s.letters };
-      if (s.result && !s.result.auto) nextManual[s.enrollmentId] = s.result.letter;
     }
     setLetters(nextLetters);
-    setManual(nextManual);
   }, [sheet]);
 
   const setLetter = (enrollmentId: string, competencyId: string, letter: GradeLetter | null) =>
@@ -114,19 +112,8 @@ export function RegistroNotasTab() {
       [enrollmentId]: { ...prev[enrollmentId], [competencyId]: letter },
     }));
 
-  const setManualResult = (enrollmentId: string, letter: GradeLetter | null) =>
-    setManual((prev) => {
-      const next = { ...prev };
-      if (letter == null) delete next[enrollmentId];
-      else next[enrollmentId] = letter;
-      return next;
-    });
-
   const autoLetterOf = (enrollmentId: string): GradeLetter | null =>
     computeCourseResult(competencies.map((c) => letters[enrollmentId]?.[c.id] ?? null));
-
-  const effectiveLetterOf = (enrollmentId: string): GradeLetter | null =>
-    manual[enrollmentId] ?? autoLetterOf(enrollmentId);
 
   // Avance en vivo: notas de competencia registradas / total esperado.
   const filled = useMemo(
@@ -150,10 +137,6 @@ export function RegistroNotasTab() {
         letter: letters[s.enrollmentId]?.[c.id] ?? null,
       })),
     ),
-    results: students.map((s) => ({
-      enrollmentId: s.enrollmentId,
-      letter: manual[s.enrollmentId] ?? null,
-    })),
     ...(reason ? { reason } : {}),
   });
 
@@ -228,22 +211,22 @@ export function RegistroNotasTab() {
       key: 'logro',
       header: 'Logro del bimestre',
       align: 'center',
-      render: (_v, r) => (
-        <LogroSelect
-          manual={manual[r.enrollmentId] ?? null}
-          autoLetter={autoLetterOf(r.enrollmentId)}
-          disabled={!editable}
-          ariaLabel={`Logro — ${r.fullName}`}
-          onChange={(letter) => setManualResult(r.enrollmentId, letter)}
-        />
-      ),
+      render: (_v, r) => {
+        const letter = autoLetterOf(r.enrollmentId);
+        if (!letter) return <span style={{ color: 'var(--text-subtle)' }}>—</span>;
+        return (
+          <Badge tone={GRADE_LETTER_TONES[letter]} solid={letter === 'AD'}>
+            {letter}
+          </Badge>
+        );
+      },
     },
     {
       key: 'cond',
       header: 'Condición',
       align: 'center',
       render: (_v, r) => {
-        const cond = courseCondition(effectiveLetterOf(r.enrollmentId));
+        const cond = courseCondition(autoLetterOf(r.enrollmentId));
         if (!cond) return <span style={{ color: 'var(--text-subtle)' }}>—</span>;
         return <span style={{ font: 'var(--type-label)', color: cond.color }}>{cond.label}</span>;
       },

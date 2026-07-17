@@ -18,6 +18,8 @@ const CHIP: Record<GradeLetter, { bg: string; fg: string }> = {
 
 export interface ReportCardPrintContext {
   institutionName: string;
+  /** 'general' = columnas de los 4 bimestres; un periodId = solo ese bimestre. */
+  periodView: 'general' | string;
 }
 
 function esc(value: string): string {
@@ -36,7 +38,9 @@ function chip(letter: GradeLetter | null | undefined): string {
 
 /** Documento HTML completo de la libreta (exportado para poder probarlo aislado). */
 export function reportCardHtml(rc: ReportCard, ctx: ReportCardPrintContext): string {
-  const periods = [...rc.periods].sort((a, b) => a.order - b.order);
+  const general = ctx.periodView === 'general';
+  const allPeriods = [...rc.periods].sort((a, b) => a.order - b.order);
+  const periods = general ? allPeriods : allPeriods.filter((p) => p.id === ctx.periodView);
   const headCols = periods.map((p) => `<th class="c">${esc(p.name)}</th>`).join('');
 
   const courseRows = rc.courses
@@ -74,9 +78,11 @@ export function reportCardHtml(rc: ReportCard, ctx: ReportCardPrintContext): str
     .filter(Boolean)
     .join(' · ');
 
+  // La asistencia es por bimestre: en la vista General no se imprime.
   const att = rc.attendance;
-  const attLine =
-    att.pct == null
+  const attLine = general
+    ? ''
+    : att.pct == null
       ? `Asistencia del bimestre: sin registro`
       : `Asistencia del bimestre: ${att.pct}% · ${att.tardanzas} ${
           att.tardanzas === 1 ? 'tardanza' : 'tardanzas'
@@ -137,7 +143,7 @@ export function reportCardHtml(rc: ReportCard, ctx: ReportCardPrintContext): str
         <div class="inst">${esc(ctx.institutionName)} — Libreta de calificaciones · ${esc(rc.year)}</div>
         <div class="sub">${esc(student.fullName)} · ${subline}</div>
       </div>
-      <span class="badge">${esc(rc.period.name)}</span>
+      <span class="badge">${general ? 'General' : esc(periods[0]?.name ?? rc.period.name)}</span>
     </div>
 
     <table>
@@ -151,7 +157,7 @@ export function reportCardHtml(rc: ReportCard, ctx: ReportCardPrintContext): str
 
     <div class="foot">
       <span>AD Logro destacado · A Logrado · B En proceso · C En inicio</span>
-      <span>${attLine}</span>
+      ${attLine ? `<span>${attLine}</span>` : ''}
     </div>
   </div>
 </body>

@@ -425,18 +425,7 @@ export class GradesService {
         throw new BadRequestException('Una de las competencias no pertenece al curso');
       }
     }
-    const resultsInput = input.results ?? [];
-    for (const r of resultsInput) {
-      if (!validEnrollmentIds.has(r.enrollmentId)) {
-        throw new BadRequestException('Una de las matrículas no pertenece a la sección');
-      }
-    }
-
-    const touched = new Set<string>([
-      ...input.entries.map((e) => e.enrollmentId),
-      ...resultsInput.map((r) => r.enrollmentId),
-    ]);
-    const resultsMap = new Map(resultsInput.map((r) => [r.enrollmentId, r.letter]));
+    const touched = new Set<string>(input.entries.map((e) => e.enrollmentId));
 
     // Estado previo (para auditoría de corrección en periodo CERRADO).
     const beforeEntries = await this.prisma.gradeEntry.findMany({
@@ -492,28 +481,10 @@ export class GradesService {
         }
       }
 
-      // Resultados existentes (para respetar auto=false en enrollments tocados solo por entries).
-      const existingResults = await tx.courseResult.findMany({
-        where: { courseId: input.courseId, periodId: input.periodId, enrollment: { sectionId: input.sectionId } },
-        select: { enrollmentId: true, auto: true },
-      });
-      const existingResultMap = new Map(existingResults.map((r) => [r.enrollmentId, r.auto]));
-
-      // Recalcula/aplica el logro por cada enrollment tocado.
+      // El logro del bimestre es SIEMPRE automático (regla de negocio): se
+      // recalcula para cada enrollment tocado, incluso si alguna fila quedó
+      // con un ajuste manual antiguo (auto=false) — el guardado la normaliza.
       for (const enrollmentId of touched) {
-        if (resultsMap.has(enrollmentId)) {
-          const letter = resultsMap.get(enrollmentId)!;
-          if (letter !== null) {
-            // Ajuste manual: congela el valor (auto=false).
-            await this.upsertResult(tx, input.courseId, input.periodId, enrollmentId, letter, false, actor.sub);
-          } else {
-            // Reset a automático.
-            await this.recomputeAutoResult(tx, input.courseId, input.periodId, enrollmentId, actor.sub);
-          }
-          continue;
-        }
-        // Solo tocado por entries: recalcula automático salvo que su result sea manual (auto=false).
-        if (existingResultMap.get(enrollmentId) === false) continue;
         await this.recomputeAutoResult(tx, input.courseId, input.periodId, enrollmentId, actor.sub);
       }
 
@@ -781,6 +752,10 @@ export class GradesService {
   // ===== GET /grades/report-card =====
 
   async reportCard(actor: JwtUser, enrollmentId: string, periodId: string) {
+    // Regla de negocio (jul 2026): la libreta solo la ve/imprime el ADMIN.
+    if (actor.role !== 'ADMIN') {
+      throw new ForbiddenException('Solo administración puede ver e imprimir libretas');
+    }
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id: enrollmentId },
       select: {
@@ -797,10 +772,6 @@ export class GradesService {
     });
     if (!enrollment) throw new NotFoundException('Matrícula no encontrada');
     const section = enrollment.section;
-
-    if (!this.isAdmin(actor) && !(await this.ownsSectionAny(actor, section as SectionRow))) {
-      throw new ForbiddenException('No tienes acceso a este estudiante');
-    }
 
     const period = await this.loadPeriod(periodId);
 

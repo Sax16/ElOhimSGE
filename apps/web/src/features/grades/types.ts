@@ -79,18 +79,11 @@ export interface SheetEntry {
   letter: GradeLetter | null; // null = borra la nota
 }
 
-/** Ajuste manual del logro de curso (letter null = volver a automático). */
-export interface SheetResultInput {
-  enrollmentId: string;
-  letter: GradeLetter | null;
-}
-
 export interface SaveSheetBody {
   sectionId: string;
   courseId: string;
   periodId: string;
   entries: SheetEntry[];
-  results?: SheetResultInput[];
   reason?: string; // ≥10, exigido por el back en periodo cerrado
 }
 

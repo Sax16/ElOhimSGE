@@ -24,15 +24,25 @@ export function LibretasTab() {
   const { data: periodsData } = useGradePeriods(yearId);
   const periods = useMemo(() => periodsData ?? [], [periodsData]);
 
-  const [periodId, setPeriodId] = useState('');
+  // Vista de periodo: un bimestre concreto (solo su columna) o "General"
+  // (las columnas de los 4 bimestres, sin la línea de asistencia).
+  const [periodView, setPeriodView] = useState('');
   useEffect(() => {
     if (periods.length === 0) return;
-    setPeriodId((cur) => {
-      if (cur && periods.some((p) => p.id === cur)) return cur;
+    setPeriodView((cur) => {
+      if (cur === 'general' || (cur && periods.some((p) => p.id === cur))) return cur;
       const current = periods.find((p) => p.status === 'EN_CURSO');
       return (current ?? periods[0]!).id;
     });
   }, [periods]);
+
+  // El API siempre necesita un periodId concreto (asistencia del pie y roster):
+  // en la vista General se usa el bimestre en curso.
+  const periodId = useMemo(() => {
+    if (periodView !== 'general') return periodView;
+    const current = periods.find((p) => p.status === 'EN_CURSO');
+    return (current ?? periods[0])?.id ?? '';
+  }, [periodView, periods]);
 
   // Secciones visibles: my-sections de asistencia (tutorías y asignaciones;
   // admin ve todas).
@@ -82,7 +92,7 @@ export function LibretasTab() {
   const onPrint = () => {
     if (!reportCard) return;
     try {
-      printReportCard(reportCard, { institutionName });
+      printReportCard(reportCard, { institutionName, periodView });
     } catch (err) {
       toast('danger', 'No se pudo imprimir', err instanceof ApiError ? err.message : 'Inténtalo de nuevo.');
     }
@@ -121,11 +131,14 @@ export function LibretasTab() {
         <Select
           label="Periodo"
           placeholder={periods.length === 0 ? 'Sin periodos' : 'Elige un periodo'}
-          options={periods.map((p) => ({ value: p.id, label: p.name }))}
-          value={periodId}
-          onChange={(e) => setPeriodId(e.target.value)}
+          options={[
+            ...periods.map((p) => ({ value: p.id, label: p.name })),
+            { value: 'general', label: 'General (4 bimestres)' },
+          ]}
+          value={periodView}
+          onChange={(e) => setPeriodView(e.target.value)}
           disabled={periods.length === 0}
-          containerStyle={{ minWidth: 160 }}
+          containerStyle={{ minWidth: 180 }}
         />
         <div style={{ flex: 1 }} />
         <Button variant="primary" iconLeft={<Icons.Printer />} disabled={!reportCard} onClick={onPrint}>
@@ -140,7 +153,7 @@ export function LibretasTab() {
       )}
 
       {reportCard ? (
-        <ReportCardDoc reportCard={reportCard} institutionName={institutionName} />
+        <ReportCardDoc reportCard={reportCard} institutionName={institutionName} periodView={periodView} />
       ) : (
         <Card>
           <EmptyState
