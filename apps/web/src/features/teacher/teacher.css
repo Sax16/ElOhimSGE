@@ -14,3 +14,20 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Mis aulas + Avance de notas: mitad y mitad en desktop (lg ≥1024); en
+   tablet/móvil se apilan. Si solo hay una card (sin avance aún), ocupa todo. */
+.esge-teacher-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.esge-teacher-cols > :only-child {
+  grid-column: 1 / -1;
+}
+@media (max-width: 1023px) {
+  .esge-teacher-cols {
+    grid-template-columns: 1fr;
+  }
+}

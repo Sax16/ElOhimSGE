@@ -94,7 +94,8 @@ export function TeacherHomePage() {
         />
       </div>
 
-      {/* Mis aulas */}
+      {/* Mis aulas + Avance de notas: dos columnas en desktop, apiladas en móvil */}
+      <div className="esge-teacher-cols">
       {!isLoading && sections.length === 0 ? (
         <Card>
           <EmptyState
@@ -161,6 +162,7 @@ export function TeacherHomePage() {
           </div>
         </Card>
       )}
+      </div>
     </div>
   );
 }
