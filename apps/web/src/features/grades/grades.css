@@ -1,0 +1,91 @@
+/* Notas por competencias, aspectos y libreta (R4 · Etapa 2). */
+
+/* Selector compacto de nota literal (competencias, aspectos y logro). */
+.esge-nota-select {
+  width: 56px;
+  height: 34px;
+  text-align: center;
+  text-align-last: center;
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  background: var(--surface-card);
+  color: var(--text-strong);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+.esge-nota-select:focus {
+  box-shadow: var(--shadow-focus);
+}
+.esge-nota-select:disabled {
+  background: var(--surface-sunken);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Logro del bimestre: punto de estado + select. */
+.esge-logro {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.esge-logro__select {
+  width: 72px;
+}
+.esge-logro__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+.esge-logro__dot[data-auto='true'] {
+  background: var(--brand);
+}
+.esge-logro__dot[data-auto='false'] {
+  background: var(--gold-500);
+}
+
+/* Grupo de aspectos: separador con eyebrow entre formativos y apoderado. */
+.esge-aspect-group-head {
+  padding: 10px 16px;
+  background: var(--surface-sunken);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Documento de la libreta en pantalla. */
+.esge-libreta {
+  max-width: 780px;
+}
+.esge-libreta__band {
+  padding: 10px 18px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-sunken);
+}
+
+/* Config → Evaluación: fila de competencia/aspecto. */
+.esge-eval-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-top: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+.esge-eval-row__order {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-subtle);
+  width: 22px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.esge-eval-row__name {
+  flex: 1;
+  min-width: 160px;
+  font: var(--type-label);
+  color: var(--text-strong);
+}

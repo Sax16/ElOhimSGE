@@ -10,6 +10,7 @@ import { seedCashier } from './08-cashier';
 import { seedTreasury } from './09-treasury';
 import { seedStaff } from './10-staff';
 import { seedR4Academico } from './11-r4-academico';
+import { seedR4Notas } from './12-r4-notas';
 
 const prisma = new PrismaClient();
 
@@ -26,6 +27,7 @@ async function main() {
   await seedTreasury(prisma);
   await seedStaff(prisma);
   await seedR4Academico(prisma);
+  await seedR4Notas(prisma);
   console.log('Seed Elohim SGE — completado');
 }
 

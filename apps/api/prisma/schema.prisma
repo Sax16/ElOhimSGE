@@ -240,6 +240,9 @@ model User {
   studentAttendanceMarked      StudentAttendanceEntry[] @relation("StudentAttendanceMarkedBy")
   studentAttendanceCorrected   StudentAttendanceEntry[] @relation("StudentAttendanceCorrectedBy")
   courseAssignments            CourseAssignment[]   @relation("CourseAssignmentTeacher")
+  gradeEntriesGraded           GradeEntry[]         @relation("GradeEntryGradedBy")
+  courseResultsGraded          CourseResult[]       @relation("CourseResultGradedBy")
+  aspectGradesGraded           AspectGrade[]        @relation("AspectGradeGradedBy")
 }
 
 // Singleton (id = 1): datos institucionales de la pestaña Configuración > Institución.
@@ -310,6 +313,10 @@ model Period {
   status         PeriodStatus @default(PROXIMO)
   order          Int
 
+  gradeEntries  GradeEntry[]
+  courseResults CourseResult[]
+  aspectGrades  AspectGrade[]
+
   @@unique([academicYearId, order])
 }
 
@@ -366,7 +373,10 @@ model Course {
   teacherId    String?
   teacher      User?      @relation("CourseTeacher", fields: [teacherId], references: [id])
 
-  assignments CourseAssignment[]
+  assignments   CourseAssignment[]
+  competencies  CourseCompetency[]
+  gradeEntries  GradeEntry[]
+  courseResults CourseResult[]
 
   @@unique([gradeLevelId, name])
 }
@@ -538,6 +548,9 @@ model Enrollment {
 
   installments      Installment[]
   attendanceEntries StudentAttendanceEntry[]
+  gradeEntries      GradeEntry[]
+  courseResults     CourseResult[]
+  aspectGrades      AspectGrade[]
 
   // Unicidad estudiante+año SOLO para matrículas vigentes: índice único parcial WHERE canceledAt
   // IS NULL (creado por migración SQL, no representable en el schema Prisma). Permite re-matricular
@@ -1190,6 +1203,113 @@ model CourseAssignment {
 
   @@unique([courseId, sectionId])
   @@index([teacherId])
+}
+
+// ===== Académico (R4 — E2): notas por competencias =====
+
+enum GradeLetter {
+  AD
+  A
+  B
+  C
+}
+
+enum EvaluationAspectKind {
+  FORMATIVO
+  APODERADO
+}
+
+// Competencia CNEB configurable de un curso (Configuración → Evaluación). Se elimina solo si no
+// tiene notas registradas (si no → 409). El registro de notas es por competencia.
+model CourseCompetency {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id])
+  name     String
+  order    Int
+
+  gradeEntries GradeEntry[]
+
+  @@unique([courseId, name])
+  @@index([courseId])
+}
+
+// Aspecto de evaluación cualitativa de la libreta (formativo o del apoderado). Los registra el
+// TUTOR del aula. No se elimina: se desactiva (active=false); los AspectGrade históricos se conservan.
+model EvaluationAspect {
+  id     String               @id @default(cuid())
+  kind   EvaluationAspectKind
+  name   String
+  order  Int
+  active Boolean              @default(true)
+
+  grades AspectGrade[]
+
+  @@unique([kind, name])
+}
+
+// Nota literal de una competencia (estudiante × curso × periodo × competencia). Captura en curso:
+// vaciar una celda mientras el periodo está EN_CURSO elimina la fila. Corrección en CERRADO solo
+// ADMIN (con AuditLog grades.correct; sin columnas de corrección aquí).
+model GradeEntry {
+  id           String           @id @default(cuid())
+  enrollmentId String
+  enrollment   Enrollment       @relation(fields: [enrollmentId], references: [id])
+  courseId     String
+  course       Course           @relation(fields: [courseId], references: [id])
+  periodId     String
+  period       Period           @relation(fields: [periodId], references: [id])
+  competencyId String
+  competency   CourseCompetency @relation(fields: [competencyId], references: [id])
+  letter       GradeLetter
+  gradedById   String
+  gradedBy     User             @relation("GradeEntryGradedBy", fields: [gradedById], references: [id])
+  gradedAt     DateTime         @updatedAt
+  createdAt    DateTime         @default(now())
+
+  @@unique([enrollmentId, courseId, periodId, competencyId])
+  @@index([courseId, periodId])
+}
+
+// "Logro del bimestre" de un curso (estudiante × curso × periodo). auto=true: promedio de las
+// competencias (computeCourseResult de shared); auto=false: ajuste manual del docente que congela
+// el valor hasta que lo borre (vuelve a auto).
+model CourseResult {
+  id           String      @id @default(cuid())
+  enrollmentId String
+  enrollment   Enrollment  @relation(fields: [enrollmentId], references: [id])
+  courseId     String
+  course       Course      @relation(fields: [courseId], references: [id])
+  periodId     String
+  period       Period      @relation(fields: [periodId], references: [id])
+  letter       GradeLetter
+  auto         Boolean     @default(true)
+  gradedById   String
+  gradedBy     User        @relation("CourseResultGradedBy", fields: [gradedById], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([enrollmentId, courseId, periodId])
+  @@index([courseId, periodId])
+}
+
+// Nota literal de un aspecto (estudiante × periodo × aspecto). Solo el TUTOR del aula o ADMIN la
+// registra. Mismas reglas de periodo que las notas de curso.
+model AspectGrade {
+  id           String           @id @default(cuid())
+  enrollmentId String
+  enrollment   Enrollment       @relation(fields: [enrollmentId], references: [id])
+  periodId     String
+  period       Period           @relation(fields: [periodId], references: [id])
+  aspectId     String
+  aspect       EvaluationAspect @relation(fields: [aspectId], references: [id])
+  letter       GradeLetter
+  gradedById   String
+  gradedBy     User             @relation("AspectGradeGradedBy", fields: [gradedById], references: [id])
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([enrollmentId, periodId, aspectId])
 }
 
 // Secuencias de códigos legibles: "student" → E-####, "guardian" → A-####, "enrollment:2026" → M-2026-####

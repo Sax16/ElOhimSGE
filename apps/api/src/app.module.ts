@@ -18,6 +18,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ReportsModule } from './reports/reports.module';
 import { StudentAttendanceModule } from './student-attendance/student-attendance.module';
+import { GradesModule } from './grades/grades.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { StudentAttendanceModule } from './student-attendance/student-attendance
     DashboardModule,
     ReportsModule,
     StudentAttendanceModule,
+    GradesModule,
     HealthModule,
   ],
 })

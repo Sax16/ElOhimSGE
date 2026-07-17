@@ -3,8 +3,12 @@
 // Spec: design/ui_kits/sge/TeacherScreen.jsx (SGE_TeacherHome).
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Badge, Button, Card, EmptyState, Icons, StatCard } from '@elohim/ui';
+import { Avatar, Badge, Button, Card, EmptyState, Icons, ProgressBar, StatCard } from '@elohim/ui';
 import { useMe } from '../../lib/useMe';
+import { useSelectedYear } from '../../lib/useSelectedYear';
+import { useGradePeriods } from '../grades/api';
+import { useMyCourses } from '../grades/api';
+import { pct, progressTone } from '../grades/bits';
 import { useMySections } from '../student-attendance/api';
 import {
   SHIFT_LABELS,
@@ -27,8 +31,24 @@ export function TeacherHomePage() {
   const studentTotal = sections.reduce((sum, s) => sum + s.studentCount, 0);
   const takenCount = sections.filter((s) => s.taken).length;
 
+  // Avance de notas del bimestre en curso (my-courses del periodo EN_CURSO).
+  const { yearId } = useSelectedYear();
+  const { data: periodsData } = useGradePeriods(yearId);
+  const currentPeriod = useMemo(
+    () => (periodsData ?? []).find((p) => p.status === 'EN_CURSO'),
+    [periodsData],
+  );
+  const { data: coursesData } = useMyCourses(currentPeriod?.id);
+  const gradeCourses = useMemo(() => coursesData?.courses ?? [], [coursesData]);
+  const gradeFilled = gradeCourses.reduce((sum, c) => sum + c.filled, 0);
+  const gradeTotal = gradeCourses.reduce((sum, c) => sum + c.total, 0);
+  const gradePct = pct(gradeFilled, gradeTotal);
+
   const goMark = (sectionId: string) =>
     navigate('/tasist', { state: { sectionId } });
+
+  const goGrades = (sectionId: string, courseId: string) =>
+    navigate('/notas', { state: { sectionId, courseId } });
 
   const name = me ? firstName(me.fullName) : '';
 
@@ -65,6 +85,13 @@ export function TeacherHomePage() {
           icon={<Icons.Calendar />}
           caption="aulas de hoy"
         />
+        <StatCard
+          label="Notas del bimestre"
+          value={gradeTotal === 0 ? '—' : `${gradePct}%`}
+          iconTone="success"
+          icon={<Icons.Book />}
+          caption="registradas"
+        />
       </div>
 
       {/* Mis aulas */}
@@ -87,6 +114,50 @@ export function TeacherHomePage() {
                 Cargando tus aulas…
               </div>
             )}
+          </div>
+        </Card>
+      )}
+
+      {/* Avance de notas del bimestre en curso */}
+      {currentPeriod && gradeCourses.length > 0 && (
+        <Card flush title={`Avance de notas · ${currentPeriod.name}`} subtitle="Registra las notas por competencia de cada curso">
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {gradeCourses.map((c) => {
+              const p = pct(c.filled, c.total);
+              return (
+                <div
+                  key={`${c.sectionId}-${c.courseId}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: '13px 18px',
+                    borderTop: '1px solid var(--border-subtle)',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 220 }}>
+                    <ProgressBar
+                      label={`${c.courseName} — ${c.sectionLabel}`}
+                      value={c.filled}
+                      max={Math.max(c.total, 1)}
+                      showValue
+                      size="sm"
+                      tone={progressTone(p)}
+                      valueFormat={() => `${p}%`}
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    iconLeft={<Icons.Book />}
+                    onClick={() => goGrades(c.sectionId, c.courseId)}
+                  >
+                    Ir al registro de notas
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}

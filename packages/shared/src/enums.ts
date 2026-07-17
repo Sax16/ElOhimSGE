@@ -195,3 +195,17 @@ export type StudentAttendanceStatus = (typeof STUDENT_ATTENDANCE_STATUSES)[numbe
 // Rol del docente sobre una sección (para la vista "mis secciones").
 export const SECTION_TEACHER_ROLES = ['TUTOR', 'DOCENTE'] as const;
 export type SectionTeacherRole = (typeof SECTION_TEACHER_ROLES)[number];
+
+// ===== Académico (R4 — E2): notas por competencias =====
+
+// Escala literal única para todos los niveles (incluido Inicial). Orden de mejor a peor.
+export const GRADE_LETTERS = ['AD', 'A', 'B', 'C'] as const;
+export type GradeLetter = (typeof GRADE_LETTERS)[number];
+
+// Aspectos de evaluación cualitativa de la libreta: los registra el TUTOR del aula.
+export const EVALUATION_ASPECT_KINDS = ['FORMATIVO', 'APODERADO'] as const;
+export type EvaluationAspectKind = (typeof EVALUATION_ASPECT_KINDS)[number];
+
+// Condición del curso en el bimestre (derivada del promedio de competencias; no se materializa).
+export const COURSE_CONDITIONS = ['LOGRADO', 'EN_PROCESO', 'EN_INICIO'] as const;
+export type CourseCondition = (typeof COURSE_CONDITIONS)[number];

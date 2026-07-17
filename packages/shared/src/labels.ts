@@ -7,7 +7,10 @@ import {
   type CashSessionStatus,
   type CommitmentFrequency,
   type CommitmentStatus,
+  type CourseCondition,
   type DiscountApplication,
+  type EvaluationAspectKind,
+  type GradeLetter,
   type EmploymentType,
   type EnrollmentStatus,
   type EnrollmentType,
@@ -304,4 +307,32 @@ export const STUDENT_ATTENDANCE_STATUS_TONES: Record<
   TARDANZA: 'warning',
   FALTA: 'danger',
   JUSTIFICADA: 'info',
+};
+
+// ===== Académico (R4 — E2): notas por competencias =====
+
+export const GRADE_LETTER_LABELS: Record<GradeLetter, string> = {
+  AD: 'Logro destacado',
+  A: 'Logrado',
+  B: 'En proceso',
+  C: 'En inicio',
+};
+
+// Tono del badge (design system): éxito/marca/advertencia/peligro.
+export const GRADE_LETTER_TONES: Record<GradeLetter, 'success' | 'brand' | 'warning' | 'danger'> = {
+  AD: 'success',
+  A: 'brand',
+  B: 'warning',
+  C: 'danger',
+};
+
+export const EVALUATION_ASPECT_KIND_LABELS: Record<EvaluationAspectKind, string> = {
+  FORMATIVO: 'Aspectos formativos',
+  APODERADO: 'Evaluación del apoderado',
+};
+
+export const COURSE_CONDITION_LABELS: Record<CourseCondition, string> = {
+  LOGRADO: 'Logrado',
+  EN_PROCESO: 'En proceso',
+  EN_INICIO: 'En inicio',
 };

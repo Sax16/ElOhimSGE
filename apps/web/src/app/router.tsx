@@ -63,6 +63,9 @@ const StudentAttendancePage = lazy(() =>
 const AssignmentsPage = lazy(() =>
   import('../features/assignments/AssignmentsPage').then((m) => ({ default: m.AssignmentsPage })),
 );
+const GradesPage = lazy(() =>
+  import('../features/grades/GradesPage').then((m) => ({ default: m.GradesPage })),
+);
 
 function Loading() {
   return (
@@ -134,6 +137,8 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
           <StudentAttendancePage />
         ) : id === 'horarios' ? (
           <AssignmentsPage />
+        ) : id === 'notas' ? (
+          <GradesPage />
         ) : (
           <PlaceholderPage />
         )}
