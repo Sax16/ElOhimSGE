@@ -236,18 +236,22 @@ export function ConductPage() {
           />
         </div>
         <Select
-          placeholder="Todas"
           value={severity}
           onChange={(e) => setSeverity(e.target.value as '' | ConductSeverity)}
           containerStyle={{ minWidth: 140 }}
-          options={SEVERITY_ORDER.map((s) => ({ value: s, label: SEVERITY_LABELS[s] }))}
+          options={[
+            { value: '', label: 'Todas' },
+            ...SEVERITY_ORDER.map((s) => ({ value: s, label: SEVERITY_LABELS[s] })),
+          ]}
         />
         <Select
-          placeholder="Todos"
           value={status}
           onChange={(e) => setStatus(e.target.value as '' | ConductStatus)}
           containerStyle={{ minWidth: 190 }}
-          options={STATUS_ORDER.map((s) => ({ value: s, label: STATUS_LABELS[s] }))}
+          options={[
+            { value: '', label: 'Todos' },
+            ...STATUS_ORDER.map((s) => ({ value: s, label: STATUS_LABELS[s] })),
+          ]}
         />
         <div className="esge-conduct-toolbar__spacer" />
         <Button variant="primary" iconLeft={<Icons.Plus />} onClick={() => setRegisterOpen(true)}>
