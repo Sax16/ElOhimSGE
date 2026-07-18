@@ -27,3 +27,4 @@ export * from './schemas/attendance';
 export * from './schemas/payroll';
 export * from './schemas/student-attendance';
 export * from './schemas/grades';
+export * from './schemas/conduct';

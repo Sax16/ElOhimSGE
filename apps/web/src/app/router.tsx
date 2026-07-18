@@ -66,6 +66,9 @@ const AssignmentsPage = lazy(() =>
 const GradesPage = lazy(() =>
   import('../features/grades/GradesPage').then((m) => ({ default: m.GradesPage })),
 );
+const ConductPage = lazy(() =>
+  import('../features/conduct/ConductPage').then((m) => ({ default: m.ConductPage })),
+);
 
 function Loading() {
   return (
@@ -139,6 +142,8 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
           <AssignmentsPage />
         ) : id === 'notas' ? (
           <GradesPage />
+        ) : id === 'conducta' ? (
+          <ConductPage />
         ) : (
           <PlaceholderPage />
         )}

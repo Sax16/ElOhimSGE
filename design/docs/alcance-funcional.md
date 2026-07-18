@@ -261,3 +261,11 @@ Reportes (pantalla según `ReportsScreen.jsx`, permiso `reportes`): en R2 se hab
 - **La pestaña Libretas es solo para ADMIN** (validado también en el API: 403 para docentes) — corrección post-validación de E2.
 - **La libreta se ve por bimestre**: el selector de periodo muestra solo la columna del bimestre elegido, con la opción **"General (4 bimestres)"** que despliega las cuatro columnas (sin la línea de asistencia, que es por bimestre) — corrección post-validación de E2.
 - **Acta en Excel simple** por curso·sección·bimestre (N°, código, estudiante, competencias, logro, condición). SIAGIE queda fuera de R4 (pendiente de plantilla oficial).
+
+### Conducta — decisiones de la etapa 3 (jul 2026)
+- **Modelo del prototipo confirmado**: solo incidencias disciplinarias, con **asunto** corto (texto libre, adaptación de producción: el prototipo no tenía campo de tipo pero la tabla lo mostraba), descripción de los hechos (≥10) y medida aplicada opcional. Correlativo legible **I-####**.
+- **Gravedad → acción**: Leve = solo registro · Moderada = aviso wa.me al apoderado · Grave = aviso + **citación presencial con fecha obligatoria**.
+- **El aviso es manual** (coherente con la decisión de canal de R4): el botón abre wa.me con el mensaje prellenado al contacto principal y recién entonces el sistema marca el aviso — Moderada pasa a "Apoderado notificado" y Grave a "Citación programada". "Reenviar aviso" refresca la fecha del aviso sin cambiar el estado.
+- **Estados**: Registrada → Apoderado notificado / Citación programada → Cerrada, más **Anulada** (solo Admin, motivo ≥10, auditoría — "nada se borra"; el prototipo no contemplaba anulación y se añadió por la regla de negocio transversal).
+- **Quién registra y ve**: el docente sobre estudiantes de **sus** secciones (tutoría o asignación docente, mismo scope que asistencia; el "auxiliar" del prototipo no tiene usuario en el sistema) y Admin sobre todas; cerrar puede quien tiene acceso a la sección; anular solo Admin. Permiso del módulo: `notas` (así lo mapea la navegación).
+- Las incidencias graves cerradas y el historial completo quedan consultables con filtros por gravedad/estado y búsqueda por estudiante o asunto.

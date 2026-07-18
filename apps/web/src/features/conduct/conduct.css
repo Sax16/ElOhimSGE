@@ -1,0 +1,238 @@
+/* Conducta e incidencias — layout responsive (desktop-first; lg ≥1024 / md 768–1023 / sm <768). */
+
+/* Grilla de StatCards. */
+.esge-conduct-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+@media (max-width: 1023px) {
+  .esge-conduct-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .esge-conduct-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Toolbar de filtros. */
+.esge-conduct-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.esge-conduct-toolbar__search {
+  flex: 1;
+  min-width: 220px;
+}
+.esge-conduct-toolbar__spacer {
+  flex: 1;
+}
+@media (max-width: 767px) {
+  .esge-conduct-toolbar__spacer {
+    display: none;
+  }
+  .esge-conduct-toolbar__search {
+    flex-basis: 100%;
+  }
+}
+
+/* Celda "Estudiante" e "Incidencia" de la tabla (avatar + dos líneas). */
+.esge-conduct-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.esge-conduct-cell__stack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.esge-conduct-cell__main {
+  font: var(--type-label);
+  color: var(--text-strong);
+}
+.esge-conduct-cell__sub {
+  font: var(--type-2xs);
+  color: var(--text-muted);
+}
+
+/* Alternancia tabla (md+) / tarjetas (sm). */
+.esge-conduct-cards {
+  display: none;
+}
+@media (max-width: 767px) {
+  .esge-conduct-table {
+    display: none;
+  }
+  .esge-conduct-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+/* Tarjeta de incidencia (vista sm). */
+.esge-conduct-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.esge-conduct-card--canceled {
+  opacity: 0.6;
+}
+.esge-conduct-card__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.esge-conduct-card__code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.esge-conduct-card__date {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--text-subtle);
+  margin-left: auto;
+}
+.esge-conduct-card__summary {
+  font: var(--type-label);
+  color: var(--text-strong);
+}
+.esge-conduct-card__meta {
+  font: var(--type-2xs);
+  color: var(--text-muted);
+}
+.esge-conduct-card__badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.esge-conduct-card__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+/* Detalle: filas de datos con eyebrow. */
+.esge-conduct-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+}
+.esge-conduct-detail__badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.esge-conduct-detail__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 767px) {
+  .esge-conduct-detail__grid {
+    grid-template-columns: 1fr;
+  }
+}
+.esge-conduct-detail__field {
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  min-width: 0;
+}
+.esge-conduct-detail__field--full {
+  grid-column: 1 / -1;
+}
+.esge-conduct-detail__eyebrow {
+  font: var(--type-caption);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+.esge-conduct-detail__value {
+  font: var(--type-body);
+  color: var(--text-body);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.esge-conduct-detail__value--mono {
+  font-family: var(--font-mono);
+}
+
+/* Buscador de estudiantes del dialog de registro. */
+.esge-conduct-search {
+  position: relative;
+}
+.esge-conduct-search__results {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-top: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.esge-conduct-search__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  background: var(--surface-card);
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.esge-conduct-search__item:last-child {
+  border-bottom: none;
+}
+.esge-conduct-search__item:hover {
+  background: var(--surface-hover);
+}
+.esge-conduct-search__empty {
+  padding: 10px 12px;
+  font: var(--type-caption);
+  color: var(--text-muted);
+}
+
+/* Estudiante elegido (chip). */
+.esge-conduct-picked {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-brand-soft);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+.esge-conduct-picked__stack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.esge-conduct-picked__name {
+  font: var(--type-label);
+  color: var(--text-strong);
+}
+.esge-conduct-picked__meta {
+  font: var(--type-2xs);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}

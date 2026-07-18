@@ -7,6 +7,8 @@ import {
   type CashSessionStatus,
   type CommitmentFrequency,
   type CommitmentStatus,
+  type ConductSeverity,
+  type ConductStatus,
   type CourseCondition,
   type DiscountApplication,
   type EvaluationAspectKind,
@@ -335,4 +337,39 @@ export const COURSE_CONDITION_LABELS: Record<CourseCondition, string> = {
   LOGRADO: 'Logrado',
   EN_PROCESO: 'En proceso',
   EN_INICIO: 'En inicio',
+};
+
+// ===== Académico (R4 — E3): conducta e incidencias =====
+
+export const CONDUCT_SEVERITY_LABELS: Record<ConductSeverity, string> = {
+  LEVE: 'Leve',
+  MODERADA: 'Moderada',
+  GRAVE: 'Grave',
+};
+
+// Tono del badge (design system): informativo / advertencia / peligro.
+export const CONDUCT_SEVERITY_TONES: Record<ConductSeverity, 'info' | 'warning' | 'danger'> = {
+  LEVE: 'info',
+  MODERADA: 'warning',
+  GRAVE: 'danger',
+};
+
+export const CONDUCT_STATUS_LABELS: Record<ConductStatus, string> = {
+  REGISTRADA: 'Registrada',
+  APODERADO_NOTIFICADO: 'Apoderado notificado',
+  CITACION_PROGRAMADA: 'Citación programada',
+  CERRADA: 'Cerrada',
+  ANULADA: 'Anulada',
+};
+
+// Tono del badge (design system). Anulada → neutral, consistente con estados terminales/inertes.
+export const CONDUCT_STATUS_TONES: Record<
+  ConductStatus,
+  'info' | 'warning' | 'danger' | 'neutral'
+> = {
+  REGISTRADA: 'info',
+  APODERADO_NOTIFICADO: 'warning',
+  CITACION_PROGRAMADA: 'danger',
+  CERRADA: 'neutral',
+  ANULADA: 'neutral',
 };

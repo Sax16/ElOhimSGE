@@ -209,3 +209,21 @@ export type EvaluationAspectKind = (typeof EVALUATION_ASPECT_KINDS)[number];
 // Condición del curso en el bimestre (derivada del promedio de competencias; no se materializa).
 export const COURSE_CONDITIONS = ['LOGRADO', 'EN_PROCESO', 'EN_INICIO'] as const;
 export type CourseCondition = (typeof COURSE_CONDITIONS)[number];
+
+// ===== Académico (R4 — E3): conducta e incidencias =====
+
+// Gravedad de una incidencia disciplinaria (solo faltas, no méritos).
+// LEVE = solo registro · MODERADA = aviso al apoderado · GRAVE = aviso + citación presencial.
+export const CONDUCT_SEVERITIES = ['LEVE', 'MODERADA', 'GRAVE'] as const;
+export type ConductSeverity = (typeof CONDUCT_SEVERITIES)[number];
+
+// Estados de una incidencia. REGISTRADA → APODERADO_NOTIFICADO (moderada) / CITACION_PROGRAMADA
+// (grave) → CERRADA. ANULADA (solo Admin) es terminal — "nada se borra".
+export const CONDUCT_STATUSES = [
+  'REGISTRADA',
+  'APODERADO_NOTIFICADO',
+  'CITACION_PROGRAMADA',
+  'CERRADA',
+  'ANULADA',
+] as const;
+export type ConductStatus = (typeof CONDUCT_STATUSES)[number];

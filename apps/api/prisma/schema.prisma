@@ -243,6 +243,9 @@ model User {
   gradeEntriesGraded           GradeEntry[]         @relation("GradeEntryGradedBy")
   courseResultsGraded          CourseResult[]       @relation("CourseResultGradedBy")
   aspectGradesGraded           AspectGrade[]        @relation("AspectGradeGradedBy")
+  conductIncidentsRegistered   ConductIncident[]    @relation("ConductIncidentRegisteredBy")
+  conductIncidentsClosed       ConductIncident[]    @relation("ConductIncidentClosedBy")
+  conductIncidentsCanceled     ConductIncident[]    @relation("ConductIncidentCanceledBy")
 }
 
 // Singleton (id = 1): datos institucionales de la pestaña Configuración > Institución.
@@ -551,6 +554,7 @@ model Enrollment {
   gradeEntries      GradeEntry[]
   courseResults     CourseResult[]
   aspectGrades      AspectGrade[]
+  conductIncidents  ConductIncident[]
 
   // Unicidad estudiante+año SOLO para matrículas vigentes: índice único parcial WHERE canceledAt
   // IS NULL (creado por migración SQL, no representable en el schema Prisma). Permite re-matricular
@@ -1310,6 +1314,57 @@ model AspectGrade {
   updatedAt    DateTime         @updatedAt
 
   @@unique([enrollmentId, periodId, aspectId])
+}
+
+// ===== Académico (R4 — E3): conducta e incidencias =====
+
+enum ConductSeverity {
+  LEVE
+  MODERADA
+  GRAVE
+}
+
+enum ConductStatus {
+  REGISTRADA
+  APODERADO_NOTIFICADO
+  CITACION_PROGRAMADA
+  CERRADA
+  ANULADA
+}
+
+// Incidencia disciplinaria de un estudiante (por matrícula). Solo faltas, no méritos. El aviso al
+// apoderado es MANUAL vía wa.me (el front abre el enlace y luego confirma con /notified). "Nada se
+// borra": la anulación (solo Admin, motivo ≥ 10) conserva el registro. Correlativo I-####.
+model ConductIncident {
+  id           String          @id @default(cuid())
+  code         String          @unique // "I-0001"
+  enrollmentId String
+  enrollment   Enrollment      @relation(fields: [enrollmentId], references: [id])
+  occurredAt   DateTime
+  summary      String // asunto corto (texto libre)
+  description  String // descripción de los hechos
+  measure      String? // medida aplicada (opcional)
+  severity     ConductSeverity
+  status       ConductStatus   @default(REGISTRADA)
+
+  citationAt DateTime? // fecha de citación (obligatoria si GRAVE)
+  notifiedAt DateTime? // cuándo se avisó al apoderado por wa.me
+
+  closedAt   DateTime?
+  closedById String?
+  closedBy   User?     @relation("ConductIncidentClosedBy", fields: [closedById], references: [id])
+
+  canceledAt   DateTime?
+  cancelReason String?
+  canceledById String?
+  canceledBy   User?     @relation("ConductIncidentCanceledBy", fields: [canceledById], references: [id])
+
+  registeredById String
+  registeredBy   User   @relation("ConductIncidentRegisteredBy", fields: [registeredById], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@index([status])
+  @@index([enrollmentId])
 }
 
 // Secuencias de códigos legibles: "student" → E-####, "guardian" → A-####, "enrollment:2026" → M-2026-####
