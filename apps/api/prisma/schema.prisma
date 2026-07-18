@@ -246,6 +246,9 @@ model User {
   conductIncidentsRegistered   ConductIncident[]    @relation("ConductIncidentRegisteredBy")
   conductIncidentsClosed       ConductIncident[]    @relation("ConductIncidentClosedBy")
   conductIncidentsCanceled     ConductIncident[]    @relation("ConductIncidentCanceledBy")
+  calendarEventsCreated        CalendarEvent[]      @relation("CalendarEventCreatedBy")
+  announcementsCreated         Announcement[]       @relation("AnnouncementCreatedBy")
+  announcementsSent            Announcement[]       @relation("AnnouncementSentBy")
 }
 
 // Singleton (id = 1): datos institucionales de la pestaña Configuración > Institución.
@@ -300,10 +303,12 @@ model AcademicYear {
   enrollmentStart DateTime   @db.Date
   status          YearStatus @default(ACTIVO)
 
-  periods     Period[]
-  levels      Level[]
-  programs    Program[]
-  enrollments Enrollment[]
+  periods        Period[]
+  levels         Level[]
+  programs       Program[]
+  enrollments    Enrollment[]
+  calendarEvents CalendarEvent[]
+  announcements  Announcement[]
 }
 
 model Period {
@@ -331,8 +336,9 @@ model Level {
   description    String? // rango: "3–5 años"
   order          Int
 
-  grades GradeLevel[]
-  fee    LevelFee?
+  grades        GradeLevel[]
+  fee           LevelFee?
+  announcements Announcement[]
 
   @@unique([academicYearId, name])
 }
@@ -344,8 +350,9 @@ model GradeLevel {
   name    String // "3 años" | "3°"
   order   Int
 
-  sections Section[]
-  courses  Course[]
+  sections      Section[]
+  courses       Course[]
+  announcements Announcement[]
 
   @@unique([levelId, name])
 }
@@ -363,6 +370,7 @@ model Section {
 
   enrollments       Enrollment[]
   courseAssignments CourseAssignment[]
+  announcements     Announcement[]
 
   @@unique([gradeLevelId, name, shift])
 }
@@ -1365,6 +1373,77 @@ model ConductIncident {
 
   @@index([status])
   @@index([enrollmentId])
+}
+
+// ===== Académico (R4 — E4): calendario y comunicados =====
+
+enum CalendarEventType {
+  FERIADO
+  EXAMEN
+  ACTIVIDAD
+}
+
+// Evento del calendario académico, por año. Un FERIADO (día o rango) es no lectivo: bloquea la toma
+// de asistencia de estudiantes y neutraliza la falta derivada del personal. EXAMEN/ACTIVIDAD son
+// informativos. Los feriados nacionales se precargan en el seed (editables). "Todo configurable va
+// a tablas": Admin añade/edita/elimina eventos (con AuditLog). Año CERRADO = solo lectura (API).
+model CalendarEvent {
+  id             String            @id @default(cuid())
+  academicYearId String
+  academicYear   AcademicYear      @relation(fields: [academicYearId], references: [id])
+  type           CalendarEventType
+  name           String
+  startDate      DateTime          @db.Date
+  endDate        DateTime          @db.Date
+  description    String?
+  createdById    String
+  createdBy      User              @relation("CalendarEventCreatedBy", fields: [createdById], references: [id])
+  createdAt      DateTime          @default(now())
+
+  @@index([academicYearId, startDate])
+}
+
+enum AnnouncementScope {
+  COLEGIO
+  NIVEL
+  GRADO
+  SECCION
+}
+
+enum AnnouncementStatus {
+  BORRADOR
+  ENVIADO
+}
+
+// Comunicado a las familias por wa.me MANUAL (contacto principal, deduplicado por apoderado). Un
+// solo alcance por comunicado (COLEGIO/NIVEL/GRADO/SECCION). BORRADOR se edita/elimina; un ENVIADO
+// es histórico (no se edita ni se elimina): guarda snapshot de recipientsCount y sentAt. Correlativo
+// C-####.
+model Announcement {
+  id              String             @id @default(cuid())
+  code            String             @unique // "C-0001"
+  academicYearId  String
+  academicYear    AcademicYear       @relation(fields: [academicYearId], references: [id])
+  title           String
+  body            String
+  scope           AnnouncementScope
+  levelId         String?
+  level           Level?             @relation(fields: [levelId], references: [id])
+  gradeLevelId    String?
+  gradeLevel      GradeLevel?        @relation(fields: [gradeLevelId], references: [id])
+  sectionId       String?
+  section         Section?           @relation(fields: [sectionId], references: [id])
+  status          AnnouncementStatus @default(BORRADOR)
+  recipientsCount Int? // snapshot al enviar
+  sentAt          DateTime?
+  sentById        String?
+  sentBy          User?              @relation("AnnouncementSentBy", fields: [sentById], references: [id])
+  createdById     String
+  createdBy       User               @relation("AnnouncementCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([status])
 }
 
 // Secuencias de códigos legibles: "student" → E-####, "guardian" → A-####, "enrollment:2026" → M-2026-####

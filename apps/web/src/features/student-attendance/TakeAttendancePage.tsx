@@ -195,13 +195,18 @@ export function TakeAttendancePage() {
         ))}
       </div>
 
-      {/* Aviso de solo lectura */}
-      {roster && !editable && (
-        <Alert tone="info" title="Solo lectura">
-          Solo administración corrige días pasados. Puedes revisar la asistencia, pero no editarla
-          desde aquí.
-        </Alert>
-      )}
+      {/* Aviso de solo lectura / día no lectivo */}
+      {roster && !editable &&
+        (effectiveDate === today ? (
+          <Alert tone="warning" title="Día no lectivo">
+            Hoy es un día no lectivo (feriado): no se toma asistencia.
+          </Alert>
+        ) : (
+          <Alert tone="info" title="Solo lectura">
+            Solo administración corrige días pasados. Puedes revisar la asistencia, pero no editarla
+            desde aquí.
+          </Alert>
+        ))}
 
       {/* Lista de alumnos */}
       <Card

@@ -1,0 +1,203 @@
+/* Calendario académico — grilla mensual (md+) / agenda (sm). Desktop-first. */
+
+/* Encabezado: navegación de mes + leyenda + acción. */
+.esge-cal-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.esge-cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.esge-cal-nav__label {
+  font: var(--type-h3);
+  min-width: 150px;
+  text-align: center;
+}
+.esge-cal-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.esge-cal-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: var(--type-caption);
+  color: var(--text-muted);
+}
+.esge-cal-legend__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* Grilla mensual. */
+.esge-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.esge-cal-grid__head {
+  padding: 9px 10px;
+  font: var(--type-caption);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+  text-align: center;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.esge-cal-grid__head--weekend {
+  color: var(--text-subtle);
+}
+.esge-cal-cell {
+  min-height: 92px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface-card);
+}
+.esge-cal-cell:nth-child(7n + 1) {
+  border-left: none;
+}
+.esge-cal-cell--blank {
+  background: var(--surface-sunken);
+}
+.esge-cal-cell--weekend {
+  background: var(--surface-sunken);
+}
+.esge-cal-cell--holiday {
+  background: var(--danger-soft);
+}
+.esge-cal-cell__day {
+  font: var(--type-caption);
+  font-weight: var(--weight-semibold);
+  color: var(--text-body);
+}
+.esge-cal-cell__day--muted {
+  color: var(--text-subtle);
+}
+.esge-cal-cell__today {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--brand);
+  color: var(--brand-fg);
+}
+
+/* Chip de evento dentro de la celda / agenda. */
+.esge-cal-chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-left: 3px solid var(--chip-color, var(--brand));
+  background: var(--chip-soft, var(--surface-brand-soft));
+  color: var(--chip-fg, var(--text-body));
+  border-radius: var(--radius-xs);
+  padding: 3px 6px;
+  font: var(--type-2xs);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: filter var(--duration-fast) var(--ease-standard);
+}
+.esge-cal-chip:hover {
+  filter: brightness(0.97);
+}
+
+/* Agenda (sm): un bloque por día con eventos. */
+.esge-cal-agenda {
+  display: none;
+  flex-direction: column;
+}
+.esge-cal-agenda__day {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.esge-cal-agenda__day:last-child {
+  border-bottom: none;
+}
+.esge-cal-agenda__date {
+  flex-shrink: 0;
+  width: 96px;
+  font: var(--type-label);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  text-transform: capitalize;
+}
+.esge-cal-agenda__date--holiday {
+  color: var(--danger);
+}
+.esge-cal-agenda__events {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.esge-cal-agenda__chip {
+  white-space: normal;
+}
+
+/* Alternancia grilla (md+) / agenda (sm). */
+@media (max-width: 767px) {
+  .esge-cal-grid {
+    display: none;
+  }
+  .esge-cal-agenda {
+    display: flex;
+  }
+  .esge-cal-nav__label {
+    min-width: 120px;
+  }
+  .esge-cal-header .esge-cal-legend {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+
+/* Detalle del evento. */
+.esge-cal-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+}
+.esge-cal-detail__row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.esge-cal-detail__eyebrow {
+  font: var(--type-caption);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+}
+.esge-cal-detail__value {
+  font: var(--type-body);
+  color: var(--text-body);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.esge-cal-detail__value--mono {
+  font-family: var(--font-mono);
+}

@@ -3,7 +3,10 @@
 
 import {
   type ActiveStatus,
+  type AnnouncementScope,
+  type AnnouncementStatus,
   type AttendanceStatus,
+  type CalendarEventType,
   type CashSessionStatus,
   type CommitmentFrequency,
   type CommitmentStatus,
@@ -372,4 +375,37 @@ export const CONDUCT_STATUS_TONES: Record<
   CITACION_PROGRAMADA: 'danger',
   CERRADA: 'neutral',
   ANULADA: 'neutral',
+};
+
+// ===== Académico (R4 — E4): calendario y comunicados =====
+
+export const CALENDAR_EVENT_TYPE_LABELS: Record<CalendarEventType, string> = {
+  FERIADO: 'Feriado',
+  EXAMEN: 'Exámenes',
+  ACTIVIDAD: 'Actividad',
+};
+
+// Tono del badge (design system): peligro (no lectivo) / marca (evaluación) / advertencia (actividad).
+export const CALENDAR_EVENT_TYPE_TONES: Record<CalendarEventType, 'danger' | 'brand' | 'warning'> = {
+  FERIADO: 'danger',
+  EXAMEN: 'brand',
+  ACTIVIDAD: 'warning',
+};
+
+export const ANNOUNCEMENT_SCOPE_LABELS: Record<AnnouncementScope, string> = {
+  COLEGIO: 'Todo el colegio',
+  NIVEL: 'Nivel',
+  GRADO: 'Grado',
+  SECCION: 'Sección',
+};
+
+export const ANNOUNCEMENT_STATUS_LABELS: Record<AnnouncementStatus, string> = {
+  BORRADOR: 'Borrador',
+  ENVIADO: 'Enviado',
+};
+
+// Tono del badge (design system): borrador neutral / enviado éxito.
+export const ANNOUNCEMENT_STATUS_TONES: Record<AnnouncementStatus, 'neutral' | 'success'> = {
+  BORRADOR: 'neutral',
+  ENVIADO: 'success',
 };

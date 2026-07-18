@@ -19,6 +19,7 @@ import { AuditService } from '../common/audit/audit.service';
 import { type JwtUser } from '../auth/decorators/current-user.decorator';
 import { dateToISO, isoToDate } from '../common/installment-view.util';
 import { limaTodayISO } from '../common/lima-time.util';
+import { getHolidaySet } from '../common/holidays.util';
 import { buildStudentAttendanceWorkbook } from './student-attendance.xlsx';
 import {
   emptyCounts,
@@ -269,7 +270,7 @@ export class StudentAttendanceService {
     };
   }
 
-  // editable: día futuro / no hábil / año cerrado → false. Docente: solo HOY y su sección.
+  // editable: día futuro / no hábil / feriado / año cerrado → false. Docente: solo HOY y su sección.
   // Admin: HOY siempre; día pasado solo si la toma NO existe (existente → corrección individual).
   private async computeEditable(
     actor: JwtUser,
@@ -280,6 +281,9 @@ export class StudentAttendanceService {
     const today = limaTodayISO();
     if (date > today) return false;
     if (!isBusinessDayISO(date)) return false;
+    // Feriado (día no lectivo): no se toma asistencia.
+    const holidays = await getHolidaySet(this.prisma, date, date);
+    if (holidays.has(date)) return false;
     if (section.gradeLevel.level.academicYear.status === 'CERRADO') return false;
 
     if (!this.isAdmin(actor)) {
@@ -301,6 +305,12 @@ export class StudentAttendanceService {
       throw new UnprocessableEntityException(
         'Solo se registra asistencia en días hábiles (lunes a viernes)',
       );
+    }
+
+    // Feriado (día no lectivo): no se toma asistencia.
+    const holidays = await getHolidaySet(this.prisma, date, date);
+    if (holidays.has(date)) {
+      throw new UnprocessableEntityException('Día no lectivo (feriado): no se toma asistencia');
     }
 
     const year = await this.activeYear();

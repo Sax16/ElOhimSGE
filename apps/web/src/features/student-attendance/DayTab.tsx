@@ -224,12 +224,17 @@ export function DayTab() {
         })}
       </div>
 
-      {roster && !roster.editable && (
-        <Alert tone="info" title="Día ya registrado">
-          Este día ya tiene asistencia tomada. Solo administración puede corregir entrada por entrada,
-          con justificación.
-        </Alert>
-      )}
+      {roster && !roster.editable &&
+        (date === today ? (
+          <Alert tone="warning" title="Día no lectivo">
+            Hoy es un día no lectivo (feriado): no se toma asistencia.
+          </Alert>
+        ) : (
+          <Alert tone="info" title="Día ya registrado">
+            Este día ya tiene asistencia tomada. Solo administración puede corregir entrada por
+            entrada, con justificación.
+          </Alert>
+        ))}
 
       <div className="esge-sa-day-grid">
         <Card flush title={roster?.section.label ?? 'Sección'} subtitle={dayTitle(date)}>

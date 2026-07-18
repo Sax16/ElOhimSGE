@@ -6,11 +6,13 @@ import {
   incomeQuerySchema,
   payrollAnnualQuerySchema,
   rosterQuerySchema,
+  studentAttendanceReportQuerySchema,
   type CashReportQueryInput,
   type DelinquencyQueryInput,
   type IncomeQueryInput,
   type PayrollAnnualQueryInput,
   type RosterQueryInput,
+  type StudentAttendanceReportQueryInput,
 } from '@elohim/shared';
 import { zodQuery } from '../common/zod-validation.pipe';
 import { RequirePermission } from '../common/permissions/require-permission.decorator';
@@ -104,5 +106,23 @@ export class ReportsController {
     @Res() res: Response,
   ) {
     this.send(res, await this.reports.payrollAnnualExport(query));
+  }
+
+  // ===== Asistencia mensual de estudiantes (R4 — E4) =====
+  @Get('student-attendance')
+  @RequirePermission('reportes', 'ver')
+  studentAttendance(
+    @(zodQuery(studentAttendanceReportQuerySchema)) query: StudentAttendanceReportQueryInput,
+  ) {
+    return this.reports.studentAttendance(query);
+  }
+
+  @Get('student-attendance/export')
+  @RequirePermission('reportes', 'ver')
+  async studentAttendanceExport(
+    @(zodQuery(studentAttendanceReportQuerySchema)) query: StudentAttendanceReportQueryInput,
+    @Res() res: Response,
+  ) {
+    this.send(res, await this.reports.studentAttendanceExport(query));
   }
 }

@@ -4,7 +4,13 @@ import type { EnrollmentType, PaymentMethod, StudentStatus } from '@elohim/share
 import type { CashierSessionSummary } from '../cashier/types';
 
 /** Identificador del reporte activo. */
-export type ReportKey = 'delinquency' | 'income' | 'cash' | 'roster' | 'payrollAnnual';
+export type ReportKey =
+  | 'delinquency'
+  | 'income'
+  | 'cash'
+  | 'roster'
+  | 'payrollAnnual'
+  | 'studentAttendance';
 
 // ---- Morosidad por grado ----------------------------------------------------
 export interface DelinquencyGroup {
@@ -71,4 +77,21 @@ export interface RosterRow {
 export interface RosterReport {
   rows: RosterRow[];
   total: number;
+}
+
+// ---- Asistencia mensual (estudiantes) --------------------------------------
+export interface StudentAttendanceSection {
+  sectionId: string;
+  label: string; // "3° A · Primaria"
+  students: number;
+  P: number;
+  T: number;
+  F: number;
+  J: number;
+  /** % asistencia (null si no hay días registrados). */
+  pct: number | null;
+}
+export interface StudentAttendanceReport {
+  month: string; // 'YYYY-MM'
+  sections: StudentAttendanceSection[];
 }

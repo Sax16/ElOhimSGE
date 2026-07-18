@@ -69,6 +69,12 @@ const GradesPage = lazy(() =>
 const ConductPage = lazy(() =>
   import('../features/conduct/ConductPage').then((m) => ({ default: m.ConductPage })),
 );
+const CalendarPage = lazy(() =>
+  import('../features/calendar/CalendarPage').then((m) => ({ default: m.CalendarPage })),
+);
+const AnnouncementsPage = lazy(() =>
+  import('../features/announcements/AnnouncementsPage').then((m) => ({ default: m.AnnouncementsPage })),
+);
 
 function Loading() {
   return (
@@ -144,6 +150,10 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
           <GradesPage />
         ) : id === 'conducta' ? (
           <ConductPage />
+        ) : id === 'calendario' ? (
+          <CalendarPage />
+        ) : id === 'comunicados' ? (
+          <AnnouncementsPage />
         ) : (
           <PlaceholderPage />
         )}

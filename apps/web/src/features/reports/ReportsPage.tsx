@@ -32,11 +32,13 @@ import {
   useDelinquencyReport,
   useIncomeReport,
   useRosterReport,
+  useStudentAttendanceReport,
   type CashFilters,
   type DelinquencyFilters,
   type IncomeFilters,
   type PayrollAnnualFilters,
   type RosterFilters,
+  type StudentAttendanceFilters,
 } from './api';
 import type {
   CashReport,
@@ -44,6 +46,7 @@ import type {
   IncomeReport,
   ReportKey,
   RosterReport,
+  StudentAttendanceReport,
 } from './types';
 import './reports.css';
 
@@ -93,7 +96,7 @@ const CARDS: ReportCardDef[] = [
   { key: 'delinquency', title: 'Morosidad por grado', desc: 'Cuotas vencidas y deuda acumulada por nivel y grado', icon: 'Chart', tone: 'danger' },
   { key: 'income', title: 'Ingresos por concepto', desc: 'Pensiones, matrículas, programas y otros ingresos por periodo', icon: 'Cash', tone: 'success' },
   { key: 'roster', title: 'Padrón de estudiantes', desc: 'Lista completa con apoderado principal, contacto y estado', icon: 'Users', tone: 'brand' },
-  { key: null, title: 'Asistencia mensual', desc: 'Estudiantes y personal: faltas, tardanzas y justificaciones', icon: 'Calendar', tone: 'accent', soon: 'R4' },
+  { key: 'studentAttendance', title: 'Asistencia mensual', desc: 'Asistencia de estudiantes: presentes, tardanzas, faltas y justificadas por sección', icon: 'Calendar', tone: 'accent' },
   { key: 'payrollAnnual', title: 'Planilla anual', desc: 'Sueldos, descuentos y aportes por empleado, mes a mes', icon: 'Building', tone: 'brand' },
   { key: 'cash', title: 'Caja diaria', desc: 'Cobros por método y cobrador, arqueos y anulaciones', icon: 'Receipt', tone: 'success' },
 ];
@@ -104,7 +107,14 @@ const REPORT_TITLE: Record<ReportKey, string> = {
   cash: 'Caja diaria',
   roster: 'Padrón de estudiantes',
   payrollAnnual: 'Planilla anual',
+  studentAttendance: 'Asistencia mensual',
 };
+
+/** Mes en curso como 'YYYY-MM' (fecha civil local). */
+function currentMonthStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 /** Rango del mes en curso ({ from: 1° del mes, to: hoy }) en fecha civil local. */
 function currentMonthRange(): { from: string; to: string } {
@@ -135,6 +145,9 @@ export function ReportsPage() {
   // Filtro de Planilla anual.
   const [annualYear, setAnnualYear] = useState<number>(baseYear);
 
+  // Filtro de Asistencia mensual.
+  const [attendanceMonth, setAttendanceMonth] = useState<string>(currentMonthStr);
+
   const [exporting, setExporting] = useState(false);
 
   const delinquencyFilters: DelinquencyFilters = { yearId };
@@ -142,6 +155,7 @@ export function ReportsPage() {
   const cashFilters: CashFilters = { from: range.from, to: range.to };
   const rosterFilters: RosterFilters = { yearId, levelId };
   const payrollAnnualFilters: PayrollAnnualFilters = { year: annualYear };
+  const studentAttendanceFilters: StudentAttendanceFilters = { yearId, month: attendanceMonth };
 
   const activeFilters =
     active === 'delinquency'
@@ -152,7 +166,9 @@ export function ReportsPage() {
           ? cashFilters
           : active === 'payrollAnnual'
             ? payrollAnnualFilters
-            : rosterFilters;
+            : active === 'studentAttendance'
+              ? studentAttendanceFilters
+              : rosterFilters;
 
   const onExport = async () => {
     setExporting(true);
@@ -258,6 +274,15 @@ export function ReportsPage() {
             containerStyle={{ width: 120 }}
           />
         )}
+        {active === 'studentAttendance' && (
+          <Input
+            label="Mes"
+            type="month"
+            value={attendanceMonth}
+            onChange={(e) => setAttendanceMonth(e.target.value)}
+            containerStyle={{ width: 180 }}
+          />
+        )}
 
         <div className="esge-reports-filters__spacer" />
         <Button variant="secondary" iconLeft={<Icons.Download />} disabled={exporting} onClick={onExport}>
@@ -271,6 +296,9 @@ export function ReportsPage() {
       {active === 'cash' && <CashPreview filters={cashFilters} />}
       {active === 'roster' && <RosterPreview filters={rosterFilters} />}
       {active === 'payrollAnnual' && <PayrollAnnualPreview year={annualYear} />}
+      {active === 'studentAttendance' && (
+        <StudentAttendancePreview filters={studentAttendanceFilters} month={attendanceMonth} />
+      )}
     </div>
   );
 }
@@ -608,6 +636,71 @@ function PayrollAnnualPreview({ year }: { year: number }) {
         description="El Excel trae una hoja resumen por mes (bruto, descuentos, aportes, neto, pagado vs pendiente, EsSalud) y una hoja de detalle por empleado y mes. Usa «Exportar vista» para descargarlo."
       />
     </Card>
+  );
+}
+
+// ---- Vista previa: Asistencia mensual (estudiantes) ------------------------
+function StudentAttendancePreview({
+  filters,
+  month,
+}: {
+  filters: StudentAttendanceFilters;
+  month: string;
+}) {
+  const { data, isLoading } = useStudentAttendanceReport(filters, true);
+  const [y, m] = month.split('-').map(Number);
+  const monthLabel = `${MONTH_NAMES[m ?? 0] ?? ''} ${y ?? ''}`.trim();
+  const sections = data?.sections ?? [];
+  const subtitle = data
+    ? `${monthLabel} · ${sections.length} ${sections.length === 1 ? 'sección' : 'secciones'}`
+    : monthLabel;
+
+  const cols: TableColumn<StudentAttendanceReport['sections'][number]>[] = [
+    {
+      key: 'label',
+      header: 'Sección',
+      render: (v) => (
+        <span style={{ font: 'var(--type-label)', fontWeight: 600, color: 'var(--text-strong)' }}>
+          {v as string}
+        </span>
+      ),
+    },
+    { key: 'students', header: 'Estudiantes', align: 'center', mono: true },
+    { key: 'P', header: 'P', align: 'center', mono: true },
+    { key: 'T', header: 'T', align: 'center', mono: true },
+    { key: 'F', header: 'F', align: 'center', mono: true },
+    { key: 'J', header: 'J', align: 'center', mono: true },
+    {
+      key: 'pct',
+      header: '% asistencia',
+      align: 'right',
+      render: (v) =>
+        v == null ? (
+          <span style={{ color: 'var(--text-subtle)' }}>—</span>
+        ) : (
+          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-strong)' }}>
+            {(v as number).toFixed(1)}%
+          </span>
+        ),
+    },
+  ];
+
+  return (
+    <PreviewCard
+      title="Asistencia mensual"
+      subtitle={subtitle}
+      empty={!!data && sections.length === 0}
+      emptyDescription="No hay asistencia registrada para el mes seleccionado."
+    >
+      <Table
+        columns={cols}
+        data={sections}
+        rowKey="sectionId"
+        hover
+        zebra
+        emptyText={isLoading ? 'Cargando…' : 'Sin datos.'}
+      />
+    </PreviewCard>
   );
 }
 

@@ -15,6 +15,7 @@ import {
   type PayrollAnnualQueryInput,
   type PensionSchemeInput,
   type RosterQueryInput,
+  type StudentAttendanceReportQueryInput,
 } from '@elohim/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { decimalToCents } from '../common/money.util';
@@ -67,6 +68,12 @@ function schemeInputOf(e: {
     commissionRatePct: Number(e.commissionRatePct ?? 0),
     insuranceRatePct: Number(e.insuranceRatePct ?? 0),
   };
+}
+
+// Día hábil = lunes a viernes (columnas @db.Date en UTC medianoche → getUTCDay estable).
+function isBusinessDay(iso: string): boolean {
+  const day = isoToDate(iso).getUTCDay();
+  return day >= 1 && day <= 5;
 }
 
 // Rango [start, end) de un mes.
@@ -1043,5 +1050,226 @@ export class ReportsService {
     addSheet(wb, 'Detalle', detalleCols, detalleRows);
 
     return { buffer: await workbookToBuffer(wb), filename: `planilla-anual-${year}.xlsx` };
+  }
+
+  // ===================== 6) Asistencia mensual de estudiantes (R4 — E4) =====================
+
+  // Agrega la asistencia del mes por sección y por estudiante (solo estudiantes; el personal
+  // exporta desde su pestaña). Solo días hábiles con registros; secciones con ≥1 registro.
+  private async studentAttendanceData(query: StudentAttendanceReportQueryInput) {
+    const year = await this.yearOrThrow(query.yearId);
+    const monthNum = Number(query.month.slice(5, 7));
+    const yearNum = Number(query.month.slice(0, 4));
+    const { start, end } = monthRange(yearNum, monthNum);
+
+    const entries = await this.prisma.studentAttendanceEntry.findMany({
+      where: { date: { gte: start, lt: end }, enrollment: { academicYearId: query.yearId } },
+      select: {
+        status: true,
+        date: true,
+        enrollmentId: true,
+        enrollment: {
+          select: {
+            section: {
+              select: {
+                id: true,
+                name: true,
+                gradeLevel: {
+                  select: { name: true, order: true, level: { select: { name: true, order: true } } },
+                },
+              },
+            },
+            student: {
+              select: { code: true, firstNames: true, paternalLastName: true, maternalLastName: true },
+            },
+          },
+        },
+      },
+    });
+
+    interface Agg {
+      P: number;
+      T: number;
+      F: number;
+      J: number;
+    }
+    const zero = (): Agg => ({ P: 0, T: 0, F: 0, J: 0 });
+    const bump = (a: Agg, status: string) => {
+      if (status === 'PRESENTE') a.P += 1;
+      else if (status === 'TARDANZA') a.T += 1;
+      else if (status === 'FALTA') a.F += 1;
+      else if (status === 'JUSTIFICADA') a.J += 1;
+    };
+
+    const sections = new Map<
+      string,
+      {
+        sectionId: string;
+        label: string;
+        levelOrder: number;
+        gradeOrder: number;
+        sectionName: string;
+        studentIds: Set<string>;
+        agg: Agg;
+      }
+    >();
+    const students = new Map<
+      string,
+      {
+        levelOrder: number;
+        gradeOrder: number;
+        sectionName: string;
+        label: string;
+        code: string;
+        paternal: string;
+        name: string;
+        agg: Agg;
+      }
+    >();
+
+    for (const e of entries) {
+      const iso = dateToISO(e.date);
+      if (!isBusinessDay(iso)) continue;
+      const sec = e.enrollment.section;
+      const g = sec.gradeLevel;
+      const label = `${g.name} ${sec.name} · ${g.level.name}`;
+
+      let s = sections.get(sec.id);
+      if (!s) {
+        s = {
+          sectionId: sec.id,
+          label,
+          levelOrder: g.level.order,
+          gradeOrder: g.order,
+          sectionName: sec.name,
+          studentIds: new Set(),
+          agg: zero(),
+        };
+        sections.set(sec.id, s);
+      }
+      bump(s.agg, e.status);
+      s.studentIds.add(e.enrollmentId);
+
+      let st = students.get(e.enrollmentId);
+      if (!st) {
+        const stu = e.enrollment.student;
+        st = {
+          levelOrder: g.level.order,
+          gradeOrder: g.order,
+          sectionName: sec.name,
+          label,
+          code: stu.code,
+          paternal: stu.paternalLastName,
+          name: fullName(stu),
+          agg: zero(),
+        };
+        students.set(e.enrollmentId, st);
+      }
+      bump(st.agg, e.status);
+    }
+
+    const pct = (a: Agg): number | null => {
+      const total = a.P + a.T + a.F + a.J;
+      return total > 0 ? Math.round(((a.P + a.T) / total) * 100) : null;
+    };
+
+    const sectionRows = [...sections.values()]
+      .sort(
+        (a, b) =>
+          a.levelOrder - b.levelOrder ||
+          a.gradeOrder - b.gradeOrder ||
+          a.sectionName.localeCompare(b.sectionName),
+      )
+      .map((s) => ({
+        sectionId: s.sectionId,
+        label: s.label,
+        students: s.studentIds.size,
+        P: s.agg.P,
+        T: s.agg.T,
+        F: s.agg.F,
+        J: s.agg.J,
+        pct: pct(s.agg),
+      }));
+
+    const studentRows = [...students.values()]
+      .sort(
+        (a, b) =>
+          a.levelOrder - b.levelOrder ||
+          a.gradeOrder - b.gradeOrder ||
+          a.sectionName.localeCompare(b.sectionName) ||
+          a.paternal.localeCompare(b.paternal),
+      )
+      .map((s) => ({
+        label: s.label,
+        code: s.code,
+        name: s.name,
+        P: s.agg.P,
+        T: s.agg.T,
+        F: s.agg.F,
+        J: s.agg.J,
+        pct: pct(s.agg),
+      }));
+
+    return { year, month: query.month, sectionRows, studentRows };
+  }
+
+  async studentAttendance(query: StudentAttendanceReportQueryInput) {
+    const { month, sectionRows } = await this.studentAttendanceData(query);
+    return { month, sections: sectionRows };
+  }
+
+  async studentAttendanceExport(query: StudentAttendanceReportQueryInput) {
+    const { month, sectionRows, studentRows } = await this.studentAttendanceData(query);
+    const wb = newWorkbook();
+
+    addSheet(
+      wb,
+      'Resumen',
+      [
+        { header: 'Sección', key: 'section', width: 24 },
+        { header: 'Estudiantes', key: 'students', width: 12 },
+        { header: 'Presentes', key: 'p', width: 11 },
+        { header: 'Tardanzas', key: 't', width: 11 },
+        { header: 'Faltas', key: 'f', width: 9 },
+        { header: 'Justificadas', key: 'j', width: 12 },
+        { header: '% asistencia', key: 'pct', width: 13 },
+      ],
+      sectionRows.map((s) => ({
+        section: s.label,
+        students: s.students,
+        p: s.P,
+        t: s.T,
+        f: s.F,
+        j: s.J,
+        pct: s.pct ?? '',
+      })),
+    );
+
+    addSheet(
+      wb,
+      'Detalle',
+      [
+        { header: 'Sección', key: 'section', width: 24 },
+        { header: 'Código', key: 'code', width: 12 },
+        { header: 'Estudiante', key: 'name', width: 30 },
+        { header: 'P', key: 'p', width: 6 },
+        { header: 'T', key: 't', width: 6 },
+        { header: 'F', key: 'f', width: 6 },
+        { header: 'J', key: 'j', width: 6 },
+        { header: '% asistencia', key: 'pct', width: 13 },
+      ],
+      studentRows.map((s) => ({
+        section: s.label,
+        code: s.code,
+        name: s.name,
+        p: s.P,
+        t: s.T,
+        f: s.F,
+        j: s.J,
+        pct: s.pct ?? '',
+      })),
+    );
+
+    return { buffer: await workbookToBuffer(wb), filename: `asistencia-estudiantes-${month}.xlsx` };
   }
 }

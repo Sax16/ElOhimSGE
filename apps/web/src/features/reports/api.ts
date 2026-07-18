@@ -3,7 +3,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../../lib/api';
 import { downloadFile } from '../../lib/download';
-import type { CashReport, DelinquencyReport, IncomeReport, ReportKey, RosterReport } from './types';
+import type {
+  CashReport,
+  DelinquencyReport,
+  IncomeReport,
+  ReportKey,
+  RosterReport,
+  StudentAttendanceReport,
+} from './types';
 
 // ---- Filtros por reporte ----------------------------------------------------
 export interface DelinquencyFilters {
@@ -29,6 +36,11 @@ export interface RosterFilters {
 export interface PayrollAnnualFilters {
   /** Año calendario (p. ej. 2026). */
   year: number;
+}
+export interface StudentAttendanceFilters {
+  yearId: string | undefined;
+  /** Mes 'YYYY-MM'. */
+  month: string;
 }
 
 // ---- Querystrings (compartidos entre consulta y exportación) ----------------
@@ -60,12 +72,20 @@ function payrollAnnualQS(f: PayrollAnnualFilters): string {
   p.set('year', String(f.year));
   return p.toString();
 }
+function studentAttendanceQS(f: StudentAttendanceFilters): string {
+  const p = new URLSearchParams();
+  if (f.yearId) p.set('yearId', f.yearId);
+  if (f.month) p.set('month', f.month);
+  return p.toString();
+}
 
 export const reportsKeys = {
   delinquency: (f: DelinquencyFilters) => ['reports', 'delinquency', f] as const,
   income: (f: IncomeFilters) => ['reports', 'income', f] as const,
   cash: (f: CashFilters) => ['reports', 'cash', f] as const,
   roster: (f: RosterFilters) => ['reports', 'roster', f] as const,
+  studentAttendance: (f: StudentAttendanceFilters) =>
+    ['reports', 'studentAttendance', f] as const,
 };
 
 // ---- Consultas --------------------------------------------------------------
@@ -105,16 +125,40 @@ export function useRosterReport(f: RosterFilters, enabled: boolean) {
   });
 }
 
+export function useStudentAttendanceReport(f: StudentAttendanceFilters, enabled: boolean) {
+  return useQuery<StudentAttendanceReport>({
+    queryKey: reportsKeys.studentAttendance(f),
+    queryFn: () =>
+      apiFetch<StudentAttendanceReport>(`/reports/student-attendance?${studentAttendanceQS(f)}`),
+    enabled: enabled && !!f.yearId && !!f.month,
+    placeholderData: (prev) => prev,
+  });
+}
+
 // ---- Exportación ------------------------------------------------------------
 /** Descarga el .xlsx del reporte activo con los filtros aplicados. */
 export function exportReport(
   key: ReportKey,
-  filters: DelinquencyFilters | IncomeFilters | CashFilters | RosterFilters | PayrollAnnualFilters,
+  filters:
+    | DelinquencyFilters
+    | IncomeFilters
+    | CashFilters
+    | RosterFilters
+    | PayrollAnnualFilters
+    | StudentAttendanceFilters,
 ): Promise<void> {
   // La planilla anual tiene su propia ruta (no sigue el patrón /reports/:key/export).
   if (key === 'payrollAnnual') {
     const f = filters as PayrollAnnualFilters;
     return downloadFile(`/reports/payroll-annual?${payrollAnnualQS(f)}`, `planilla-anual-${f.year}.xlsx`);
+  }
+  // La asistencia mensual usa una ruta con guiones (student-attendance).
+  if (key === 'studentAttendance') {
+    const f = filters as StudentAttendanceFilters;
+    return downloadFile(
+      `/reports/student-attendance/export?${studentAttendanceQS(f)}`,
+      `asistencia-${f.month}.xlsx`,
+    );
   }
   const qs =
     key === 'delinquency'

@@ -42,3 +42,11 @@ export const payrollAnnualQuerySchema = z.object({
   year: z.coerce.number().int().min(2000).max(2100),
 });
 export type PayrollAnnualQueryInput = z.infer<typeof payrollAnnualQuerySchema>;
+
+// ===== Asistencia mensual de estudiantes (R4 — E4) =====
+// Preview: resumen por sección (P/T/F/J y % asistencia). Export: hoja Resumen + hoja Detalle.
+export const studentAttendanceReportQuerySchema = z.object({
+  yearId: z.string().min(1),
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'Mes inválido (yyyy-mm)'),
+});
+export type StudentAttendanceReportQueryInput = z.infer<typeof studentAttendanceReportQuerySchema>;

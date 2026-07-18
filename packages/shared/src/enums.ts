@@ -227,3 +227,18 @@ export const CONDUCT_STATUSES = [
   'ANULADA',
 ] as const;
 export type ConductStatus = (typeof CONDUCT_STATUSES)[number];
+
+// ===== Académico (R4 — E4): calendario y comunicados =====
+
+// Tipo de evento del calendario académico. FERIADO = día/rango no lectivo (bloquea la toma de
+// asistencia y neutraliza la falta derivada del personal). EXAMEN / ACTIVIDAD son informativos.
+export const CALENDAR_EVENT_TYPES = ['FERIADO', 'EXAMEN', 'ACTIVIDAD'] as const;
+export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number];
+
+// Alcance de un comunicado (uno por comunicado). Determina las familias destinatarias.
+export const ANNOUNCEMENT_SCOPES = ['COLEGIO', 'NIVEL', 'GRADO', 'SECCION'] as const;
+export type AnnouncementScope = (typeof ANNOUNCEMENT_SCOPES)[number];
+
+// Estado de un comunicado. BORRADOR se edita/elimina; ENVIADO es histórico (no se edita ni borra).
+export const ANNOUNCEMENT_STATUSES = ['BORRADOR', 'ENVIADO'] as const;
+export type AnnouncementStatus = (typeof ANNOUNCEMENT_STATUSES)[number];

@@ -90,7 +90,7 @@ const NAV_MODULE: Record<string, PermissionModule | null> = {
   asist: 'asistencia',
   horarios: 'estructura',
   conducta: 'notas',
-  calendario: null,
+  calendario: 'estructura',
   matricula: 'matricula',
   caja: 'caja',
   pagos: 'pensiones',

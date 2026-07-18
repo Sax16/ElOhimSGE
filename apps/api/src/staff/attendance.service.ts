@@ -17,6 +17,7 @@ import { AuditService } from '../common/audit/audit.service';
 import { type JwtUser } from '../auth/decorators/current-user.decorator';
 import { dateToISO, isoToDate } from '../common/installment-view.util';
 import { limaNowHHmm, limaTodayISO } from '../common/lima-time.util';
+import { getHolidaySet } from '../common/holidays.util';
 import {
   computeLateness,
   effectiveSchedule,
@@ -73,15 +74,17 @@ export class AttendanceService {
   }
 
   // Estado derivado (no materializado) de un empleado en un día dado su marca (si la hay).
+  // `businessDay` = día hábil computable (L–V y NO feriado): un feriado neutraliza la falta derivada.
   private deriveStatus(
     staff: AttStaff,
     entry: EntryRow | undefined,
     dateISO: string,
     todayISO: string,
+    businessDay: boolean,
   ): AttendanceStatus {
     if (entry?.checkInAt) return entry.late ? 'TARDANZA' : 'PUNTUAL';
     if (staff.status === 'LICENCIA') return 'LICENCIA';
-    if (dateISO < todayISO && isBusinessDayISO(dateISO)) return 'FALTA';
+    if (dateISO < todayISO && businessDay) return 'FALTA';
     return 'SIN_MARCAR';
   }
 
@@ -91,6 +94,7 @@ export class AttendanceService {
     dateISO: string,
     todayISO: string,
     groups: MarkingGroupRow[],
+    businessDay: boolean,
   ) {
     const eff = effectiveSchedule(staff, groups);
     const marked = Boolean(entry?.checkInAt);
@@ -109,7 +113,7 @@ export class AttendanceService {
       checkOut: entry?.checkOutAt ?? null,
       lateMinutes: marked ? entry!.lateMinutes : 0,
       corrected: Boolean(entry?.correctedById),
-      status: this.deriveStatus(staff, entry, dateISO, todayISO),
+      status: this.deriveStatus(staff, entry, dateISO, todayISO, businessDay),
     };
   }
 
@@ -129,8 +133,12 @@ export class AttendanceService {
       this.markingGroups(),
     ]);
 
+    // Día hábil computable = L–V y NO feriado (un feriado neutraliza la falta derivada).
+    const holidays = await getHolidaySet(this.prisma, date, date);
+    const businessDay = isBusinessDayISO(date) && !holidays.has(date);
+
     const byStaff = new Map(entries.map((e) => [e.staffId, e]));
-    const rows = staffList.map((s) => this.buildRow(s, byStaff.get(s.id), date, todayISO, groups));
+    const rows = staffList.map((s) => this.buildRow(s, byStaff.get(s.id), date, todayISO, groups, businessDay));
 
     const stats = {
       total: rows.length,
@@ -140,7 +148,7 @@ export class AttendanceService {
       licencias: rows.filter((r) => r.status === 'LICENCIA').length,
     };
 
-    return { date, isBusinessDay: isBusinessDayISO(date), rows, stats };
+    return { date, isBusinessDay: businessDay, rows, stats };
   }
 
   // ===== POST /api/attendance/check-in =====
@@ -292,7 +300,9 @@ export class AttendanceService {
       where: { staffId_date: { staffId: staff.id, date: isoToDate(dateISO) } },
       select: entrySelect,
     });
-    return this.buildRow(staff, entry ?? undefined, dateISO, limaTodayISO(), groups);
+    const holidays = await getHolidaySet(this.prisma, dateISO, dateISO);
+    const businessDay = isBusinessDayISO(dateISO) && !holidays.has(dateISO);
+    return this.buildRow(staff, entry ?? undefined, dateISO, limaTodayISO(), groups, businessDay);
   }
 
   // ===== GET /api/attendance/rules =====
@@ -383,12 +393,15 @@ export class AttendanceService {
     const endMonth = monthNum === 12 ? 1 : monthNum + 1;
     const end = isoToDate(`${endYear}-${String(endMonth).padStart(2, '0')}-01`);
 
-    // Días hábiles (L–V) del mes.
+    // Días hábiles (L–V) del mes, EXCLUYENDO feriados (no computan falta ni cuentan como día hábil).
     const lastDay = new Date(Date.UTC(year, monthNum, 0)).getUTCDate();
+    const monthStartISO = `${yearStr}-${monthStr}-01`;
+    const monthEndISO = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
+    const holidays = await getHolidaySet(this.prisma, monthStartISO, monthEndISO);
     const businessDays: string[] = [];
     for (let d = 1; d <= lastDay; d++) {
       const iso = `${yearStr}-${monthStr}-${String(d).padStart(2, '0')}`;
-      if (isBusinessDayISO(iso)) businessDays.push(iso);
+      if (isBusinessDayISO(iso) && !holidays.has(iso)) businessDays.push(iso);
     }
 
     const todayISO = limaTodayISO();
