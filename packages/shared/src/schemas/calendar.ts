@@ -7,17 +7,19 @@ import { CALENDAR_EVENT_TYPES } from '../enums';
 // Fecha civil yyyy-mm-dd.
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida');
 
-// POST/PATCH /api/calendar — evento del calendario. endDate ≥ startDate (superRefine).
+// POST/PATCH /api/calendar — evento del calendario. endDate es opcional (evento
+// de un solo día = solo startDate; el service la iguala) y si viene debe ser
+// ≥ startDate (superRefine).
 export const calendarEventCreateSchema = z
   .object({
     type: z.enum(CALENDAR_EVENT_TYPES),
     name: z.string().trim().min(3, 'Escribe un nombre (mínimo 3 caracteres)'),
     startDate: isoDate,
-    endDate: isoDate,
+    endDate: isoDate.optional(),
     description: z.string().trim().max(500, 'La descripción es demasiado larga').optional().or(z.literal('')),
   })
   .superRefine((data, ctx) => {
-    if (data.endDate < data.startDate) {
+    if (data.endDate !== undefined && data.endDate < data.startDate) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['endDate'],

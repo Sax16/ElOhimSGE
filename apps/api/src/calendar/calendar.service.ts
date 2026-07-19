@@ -151,7 +151,8 @@ export class CalendarService {
           type: input.type,
           name: input.name.trim(),
           startDate: isoToDate(input.startDate),
-          endDate: isoToDate(input.endDate),
+          // Sin endDate = evento de un solo día.
+          endDate: isoToDate(input.endDate ?? input.startDate),
           description,
           createdById: actor.sub,
         },
@@ -188,7 +189,8 @@ export class CalendarService {
           type: input.type,
           name: input.name.trim(),
           startDate: isoToDate(input.startDate),
-          endDate: isoToDate(input.endDate),
+          // Sin endDate = evento de un solo día.
+          endDate: isoToDate(input.endDate ?? input.startDate),
           description,
         },
         select: eventSelect,
