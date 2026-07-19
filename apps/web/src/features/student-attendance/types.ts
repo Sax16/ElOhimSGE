@@ -58,6 +58,8 @@ export interface RosterResponse {
   section: RosterSection;
   date: string;
   editable: boolean;
+  /** La fecha es feriado / día no lectivo (no se toma asistencia ese día). */
+  holiday: boolean;
   taken: boolean;
   entries: RosterEntry[];
 }

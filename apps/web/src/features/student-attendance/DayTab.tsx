@@ -25,6 +25,7 @@ import {
   STATUS_ORDER,
   STATUS_TONE,
   dayTitle,
+  isWeekend,
   todayStr,
 } from './bits';
 import { MarkButtons } from './MarkButtons';
@@ -225,14 +226,22 @@ export function DayTab() {
       </div>
 
       {roster && !roster.editable &&
-        (date === today ? (
+        (roster.holiday ? (
           <Alert tone="warning" title="Día no lectivo">
-            Hoy es un día no lectivo (feriado): no se toma asistencia.
+            Feriado / día no lectivo: no se toma asistencia de estudiantes y el día no computa.
           </Alert>
-        ) : (
+        ) : isWeekend(date) ? (
+          <Alert tone="info" title="Día no hábil">
+            Sábados y domingos no llevan asistencia de estudiantes.
+          </Alert>
+        ) : roster.taken ? (
           <Alert tone="info" title="Día ya registrado">
             Este día ya tiene asistencia tomada. Solo administración puede corregir entrada por
             entrada, con justificación.
+          </Alert>
+        ) : (
+          <Alert tone="info" title="Solo lectura">
+            Este día no admite registro de asistencia.
           </Alert>
         ))}
 

@@ -246,11 +246,14 @@ export class StudentAttendanceService {
 
     const byEnrollment = new Map(entries.map((e) => [e.enrollmentId, e]));
     const editable = await this.computeEditable(actor, section, date, entries.length > 0);
+    // Expuesto para que el front explique POR QUÉ el día es de solo lectura.
+    const holidays = await getHolidaySet(this.prisma, date, date);
 
     return {
       section: { id: section.id, label: this.label(section), shift: section.shift },
       date,
       editable,
+      holiday: holidays.has(date),
       taken: entries.length > 0,
       entries: enrollments.map((e) => this.rosterEntry(e, byEnrollment.get(e.id))),
     };

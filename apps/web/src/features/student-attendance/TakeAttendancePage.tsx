@@ -19,7 +19,7 @@ import {
 import { ApiError } from '../../lib/api';
 import { useMe } from '../../lib/useMe';
 import { useMySections, useRoster, useSaveAttendance } from './api';
-import { STATUS_LABELS, STATUS_ORDER, STATUS_TONE, dayTitle, todayStr } from './bits';
+import { STATUS_LABELS, STATUS_ORDER, STATUS_TONE, dayTitle, isWeekend, todayStr } from './bits';
 import { MarkButtons } from './MarkButtons';
 import { AbsenceNoticeDialog } from './AbsenceNoticeDialog';
 import type { RosterEntry, StudentAttendanceStatus } from './types';
@@ -197,9 +197,14 @@ export function TakeAttendancePage() {
 
       {/* Aviso de solo lectura / día no lectivo */}
       {roster && !editable &&
-        (effectiveDate === today ? (
+        (roster.holiday ? (
           <Alert tone="warning" title="Día no lectivo">
-            Hoy es un día no lectivo (feriado): no se toma asistencia.
+            {effectiveDate === today ? 'Hoy es un día no lectivo (feriado)' : 'Feriado / día no lectivo'}
+            : no se toma asistencia.
+          </Alert>
+        ) : isWeekend(effectiveDate) ? (
+          <Alert tone="info" title="Día no hábil">
+            Sábados y domingos no llevan asistencia de estudiantes.
           </Alert>
         ) : (
           <Alert tone="info" title="Solo lectura">
