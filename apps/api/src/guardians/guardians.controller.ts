@@ -28,10 +28,29 @@ export class GuardiansController {
     return this.guardians.create(body, actor.sub);
   }
 
+  // Acceso al portal del apoderado (v1.0.0). La ruta estática (bulk) va antes que las paramétricas.
+  @Post('access/bulk')
+  @RequirePermission('apoderados', 'editar')
+  bulkAccess(@CurrentUser() actor: JwtUser) {
+    return this.guardians.bulkAccess(actor.sub);
+  }
+
   @Get(':id')
   @RequirePermission('apoderados', 'ver')
   findOne(@Param('id') id: string) {
     return this.guardians.findOne(id);
+  }
+
+  @Get(':id/access')
+  @RequirePermission('apoderados', 'ver')
+  getAccess(@Param('id') id: string) {
+    return this.guardians.getAccess(id);
+  }
+
+  @Post(':id/access')
+  @RequirePermission('apoderados', 'editar')
+  generateAccess(@Param('id') id: string, @CurrentUser() actor: JwtUser) {
+    return this.guardians.generateAccess(id, actor.sub);
   }
 
   @Patch(':id')

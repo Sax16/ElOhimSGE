@@ -229,6 +229,7 @@ model User {
   pettyCashExpensesCanceled    PettyCashExpense[]   @relation("PettyCashExpenseCanceledBy")
   pettyCashRenditionsMade      PettyCashRendition[] @relation("PettyCashRenditionRegisteredBy")
   staff                        Staff?               @relation("UserStaff")
+  guardian                     Guardian?            @relation("GuardianUser")
   staffTimeEntriesMarkedIn     StaffTimeEntry[]     @relation("StaffTimeEntryMarkedInBy")
   staffTimeEntriesMarkedOut    StaffTimeEntry[]     @relation("StaffTimeEntryMarkedOutBy")
   staffTimeEntriesCorrected    StaffTimeEntry[]     @relation("StaffTimeEntryCorrectedBy")
@@ -510,6 +511,11 @@ model Guardian {
   notificationChannel NotificationChannel @default(SOLO_WHATSAPP)
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
+
+  // Cuenta del portal del apoderado (v1.0.0): usuario rol APODERADO, username = DNI.
+  // Opcional: no todos los apoderados tienen acceso generado.
+  userId String? @unique
+  user   User?   @relation("GuardianUser", fields: [userId], references: [id])
 
   students           StudentGuardian[]
   enrollmentsSigned  Enrollment[]        @relation("SigningGuardian")

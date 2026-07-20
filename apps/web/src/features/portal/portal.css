@@ -1,0 +1,359 @@
+/* Portal del apoderado — mobile-first (los apoderados lo usan desde el celular).
+   Diseñado primero para <768: una columna, targets táctiles ≥44px, tipografía
+   sin reducir. En desktop respira con un contenedor centrado (max-width). */
+
+.pt {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* --- Selector de hijo (chips) --- */
+.pt-childbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: var(--surface-card);
+  color: var(--text-body);
+  font: var(--type-label);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.pt-chip:hover {
+  border-color: var(--brand);
+}
+
+.pt-chip--active {
+  background: var(--surface-brand-soft);
+  border-color: var(--brand);
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
+}
+
+.pt-chip__sub {
+  font: var(--type-2xs);
+  color: var(--text-muted);
+}
+
+.pt-chip--active .pt-chip__sub {
+  color: var(--brand);
+}
+
+/* Subtítulo con un solo hijo. */
+.pt-childsingle {
+  font: var(--type-body);
+  color: var(--text-muted);
+}
+
+.pt-childsingle b {
+  color: var(--text-strong);
+  font-weight: var(--weight-semibold);
+}
+
+/* --- Saludo de inicio --- */
+.pt-hello__hi {
+  font: var(--type-h2);
+  color: var(--text-strong);
+}
+
+.pt-hello__who {
+  font: var(--type-body);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* --- Rejilla de resumen (home) --- */
+.pt-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 560px) {
+  .pt-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* --- Fila de resumen dentro de una card --- */
+.pt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pt-row:first-child {
+  border-top: none;
+}
+
+.pt-row__label {
+  font: var(--type-label);
+  color: var(--text-body);
+}
+
+.pt-row__sub {
+  font: var(--type-2xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.pt-money {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+
+/* --- Lista de cuotas (mobile-first, una tarjeta por cuota) --- */
+.pt-inst {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pt-inst:first-child {
+  border-top: none;
+}
+
+.pt-inst__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pt-inst__label {
+  font: var(--type-label);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.pt-inst__meta {
+  font: var(--type-2xs);
+  color: var(--text-muted);
+}
+
+.pt-inst__meta--mono {
+  font-family: var(--font-mono);
+}
+
+.pt-inst__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.pt-inst__late {
+  font: var(--type-2xs);
+  color: var(--danger);
+}
+
+/* --- Matriz de días de asistencia (chips de letra) --- */
+.pt-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pt-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 44px;
+}
+
+.pt-day__num {
+  font: var(--type-2xs);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.pt-day__letter {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
+}
+
+/* --- Horario semanal (lista por día, mobile-first) --- */
+.pt-week {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pt-week__day {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.pt-week__day--today {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand);
+}
+
+.pt-week__head {
+  padding: 8px 12px;
+  background: var(--surface-sunken);
+  font: var(--type-label);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.pt-week__slot {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pt-week__slot--break {
+  background: var(--surface-sunken);
+  justify-content: center;
+  color: var(--text-subtle);
+  font: var(--type-2xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.pt-week__time {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pt-week__course {
+  flex: 1;
+  min-width: 0;
+  font: var(--type-label);
+  color: var(--text-strong);
+}
+
+.pt-week__teacher {
+  font: var(--type-2xs);
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.pt-week__empty {
+  padding: 9px 12px;
+  font: var(--type-2xs);
+  color: var(--text-subtle);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* --- Comunicados / conducta (items expandibles) --- */
+.pt-item {
+  padding: 14px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pt-item:first-child {
+  border-top: none;
+}
+
+.pt-item__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.pt-item__title {
+  font: var(--type-label);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.pt-item__meta {
+  font: var(--type-2xs);
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.pt-item__body {
+  font: var(--type-body);
+  color: var(--text-body);
+  margin-top: 8px;
+  white-space: pre-wrap;
+}
+
+.pt-toggle {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  margin-top: 6px;
+  color: var(--brand);
+  font: var(--type-label);
+  cursor: pointer;
+}
+
+/* --- Notas: tabla curso → letra --- */
+.pt-grades {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pt-grades th,
+.pt-grades td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  font: var(--type-body);
+}
+
+.pt-grades th {
+  font: var(--type-caption);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+}
+
+.pt-grades td.pt-grades__course {
+  color: var(--text-strong);
+  font-weight: var(--weight-medium);
+}
+
+.pt-grades td.pt-grades__cell {
+  text-align: center;
+  width: 88px;
+}
+
+/* --- StatCard mono para dinero --- */
+.pt-stat-value--mono {
+  font-family: var(--font-mono);
+}

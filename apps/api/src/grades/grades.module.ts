@@ -9,5 +9,6 @@ import { EvaluationConfigService } from './evaluation-config.service';
 @Module({
   controllers: [GradesController, EvaluationConfigController],
   providers: [GradesService, EvaluationConfigService],
+  exports: [GradesService],
 })
 export class GradesModule {}

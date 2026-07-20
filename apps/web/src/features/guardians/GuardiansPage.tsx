@@ -17,9 +17,11 @@ import {
 import type { TableColumn } from '@elohim/ui';
 import { formatPEN } from '@elohim/shared';
 import { avatarColor, useYearReadOnly } from '../students/bits';
+import { useCan } from '../../lib/useCan';
 import { useGuardians, type GuardiansFilters } from './api';
 import { GuardianDialog } from './GuardianDialog';
 import { GuardianFormDialog } from './GuardianFormDialog';
+import { BulkAccessDialog } from './BulkAccessDialog';
 import type { GuardianAccountFilter, GuardianDetail, GuardianListItem } from './types';
 
 const PAGE_SIZE = 20;
@@ -33,6 +35,7 @@ const ACCOUNT_OPTIONS: { value: GuardianAccountFilter; label: string }[] = [
 export function GuardiansPage() {
   const { toast } = useToast();
   const readOnly = useYearReadOnly();
+  const canEdit = useCan('apoderados', 'editar');
 
   const [search, setSearch] = useState('');
   const [account, setAccount] = useState<GuardianAccountFilter>('todas');
@@ -40,6 +43,7 @@ export function GuardiansPage() {
 
   const [fichaId, setFichaId] = useState<string | null>(null);
   const [form, setForm] = useState<{ guardian?: GuardianDetail } | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const filters: GuardiansFilters = { search, account, page, pageSize: PAGE_SIZE };
   const { data, isLoading } = useGuardians(filters);
@@ -134,6 +138,11 @@ export function GuardiansPage() {
           onChange={(e) => resetTo(() => setAccount(e.target.value as GuardianAccountFilter))}
           containerStyle={{ width: 170 }}
         />
+        {!readOnly && canEdit && (
+          <Button variant="secondary" iconLeft={<Icons.Lock />} onClick={() => setBulkOpen(true)}>
+            Generar accesos pendientes
+          </Button>
+        )}
         {!readOnly && (
           <Button variant="primary" iconLeft={<Icons.Plus />} onClick={() => setForm({})}>
             Registrar apoderado
@@ -177,6 +186,8 @@ export function GuardiansPage() {
         readOnly={readOnly}
         onClose={() => setForm(null)}
       />
+
+      <BulkAccessDialog open={bulkOpen} onClose={() => setBulkOpen(false)} />
     </div>
   );
 }

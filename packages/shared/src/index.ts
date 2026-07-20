@@ -31,3 +31,4 @@ export * from './schemas/conduct';
 export * from './schemas/calendar';
 export * from './schemas/announcements';
 export * from './schemas/schedule';
+export * from './schemas/portal';

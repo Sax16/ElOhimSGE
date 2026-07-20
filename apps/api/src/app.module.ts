@@ -23,6 +23,7 @@ import { ConductModule } from './conduct/conduct.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { ScheduleModule } from './schedule/schedule.module';
+import { PortalModule } from './portal/portal.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { ScheduleModule } from './schedule/schedule.module';
     CalendarModule,
     AnnouncementsModule,
     ScheduleModule,
+    PortalModule,
     HealthModule,
   ],
 })

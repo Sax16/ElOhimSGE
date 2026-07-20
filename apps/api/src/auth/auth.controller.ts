@@ -1,6 +1,11 @@
 import { Controller, Get, HttpCode, Post, Res } from '@nestjs/common';
 import { type Response } from 'express';
-import { loginSchema, type LoginInput } from '@elohim/shared';
+import {
+  changePasswordSchema,
+  loginSchema,
+  type ChangePasswordInput,
+  type LoginInput,
+} from '@elohim/shared';
 import { zodBody } from '../common/zod-validation.pipe';
 import { AuthService, type MeDto } from './auth.service';
 import { Public } from './decorators/public.decorator';
@@ -40,5 +45,14 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: JwtUser): Promise<MeDto> {
     return this.authService.me(user.sub);
+  }
+
+  @Post('change-password')
+  @HttpCode(200)
+  changePassword(
+    @(zodBody(changePasswordSchema)) body: ChangePasswordInput,
+    @CurrentUser() user: JwtUser,
+  ): Promise<{ ok: true }> {
+    return this.authService.changePassword(user.sub, body.currentPassword, body.newPassword);
   }
 }

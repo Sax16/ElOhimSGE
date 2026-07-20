@@ -1,6 +1,9 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { randomInt } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import {
+  DEFAULT_PERMISSIONS,
   type GuardianCreateInput,
   type GuardianListQuery,
   type GuardianUpdateInput,
@@ -10,9 +13,18 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { nextCode } from '../common/code-counter.util';
 import { debtCentsByStudent } from '../common/debt.util';
+import { sectionFullLabel } from '../student-attendance/section-label.util';
 
 // Máximo de apoderados vinculados por estudiante.
 const MAX_GUARDIANS = 3;
+
+// Clave temporal legible de 8 caracteres, sin caracteres ambiguos (0/O/1/l/I).
+const TEMP_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+function generateTempPassword(): string {
+  let raw = '';
+  for (let i = 0; i < 8; i++) raw += TEMP_ALPHABET[randomInt(TEMP_ALPHABET.length)];
+  return raw;
+}
 
 const childPlacementSelect = {
   section: {
@@ -345,6 +357,212 @@ export class GuardiansService {
       );
       return { studentId, guardianId, active: false, promotedGuardianId };
     });
+  }
+
+  // ===== Acceso al portal del apoderado (v1.0.0) =====
+
+  // GET /guardians/:id/access — estado de la cuenta del portal.
+  async getAccess(id: string) {
+    const guardian = await this.prisma.guardian.findUnique({
+      where: { id },
+      select: { id: true, user: { select: { username: true, createdAt: true } } },
+    });
+    if (!guardian) throw new NotFoundException('Apoderado no encontrado');
+    if (!guardian.user) {
+      return { status: 'SIN_ACCESO' as const, username: null, createdAt: null };
+    }
+    return {
+      status: 'ACTIVO' as const,
+      username: guardian.user.username,
+      createdAt: guardian.user.createdAt.toISOString(),
+    };
+  }
+
+  // POST /guardians/:id/access — genera (o regenera) el acceso al portal.
+  // Sin cuenta: crea el User rol APODERADO (username = DNI) y vincula guardian.userId.
+  // Con cuenta: reinicia la clave temporal (reset) y fuerza el cambio en el próximo ingreso.
+  async generateAccess(id: string, actorId: string) {
+    const guardian = await this.prisma.guardian.findUnique({
+      where: { id },
+      select: { id: true, dni: true, fullName: true, userId: true },
+    });
+    if (!guardian) throw new NotFoundException('Apoderado no encontrado');
+
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    // Ya tiene cuenta → reset de clave temporal.
+    if (guardian.userId) {
+      const userId = guardian.userId;
+      await this.prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: userId },
+          data: { passwordHash, mustChangePassword: true },
+        });
+        await this.audit.log(
+          {
+            userId: actorId,
+            action: 'guardians.access-reset',
+            entity: 'Guardian',
+            entityId: guardian.id,
+            payload: { guardianId: guardian.id, userId },
+          },
+          tx,
+        );
+      });
+      const user = await this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { username: true },
+      });
+      return { username: user.username, tempPassword };
+    }
+
+    // Sin cuenta → crear User rol APODERADO. El username es el DNI; el DNI ya usado por otro
+    // usuario devuelve 409 con mensaje claro.
+    const username = guardian.dni.toLowerCase();
+    const clash = await this.prisma.user.findFirst({
+      where: { username },
+      select: { id: true },
+    });
+    if (clash) {
+      throw new ConflictException(
+        `El DNI ${guardian.dni} ya está en uso como nombre de usuario de otra cuenta`,
+      );
+    }
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            username,
+            // La institución no tiene dominio propio y el correo del User es único y obligatorio:
+            // se genera un correo sintético a partir del DNI (el login del apoderado es por DNI).
+            email: `${username}@apoderado.local`,
+            passwordHash,
+            fullName: guardian.fullName,
+            role: 'APODERADO',
+            permissions: DEFAULT_PERMISSIONS.APODERADO as Prisma.InputJsonValue,
+            mustChangePassword: true,
+          },
+          select: { id: true },
+        });
+        await tx.guardian.update({ where: { id: guardian.id }, data: { userId: user.id } });
+        await this.audit.log(
+          {
+            userId: actorId,
+            action: 'guardians.access',
+            entity: 'Guardian',
+            entityId: guardian.id,
+            payload: { guardianId: guardian.id, userId: user.id, username },
+          },
+          tx,
+        );
+      });
+    } catch (error) {
+      throw this.mapConflict(error, `El DNI ${guardian.dni} ya está en uso`);
+    }
+
+    return { username, tempPassword };
+  }
+
+  // POST /guardians/access/bulk — genera acceso para todos los apoderados activos con ≥1 hijo con
+  // matrícula vigente del año activo y sin acceso aún. Devuelve las claves temporales una sola vez.
+  async bulkAccess(actorId: string) {
+    const yearId = await this.activeYearId();
+
+    // Apoderados con ≥1 hijo (estudiante ACTIVO/BECADO) con matrícula vigente del año activo,
+    // vínculo activo. Se dividen entre los que ya tienen acceso (skipped) y los pendientes.
+    const guardians = await this.prisma.guardian.findMany({
+      where: {
+        students: {
+          some: {
+            active: true,
+            student: {
+              status: { in: ['ACTIVO', 'BECADO'] },
+              enrollments: { some: { academicYearId: yearId, canceledAt: null } },
+            },
+          },
+        },
+      },
+      orderBy: { dni: 'asc' },
+      select: {
+        id: true,
+        dni: true,
+        fullName: true,
+        userId: true,
+        students: {
+          where: {
+            active: true,
+            student: {
+              status: { in: ['ACTIVO', 'BECADO'] },
+              enrollments: { some: { academicYearId: yearId, canceledAt: null } },
+            },
+          },
+          select: {
+            student: {
+              select: {
+                firstNames: true,
+                paternalLastName: true,
+                maternalLastName: true,
+                enrollments: {
+                  where: { academicYearId: yearId, canceledAt: null },
+                  take: 1,
+                  select: {
+                    section: {
+                      select: {
+                        name: true,
+                        shift: true,
+                        gradeLevel: { select: { name: true, level: { select: { name: true } } } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const pending = guardians.filter((g) => !g.userId);
+    const skipped = guardians.length - pending.length;
+
+    const generated: {
+      guardianName: string;
+      dni: string;
+      username: string;
+      tempPassword: string;
+      students: string[];
+    }[] = [];
+
+    for (const g of pending) {
+      const res = await this.generateAccess(g.id, actorId);
+      const students = g.students.map((s) => {
+        const st = s.student;
+        const name = [st.firstNames, st.paternalLastName, st.maternalLastName]
+          .filter(Boolean)
+          .join(' ');
+        const placement = st.enrollments[0];
+        return placement ? `${name} (${sectionFullLabel(placement.section)})` : name;
+      });
+      generated.push({
+        guardianName: g.fullName,
+        dni: g.dni,
+        username: res.username,
+        tempPassword: res.tempPassword,
+        students,
+      });
+    }
+
+    await this.audit.log({
+      userId: actorId,
+      action: 'guardians.access-bulk',
+      entity: 'Guardian',
+      entityId: 'batch',
+      payload: { generated: generated.length, skipped },
+    });
+
+    return { generated, skipped };
   }
 
   private mapConflict(error: unknown, message: string): Error {

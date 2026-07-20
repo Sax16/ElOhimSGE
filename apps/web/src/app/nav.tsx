@@ -38,6 +38,15 @@ export const PORTER_NAV: SidebarItem[] = [
   { id: 'pmarcacion', label: 'Marcación de personal', icon: <Icons.Clock /> },
 ];
 
+// Navegación del portal del apoderado (rol APODERADO). Mobile-first: 5 secciones.
+export const GUARDIAN_NAV: SidebarItem[] = [
+  { id: 'phome', label: 'Inicio', icon: <Icons.Home /> },
+  { id: 'ppagos', label: 'Pagos', icon: <Icons.Cash /> },
+  { id: 'pasist', label: 'Asistencia', icon: <Icons.Calendar /> },
+  { id: 'pnotas', label: 'Notas', icon: <Icons.Book /> },
+  { id: 'pavisos', label: 'Avisos', icon: <Icons.Megaphone /> },
+];
+
 export interface RouteMeta {
   title: string;
   crumbs: string[];
@@ -67,6 +76,11 @@ export const META: Record<string, RouteMeta> = {
   tclases: { title: 'Mis clases', crumbs: ['Inicio', 'Mis clases'] },
   tasist: { title: 'Asistencia de estudiantes', crumbs: ['Inicio', 'Mis aulas', 'Asistencia'] },
   pmarcacion: { title: 'Marcación de personal', crumbs: ['Inicio', 'Marcación'] },
+  phome: { title: 'Portal del apoderado', crumbs: ['Inicio'] },
+  ppagos: { title: 'Pagos', crumbs: ['Inicio', 'Pagos'] },
+  pasist: { title: 'Asistencia', crumbs: ['Inicio', 'Asistencia'] },
+  pnotas: { title: 'Notas', crumbs: ['Inicio', 'Notas'] },
+  pavisos: { title: 'Avisos', crumbs: ['Inicio', 'Avisos'] },
 };
 
 // Ruta de aterrizaje por rol.
@@ -75,7 +89,7 @@ export const HOME_BY_ROLE: Record<UserRole, string> = {
   SECRETARIA_CAJA: '/dash',
   DOCENTE: '/tclases',
   PORTERIA: '/pmarcacion',
-  APODERADO: '/login',
+  APODERADO: '/phome',
 };
 
 // Mapa id de nav → módulo de permiso para filtrar la vista de Secretaría/Caja.
@@ -111,6 +125,8 @@ export function NAV_BY_ROLE(role: UserRole, permissions: Permissions | null | un
       return TEACHER_NAV;
     case 'PORTERIA':
       return PORTER_NAV;
+    case 'APODERADO':
+      return GUARDIAN_NAV;
     case 'SECRETARIA_CAJA':
       return NAV.filter((item) => {
         const mod = NAV_MODULE[item.id];

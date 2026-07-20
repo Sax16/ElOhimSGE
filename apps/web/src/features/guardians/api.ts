@@ -2,6 +2,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../lib/api';
 import type {
+  BulkAccessResult,
+  GuardianAccess,
+  GuardianAccessCredential,
   GuardianAccountFilter,
   GuardianCreateBody,
   GuardianDetail,
@@ -86,5 +89,37 @@ export function useUpdateGuardian() {
     mutationFn: ({ id, body }: { id: string; body: GuardianUpdateBody }) =>
       apiFetch<GuardianListItem>(`/guardians/${id}`, { method: 'PATCH', body }),
     onSuccess: (_data, { id }) => invalidateGuardianGraph(qc, id),
+  });
+}
+
+// ---- Acceso al portal ------------------------------------------------------
+export function useGuardianAccess(id: string | undefined) {
+  return useQuery<GuardianAccess>({
+    queryKey: ['guardians', 'access', id ?? ''],
+    queryFn: () => apiFetch<GuardianAccess>(`/guardians/${id}/access`),
+    enabled: !!id,
+  });
+}
+
+/** Genera o REGENERA la clave del portal — devuelve la credencial una sola vez. */
+export function useGenerateAccess() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<GuardianAccessCredential>(`/guardians/${id}/access`, { method: 'POST' }),
+    onSuccess: (_data, id) => {
+      void qc.invalidateQueries({ queryKey: ['guardians', 'access', id] });
+    },
+  });
+}
+
+/** Genera accesos para todos los apoderados pendientes (bulk). */
+export function useBulkAccess() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<BulkAccessResult>('/guardians/access/bulk', { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['guardians', 'access'] });
+    },
   });
 }

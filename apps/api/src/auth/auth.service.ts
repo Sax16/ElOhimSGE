@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { type User } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { type Permissions, type UserRole, type UserStatus } from '@elohim/shared';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../common/audit/audit.service';
 
 // Shape público del usuario (respuesta de /me, login y listado de usuarios). NUNCA incluye passwordHash.
 export type MeDto = {
@@ -35,6 +36,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly audit: AuditService,
   ) {}
 
   async login(identifier: string, password: string, remember: boolean) {
@@ -62,5 +64,34 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.status === 'SUSPENDIDO') throw new UnauthorizedException('No autenticado');
     return toMeDto(user);
+  }
+
+  // Cambio de clave por el propio usuario. Limpia mustChangePassword (usado en el primer ingreso
+  // obligatorio del portal del apoderado). No registra la clave en la auditoría.
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{ ok: true }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.status === 'SUSPENDIDO') throw new UnauthorizedException('No autenticado');
+
+    if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+      throw new BadRequestException('La contraseña actual no es correcta');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { passwordHash, mustChangePassword: false },
+      });
+      await this.audit.log(
+        { userId, action: 'auth.change-password', entity: 'User', entityId: userId },
+        tx,
+      );
+    });
+
+    return { ok: true };
   }
 }

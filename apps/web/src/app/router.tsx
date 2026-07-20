@@ -4,7 +4,7 @@ import { EmptyState, Icons } from '@elohim/ui';
 import type { UserRole } from '@elohim/shared';
 import { AppLayout } from './AppLayout';
 import { RequireAuth, RequireRole } from './guards';
-import { HOME_BY_ROLE, NAV, PORTER_NAV, TEACHER_NAV } from './nav';
+import { GUARDIAN_NAV, HOME_BY_ROLE, NAV, PORTER_NAV, TEACHER_NAV } from './nav';
 import { useMe } from '../lib/useMe';
 
 const LoginPage = lazy(() => import('../features/auth/LoginPage').then((m) => ({ default: m.LoginPage })));
@@ -75,6 +75,21 @@ const CalendarPage = lazy(() =>
 const AnnouncementsPage = lazy(() =>
   import('../features/announcements/AnnouncementsPage').then((m) => ({ default: m.AnnouncementsPage })),
 );
+const PortalHomePage = lazy(() =>
+  import('../features/portal/PortalHomePage').then((m) => ({ default: m.PortalHomePage })),
+);
+const PortalPaymentsPage = lazy(() =>
+  import('../features/portal/PortalPaymentsPage').then((m) => ({ default: m.PortalPaymentsPage })),
+);
+const PortalAttendancePage = lazy(() =>
+  import('../features/portal/PortalAttendancePage').then((m) => ({ default: m.PortalAttendancePage })),
+);
+const PortalGradesPage = lazy(() =>
+  import('../features/portal/PortalGradesPage').then((m) => ({ default: m.PortalGradesPage })),
+);
+const PortalNoticesPage = lazy(() =>
+  import('../features/portal/PortalNoticesPage').then((m) => ({ default: m.PortalNoticesPage })),
+);
 
 function Loading() {
   return (
@@ -104,6 +119,7 @@ for (const item of TEACHER_NAV) {
   routeRoles[item.id] = existing ? [...existing, 'DOCENTE'] : ['DOCENTE'];
 }
 for (const item of PORTER_NAV) routeRoles[item.id] = ['PORTERIA'];
+for (const item of GUARDIAN_NAV) routeRoles[item.id] = ['APODERADO'];
 // La toma diaria /tasist también la usa Admin (día editable); asegúrale acceso.
 routeRoles['tasist'] = Array.from(new Set([...(routeRoles['tasist'] ?? []), 'ADMIN']));
 
@@ -154,6 +170,16 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
           <CalendarPage />
         ) : id === 'comunicados' ? (
           <AnnouncementsPage />
+        ) : id === 'phome' ? (
+          <PortalHomePage />
+        ) : id === 'ppagos' ? (
+          <PortalPaymentsPage />
+        ) : id === 'pasist' ? (
+          <PortalAttendancePage />
+        ) : id === 'pnotas' ? (
+          <PortalGradesPage />
+        ) : id === 'pavisos' ? (
+          <PortalNoticesPage />
         ) : (
           <PlaceholderPage />
         )}

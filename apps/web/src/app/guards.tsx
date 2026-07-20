@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import type { UserRole } from '@elohim/shared';
 import { useMe } from '../lib/useMe';
 import { HOME_BY_ROLE } from './nav';
+import { ChangePasswordPage } from '../features/auth/ChangePasswordPage';
 
 /** Exige sesión activa. Mientras carga muestra un aviso simple; sin sesión redirige a /login. */
 export function RequireAuth({ children }: { children: ReactNode }) {
@@ -17,6 +18,9 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   }
 
   if (!me) return <Navigate to="/login" replace />;
+
+  // Primer ingreso: exige cambiar la contraseña temporal antes de cualquier ruta.
+  if (me.mustChangePassword) return <ChangePasswordPage />;
 
   return <>{children}</>;
 }

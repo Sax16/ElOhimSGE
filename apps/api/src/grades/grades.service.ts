@@ -849,6 +849,82 @@ export class GradesService {
     };
   }
 
+  // ===== Portal del apoderado: notas de solo lectura, SOLO bimestres CERRADOS =====
+  // Reutiliza la lógica de la libreta (reportCard) sin el header del alumno ni la asistencia,
+  // devolviendo solo las letras por periodo. El logro del bimestre sigue siendo el CourseResult.
+  async portalGrades(enrollmentId: string) {
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id: enrollmentId },
+      select: { id: true, academicYearId: true, section: { select: { gradeLevelId: true } } },
+    });
+    if (!enrollment) throw new NotFoundException('Matrícula no encontrada');
+
+    // SOLO periodos CERRADOS del año, en orden.
+    const periods = await this.prisma.period.findMany({
+      where: { academicYearId: enrollment.academicYearId, status: 'CERRADO' },
+      orderBy: { order: 'asc' },
+      select: { id: true, name: true, order: true },
+    });
+    if (periods.length === 0) return { periods: [], courses: [], aspects: [] };
+    const periodIds = periods.map((p) => p.id);
+
+    // Cursos del grado (orden alfabético) con el logro por periodo.
+    const [courses, results] = await Promise.all([
+      this.prisma.course.findMany({
+        where: { gradeLevelId: enrollment.section.gradeLevelId },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true },
+      }),
+      this.prisma.courseResult.findMany({
+        where: { enrollmentId, periodId: { in: periodIds } },
+        select: { courseId: true, periodId: true, letter: true },
+      }),
+    ]);
+    const resultMap = new Map(results.map((r) => [`${r.courseId}|${r.periodId}`, r.letter]));
+    const coursesDto = courses.map((c) => {
+      const byPeriod: Record<string, GradeLetter | null> = {};
+      for (const p of periods) byPeriod[p.id] = resultMap.get(`${c.id}|${p.id}`) ?? null;
+      return { courseName: c.name, byPeriod };
+    });
+
+    // Aspectos: activos + inactivos con nota del estudiante (para no perder histórico).
+    const [activeAspects, aspectGrades] = await Promise.all([
+      this.prisma.evaluationAspect.findMany({
+        where: { active: true },
+        orderBy: [{ kind: 'asc' }, { order: 'asc' }],
+        select: { id: true, kind: true, name: true, order: true },
+      }),
+      this.prisma.aspectGrade.findMany({
+        where: { enrollmentId, periodId: { in: periodIds } },
+        select: {
+          aspectId: true,
+          periodId: true,
+          letter: true,
+          aspect: { select: { id: true, kind: true, name: true, order: true } },
+        },
+      }),
+    ]);
+    const aspectById = new Map(activeAspects.map((a) => [a.id, a]));
+    for (const g of aspectGrades) {
+      if (!aspectById.has(g.aspectId)) aspectById.set(g.aspectId, g.aspect);
+    }
+    const aspects = [...aspectById.values()].sort((a, b) =>
+      a.kind === b.kind ? a.order - b.order : a.kind.localeCompare(b.kind),
+    );
+    const aspectGradeMap = new Map(aspectGrades.map((g) => [`${g.aspectId}|${g.periodId}`, g.letter]));
+    const aspectsDto = aspects.map((a) => {
+      const byPeriod: Record<string, GradeLetter | null> = {};
+      for (const p of periods) byPeriod[p.id] = aspectGradeMap.get(`${a.id}|${p.id}`) ?? null;
+      return { kind: a.kind, name: a.name, byPeriod };
+    });
+
+    return {
+      periods: periods.map((p) => ({ id: p.id, name: p.name, order: p.order })),
+      courses: coursesDto,
+      aspects: aspectsDto,
+    };
+  }
+
   // % de asistencia del periodo: (P+T)/total*100 redondeado; null sin registros. Cuenta tardanzas y faltas.
   private async attendanceForPeriod(enrollmentId: string, startDate: Date, endDate: Date) {
     const entries = await this.prisma.studentAttendanceEntry.findMany({

@@ -69,3 +69,33 @@ export interface GuardianCreateBody {
 }
 
 export type GuardianUpdateBody = Partial<GuardianCreateBody>;
+
+// ---- Acceso al portal ------------------------------------------------------
+export type GuardianAccessStatus = 'SIN_ACCESO' | 'ACTIVO';
+
+/** GET /guardians/:id/access. */
+export interface GuardianAccess {
+  status: GuardianAccessStatus;
+  username: string | null;
+  createdAt: string | null;
+}
+
+/** POST /guardians/:id/access — credencial mostrada una sola vez. */
+export interface GuardianAccessCredential {
+  username: string;
+  tempPassword: string;
+}
+
+/** Fila de POST /guardians/access/bulk. */
+export interface BulkAccessRow {
+  guardianName: string;
+  dni: string;
+  username: string;
+  tempPassword: string;
+  students: string[];
+}
+
+export interface BulkAccessResult {
+  generated: BulkAccessRow[];
+  skipped: number;
+}

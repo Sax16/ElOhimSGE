@@ -18,7 +18,9 @@ import type { TableColumn } from '@elohim/ui';
 import { GUARDIAN_RELATION_LABELS, NOTIFICATION_CHANNEL_LABELS, formatPEN } from '@elohim/shared';
 import { avatarColor, fullName } from '../students/bits';
 import { StudentDialog } from '../students/StudentDialog';
+import { useCan } from '../../lib/useCan';
 import { useGuardian } from './api';
+import { GuardianAccessSection } from './GuardianAccess';
 import type { GuardianChild, GuardianDetail } from './types';
 
 export interface GuardianDialogProps {
@@ -36,6 +38,7 @@ function placementText(child: GuardianChild): string {
 
 export function GuardianDialog({ guardianId, onClose, onEdit, readOnly = false }: GuardianDialogProps) {
   const { toast } = useToast();
+  const canEdit = useCan('apoderados', 'editar');
   const { data: g, isLoading } = useGuardian(guardianId ?? undefined);
   const [childId, setChildId] = useState<{ id: string; debtCents: number } | null>(null);
 
@@ -174,6 +177,7 @@ export function GuardianDialog({ guardianId, onClose, onEdit, readOnly = false }
                 </div>
               ))}
             </div>
+            <GuardianAccessSection guardianId={g.id} readOnly={readOnly || !canEdit} />
             <Card flush title={`Hijos en la institución (${childrenCount})`}>
               {childrenList.length > 0 ? (
                 <Table columns={columns} data={childrenList} rowKey={(r) => r.student.id} compact />
