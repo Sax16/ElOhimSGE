@@ -60,8 +60,8 @@ const StudentAttendancePage = lazy(() =>
     default: m.StudentAttendancePage,
   })),
 );
-const AssignmentsPage = lazy(() =>
-  import('../features/assignments/AssignmentsPage').then((m) => ({ default: m.AssignmentsPage })),
+const SchedulePage = lazy(() =>
+  import('../features/schedule/SchedulePage').then((m) => ({ default: m.SchedulePage })),
 );
 const GradesPage = lazy(() =>
   import('../features/grades/GradesPage').then((m) => ({ default: m.GradesPage })),
@@ -145,7 +145,7 @@ const moduleRoutes: RouteObject[] = Object.entries(routeRoles).map(([id, roles])
         ) : id === 'asist' ? (
           <StudentAttendancePage />
         ) : id === 'horarios' ? (
-          <AssignmentsPage />
+          <SchedulePage />
         ) : id === 'notas' ? (
           <GradesPage />
         ) : id === 'conducta' ? (

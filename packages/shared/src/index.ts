@@ -30,3 +30,4 @@ export * from './schemas/grades';
 export * from './schemas/conduct';
 export * from './schemas/calendar';
 export * from './schemas/announcements';
+export * from './schemas/schedule';

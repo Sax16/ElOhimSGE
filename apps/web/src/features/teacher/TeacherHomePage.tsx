@@ -18,6 +18,7 @@ import {
   todayStr,
 } from '../student-attendance/bits';
 import type { MySection } from '../student-attendance/types';
+import { MyWeekCard } from '../schedule/MyWeekCard';
 import './teacher.css';
 
 export function TeacherHomePage() {
@@ -163,6 +164,9 @@ export function TeacherHomePage() {
         </Card>
       )}
       </div>
+
+      {/* Mi horario (solo lectura) */}
+      <MyWeekCard />
     </div>
   );
 }

@@ -182,3 +182,11 @@ Las **decisiones de negocio de R2** (mora fija una vez, sin pagos parciales, caj
 - Seed `14-r4-calendario.ts`: 13 feriados nacionales 2026 (mar–dic), 1 actividad, 1 examen, 2 comunicados demo (C-0001 enviado / C-0002 borrador).
 
 **R4 completo.** Pendientes que arrastran a R5+: export SIAGIE (falta plantilla oficial), grilla de horarios por bloques con catálogo de horas académicas, Notificaciones (envío automático masivo + tasa de lectura, libretas y comunicados digitales), promoción de estudiantes → pre-matrículas, portal del apoderado.
+
+## 10. Cierre técnico — grilla de horarios (post-R4, rumbo a v1.0.0)
+
+- **Módulo `schedule`** (apps/api/src/schedule/, permiso `estructura`; `GET /schedule/my-week` bajo `asistencia.ver` para el docente): `ScheduleBlock` (plantilla por Level+shift, única por [levelId, shift, order], `isBreak` con label) y `ScheduleSlot` (única por [sectionId, dayOfWeek 1..5, blockId], guarda SOLO courseId — el docente se deriva de `CourseAssignment` al leer).
+- **Choque de docente por solape de horas** (no por blockId): `findTeacherClash` compara rangos HH:mm en minutos contra todos los slots del mismo docente/día del año activo — cubre secciones de niveles con plantillas distintas. 409 con mensaje descriptivo.
+- `PUT /schedule/blocks` reemplaza la plantilla completa (upsert por order + delete de sobrantes) y protege bloques con clases (409). `POST /schedule/copy` exige mismo nivel+turno, resuelve cursos por nombre en el grado destino, reemplaza el destino en la transacción y reporta omitidos con motivo. AuditLog `schedule.*`; año cerrado 409.
+- **Front** (apps/web/src/features/schedule/): `/horarios` con pestañas Horario por sección (grilla CSS con columna de horas sticky y overflow-x en sm, recreo cruzando las 5 columnas, color determinista por courseId, dialog que asigna solo curso mostrando el docente derivado, chips scheduled/weeklyHours, copiar e imprimir con `printSchedule.ts` en iframe), Asignación docente (la página previa como tab) y Bloques horarios (editor de plantilla). `MyWeekCard` en /tclases (resalta el día de hoy).
+- Seed `15-horarios.ts`: plantillas (Inicial mañana propio; Primaria/Secundaria mañana y tarde) + horario completo de 3° A/B Primaria (28 celdas c/u, weeklyHours exacto, sin choques — verificado al sembrar).

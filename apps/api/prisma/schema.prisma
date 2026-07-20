@@ -249,6 +249,7 @@ model User {
   calendarEventsCreated        CalendarEvent[]      @relation("CalendarEventCreatedBy")
   announcementsCreated         Announcement[]       @relation("AnnouncementCreatedBy")
   announcementsSent            Announcement[]       @relation("AnnouncementSentBy")
+  scheduleSlotsCreated         ScheduleSlot[]       @relation("ScheduleSlotCreatedBy")
 }
 
 // Singleton (id = 1): datos institucionales de la pestaña Configuración > Institución.
@@ -336,9 +337,10 @@ model Level {
   description    String? // rango: "3–5 años"
   order          Int
 
-  grades        GradeLevel[]
-  fee           LevelFee?
-  announcements Announcement[]
+  grades         GradeLevel[]
+  fee            LevelFee?
+  announcements  Announcement[]
+  scheduleBlocks ScheduleBlock[]
 
   @@unique([academicYearId, name])
 }
@@ -371,6 +373,7 @@ model Section {
   enrollments       Enrollment[]
   courseAssignments CourseAssignment[]
   announcements     Announcement[]
+  scheduleSlots     ScheduleSlot[]
 
   @@unique([gradeLevelId, name, shift])
 }
@@ -388,6 +391,7 @@ model Course {
   competencies  CourseCompetency[]
   gradeEntries  GradeEntry[]
   courseResults CourseResult[]
+  scheduleSlots ScheduleSlot[]
 
   @@unique([gradeLevelId, name])
 }
@@ -1444,6 +1448,46 @@ model Announcement {
   updatedAt       DateTime           @updatedAt
 
   @@index([status])
+}
+
+// ===== Grilla de horarios (post-R4) =====
+
+// Plantilla de bloques horarios por NIVEL + TURNO (Configuración → Horarios). Editable por Admin.
+// Los recreos (isBreak) no llevan curso. El orden es 1..n ascendente sin solapes de horas.
+model ScheduleBlock {
+  id        String  @id @default(cuid())
+  levelId   String
+  level     Level   @relation(fields: [levelId], references: [id])
+  shift     Shift
+  order     Int
+  startTime String  @db.Char(5) // "HH:mm"
+  endTime   String  @db.Char(5) // "HH:mm"
+  isBreak   Boolean @default(false)
+  label     String?
+
+  slots ScheduleSlot[]
+
+  @@unique([levelId, shift, order])
+}
+
+// Celda del horario de una sección: (día L–V × bloque) → curso. El docente NO se guarda aquí;
+// se deriva SIEMPRE de CourseAssignment(courseId, sectionId). Un curso por celda (unique).
+model ScheduleSlot {
+  id          String        @id @default(cuid())
+  sectionId   String
+  section     Section       @relation(fields: [sectionId], references: [id])
+  dayOfWeek   Int // 1..5 (lunes..viernes)
+  blockId     String
+  block       ScheduleBlock @relation(fields: [blockId], references: [id])
+  courseId    String
+  course      Course        @relation(fields: [courseId], references: [id])
+  createdById String
+  createdBy   User          @relation("ScheduleSlotCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@unique([sectionId, dayOfWeek, blockId])
+  @@index([blockId])
+  @@index([courseId])
 }
 
 // Secuencias de códigos legibles: "student" → E-####, "guardian" → A-####, "enrollment:2026" → M-2026-####

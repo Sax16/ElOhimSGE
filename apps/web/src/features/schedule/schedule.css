@@ -1,0 +1,239 @@
+/* Grilla de horarios — grid bloques × L–V con primera columna fija al hacer
+   scroll horizontal en pantallas angostas (design/docs/responsive.md). */
+
+.esge-sched-scroll {
+  overflow-x: auto;
+}
+
+.esge-sched-grid {
+  display: grid;
+  grid-template-columns: 96px repeat(5, minmax(116px, 1fr));
+  min-width: 720px;
+}
+
+/* Cabecera del día */
+.esge-sched-dayhead {
+  padding: 9px 10px;
+  font: var(--type-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+  text-align: center;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+}
+
+/* Esquina superior izquierda (fija) */
+.esge-sched-corner {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface-card);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Columna de horas (fija a la izquierda) */
+.esge-sched-timecol {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  font: var(--type-2xs);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+}
+.esge-sched-timecol--break {
+  background: var(--surface-sunken);
+  color: var(--text-subtle);
+}
+
+/* Celda de curso */
+.esge-sched-cell {
+  border-top: 1px solid var(--border-subtle);
+  border-left: 1px solid var(--border-subtle);
+  padding: 7px 9px;
+  min-height: 52px;
+  background: var(--surface-card);
+  cursor: default;
+}
+.esge-sched-cell--clickable {
+  cursor: pointer;
+}
+.esge-sched-cell--clickable:hover {
+  background: var(--surface-hover);
+}
+
+.esge-sched-cell__inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.esge-sched-bar {
+  width: 4px;
+  align-self: stretch;
+  min-height: 30px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.esge-sched-course {
+  font: var(--type-2xs);
+  font-weight: 600;
+  color: var(--text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.esge-sched-teacher {
+  font: var(--type-2xs);
+  color: var(--text-muted);
+}
+.esge-sched-teacher--warn {
+  color: var(--warning-soft-fg);
+}
+
+/* Celda vacía: "+" sutil al hover */
+.esge-sched-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 38px;
+  color: var(--text-subtle);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.esge-sched-cell--clickable:hover .esge-sched-add {
+  opacity: 1;
+}
+.esge-sched-add svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Fila de recreo que cruza las 5 columnas */
+.esge-sched-break {
+  grid-column: span 5;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-sunken);
+  text-align: center;
+  padding: 7px;
+  font: var(--type-2xs);
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Chips de horas por curso (pie de la card) */
+.esge-sched-hours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Pestaña Bloques: tabla editable */
+.esge-blocks-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr 96px 1fr 40px;
+  gap: 10px;
+  align-items: end;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.esge-blocks-row__ord {
+  font: var(--type-mono);
+  color: var(--text-muted);
+  padding-bottom: 9px;
+  text-align: center;
+}
+.esge-blocks-row__switch {
+  padding-bottom: 9px;
+}
+.esge-blocks-row__del {
+  padding-bottom: 4px;
+}
+@media (max-width: 767px) {
+  .esge-blocks-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .esge-blocks-row__ord {
+    display: none;
+  }
+}
+
+/* Portal docente — Mi horario: columnas por día */
+.esge-myweek {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+@media (max-width: 1023px) {
+  .esge-myweek {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 559px) {
+  .esge-myweek {
+    grid-template-columns: 1fr;
+  }
+}
+.esge-myweek__day {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface-card);
+}
+.esge-myweek__day--today {
+  border-color: var(--border-brand);
+  box-shadow: var(--shadow-focus);
+}
+.esge-myweek__dayhead {
+  padding: 8px 10px;
+  font: var(--type-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.esge-myweek__day--today .esge-myweek__dayhead {
+  color: var(--brand);
+}
+.esge-myweek__item {
+  padding: 8px 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+.esge-myweek__item:first-child {
+  border-top: none;
+}
+.esge-myweek__time {
+  font: var(--type-2xs);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+.esge-myweek__course {
+  font: var(--type-label);
+  font-weight: 600;
+  color: var(--text-strong);
+  margin-top: 1px;
+}
+.esge-myweek__section {
+  font: var(--type-2xs);
+  color: var(--text-muted);
+}
+.esge-myweek__empty {
+  padding: 10px;
+  font: var(--type-2xs);
+  color: var(--text-subtle);
+}
