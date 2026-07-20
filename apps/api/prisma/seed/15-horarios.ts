@@ -16,17 +16,6 @@ const REGULAR_MANANA: BlockSeed[] = [
   { order: 7, startTime: '11:50', endTime: '12:35' },
 ];
 
-// Primaria/Secundaria — Tarde.
-const REGULAR_TARDE: BlockSeed[] = [
-  { order: 1, startTime: '13:00', endTime: '13:45' },
-  { order: 2, startTime: '13:45', endTime: '14:30' },
-  { order: 3, startTime: '14:30', endTime: '15:15' },
-  { order: 4, startTime: '15:15', endTime: '15:35', isBreak: true, label: 'Recreo' },
-  { order: 5, startTime: '15:35', endTime: '16:20' },
-  { order: 6, startTime: '16:20', endTime: '17:05' },
-  { order: 7, startTime: '17:05', endTime: '17:50' },
-];
-
 // Inicial — Mañana (sin secciones de tarde en el seed).
 const INICIAL_MANANA: BlockSeed[] = [
   { order: 1, startTime: '08:00', endTime: '08:45' },
@@ -38,13 +27,13 @@ const INICIAL_MANANA: BlockSeed[] = [
 
 const DAYS = [1, 2, 3, 4, 5]; // lunes..viernes
 
-// Plantillas a sembrar por nombre de nivel + turno.
+// Plantillas a sembrar por nombre de nivel + turno. El colegio aún no maneja
+// turno tarde: no se siembran plantillas TARDE (la funcionalidad queda — el
+// Admin las creará en Horarios → Bloques horarios cuando se necesiten).
 const TEMPLATES: { level: string; shift: Shift; blocks: BlockSeed[] }[] = [
   { level: 'Inicial', shift: 'MANANA', blocks: INICIAL_MANANA },
   { level: 'Primaria', shift: 'MANANA', blocks: REGULAR_MANANA },
-  { level: 'Primaria', shift: 'TARDE', blocks: REGULAR_TARDE },
   { level: 'Secundaria', shift: 'MANANA', blocks: REGULAR_MANANA },
-  { level: 'Secundaria', shift: 'TARDE', blocks: REGULAR_TARDE },
 ];
 
 export async function seedHorarios(prisma: PrismaClient) {
@@ -60,6 +49,19 @@ export async function seedHorarios(prisma: PrismaClient) {
     select: { id: true, name: true },
   });
   const levelByName = new Map(levels.map((l) => [l.name, l.id]));
+
+  // El colegio aún no maneja turno tarde: retira las plantillas TARDE sembradas
+  // antes, solo si no tienen clases programadas (si el Admin ya las usó, se respetan).
+  const removedTarde = await prisma.scheduleBlock.deleteMany({
+    where: {
+      shift: 'TARDE',
+      levelId: { in: levels.map((l) => l.id) },
+      slots: { none: {} },
+    },
+  });
+  if (removedTarde.count > 0) {
+    console.log(`  ✓ Horarios: ${removedTarde.count} bloques de turno tarde retirados (sin uso)`);
+  }
 
   let blockCount = 0;
   for (const tpl of TEMPLATES) {
