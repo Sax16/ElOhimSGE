@@ -20,6 +20,7 @@ import { type JwtUser } from '../auth/decorators/current-user.decorator';
 import { dateToISO, isoToDate } from '../common/installment-view.util';
 import { limaTodayISO } from '../common/lima-time.util';
 import { getHolidaySet } from '../common/holidays.util';
+import { resolveTeachingStaffId } from '../common/teaching-staff.util';
 import { buildStudentAttendanceWorkbook } from './student-attendance.xlsx';
 import {
   emptyCounts,
@@ -108,10 +109,13 @@ export class StudentAttendanceService {
   }
 
   // ¿El actor (docente) es tutor de la sección o tiene una asignación de curso en ella?
+  // El docente se identifica por su Staff vinculado (Staff.userId = actor.sub). Sin Staff → false.
   private async ownsSection(actor: JwtUser, section: SectionRow): Promise<boolean> {
-    if (section.tutorId === actor.sub) return true;
+    const staffId = await resolveTeachingStaffId(this.prisma, actor.sub);
+    if (!staffId) return false;
+    if (section.tutorId === staffId) return true;
     const assignment = await this.prisma.courseAssignment.findFirst({
-      where: { sectionId: section.id, teacherId: actor.sub },
+      where: { sectionId: section.id, teacherId: staffId },
       select: { id: true },
     });
     return Boolean(assignment);
@@ -127,11 +131,16 @@ export class StudentAttendanceService {
     const year = await this.activeYear();
     const date = dateISO ?? limaTodayISO();
 
+    // Docente: identificado por su Staff vinculado. Sin Staff (rol DOCENTE sin ficha) → sin aulas.
+    const isAdmin = this.isAdmin(actor);
+    const staffId = isAdmin ? null : await resolveTeachingStaffId(this.prisma, actor.sub);
+    if (!isAdmin && !staffId) return { date, sections: [] };
+
     // Docente: solo secciones donde es tutor o tiene asignación. Otros con permiso: todas del año.
     const assignments = await this.prisma.courseAssignment.findMany({
       where: {
         section: { gradeLevel: { level: { academicYearId: year.id } } },
-        ...(this.isAdmin(actor) ? {} : { teacherId: actor.sub }),
+        ...(isAdmin ? {} : { teacherId: staffId! }),
       },
       select: { sectionId: true, teacherId: true, course: { select: { name: true } } },
     });
@@ -139,23 +148,23 @@ export class StudentAttendanceService {
     // Cursos asignados al actor por sección (para courseNames).
     const myCourseNames = new Map<string, string[]>();
     for (const a of assignments) {
-      if (a.teacherId !== actor.sub) continue;
+      if (a.teacherId !== staffId) continue;
       const list = myCourseNames.get(a.sectionId) ?? [];
       list.push(a.course.name);
       myCourseNames.set(a.sectionId, list);
     }
 
     let sections: SectionRow[];
-    if (this.isAdmin(actor)) {
+    if (isAdmin) {
       sections = await this.prisma.section.findMany({
         where: { gradeLevel: { level: { academicYearId: year.id } } },
         orderBy: [{ gradeLevel: { level: { order: 'asc' } } }, { gradeLevel: { order: 'asc' } }, { name: 'asc' }],
         select: sectionSelect,
       });
     } else {
-      const sectionIds = new Set<string>(assignments.filter((a) => a.teacherId === actor.sub).map((a) => a.sectionId));
+      const sectionIds = new Set<string>(assignments.filter((a) => a.teacherId === staffId).map((a) => a.sectionId));
       const tutorSections = await this.prisma.section.findMany({
-        where: { tutorId: actor.sub, gradeLevel: { level: { academicYearId: year.id } } },
+        where: { tutorId: staffId!, gradeLevel: { level: { academicYearId: year.id } } },
         select: { id: true },
       });
       for (const s of tutorSections) sectionIds.add(s.id);
@@ -194,7 +203,7 @@ export class StudentAttendanceService {
     }
 
     const rows = sections.map((s) => {
-      const isTutor = s.tutorId === actor.sub;
+      const isTutor = staffId !== null && s.tutorId === staffId;
       const role: SectionTeacherRole = isTutor ? 'TUTOR' : 'DOCENTE';
       const taken = takeCounts.has(s.id);
       return {

@@ -79,3 +79,17 @@ export const staffListQuerySchema = z.object({
   status: z.enum(STAFF_STATUSES).optional(),
 });
 export type StaffListQuery = z.infer<typeof staffListQuerySchema>;
+
+// ===== Acceso al sistema desde la ficha (solo personal docente) =====
+// Genera/regenera el usuario del docente (rol DOCENTE) con clave temporal de un solo uso.
+// username opcional: si no llega, la API usa el sugerido (nombre.apellido normalizado y único).
+export const staffAccessSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(3, 'El usuario debe tener al menos 3 caracteres')
+    .max(40, 'El usuario es demasiado largo')
+    .regex(/^[a-z0-9._-]+$/, 'Usa solo minúsculas, números, punto, guion o guion bajo')
+    .optional(),
+});
+export type StaffAccessInput = z.infer<typeof staffAccessSchema>;

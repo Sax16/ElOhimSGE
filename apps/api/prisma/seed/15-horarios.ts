@@ -110,13 +110,21 @@ export async function seedHorarios(prisma: PrismaClient) {
     select: { id: true },
   });
 
-  // Cursos del grado con docente (orden estable por nombre) + demanda por weeklyHours.
+  // Cursos del grado (orden estable por nombre) + demanda por weeklyHours.
   const courses = await prisma.course.findMany({
     where: { gradeLevelId: grade3.id },
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, weeklyHours: true, teacherId: true },
+    select: { id: true, name: true, weeklyHours: true },
   });
-  const teacherOf = new Map(courses.map((c) => [c.id, c.teacherId]));
+  // Docente por curso: se deriva de CourseAssignment (curso × sección) — ya no de Course.teacherId.
+  // El mismo docente-staff cubre A y B, así que basta el teacherId de cualquier asignación del curso.
+  const gradeSectionIds = sections.map((s) => s.id);
+  const assignments = await prisma.courseAssignment.findMany({
+    where: { sectionId: { in: gradeSectionIds }, course: { gradeLevelId: grade3.id } },
+    select: { courseId: true, teacherId: true },
+  });
+  const teacherOf = new Map<string, string | null>(courses.map((c) => [c.id, null]));
+  for (const a of assignments) teacherOf.set(a.courseId, a.teacherId);
 
   // Celdas (día × bloque) en orden día-mayor.
   const cells: { dayOfWeek: number; blockId: string }[] = [];

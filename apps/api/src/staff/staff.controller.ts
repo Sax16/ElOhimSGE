@@ -1,8 +1,10 @@
 import { Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import {
+  staffAccessSchema,
   staffCreateSchema,
   staffListQuerySchema,
   staffUpdateSchema,
+  type StaffAccessInput,
   type StaffCreateInput,
   type StaffListQuery,
   type StaffUpdateInput,
@@ -39,6 +41,23 @@ export class StaffController {
   @RequirePermission('personal', 'ver')
   findOne(@Param('id') id: string) {
     return this.staff.findOne(id);
+  }
+
+  // Acceso al sistema desde la ficha (solo personal docente).
+  @Get(':id/access')
+  @RequirePermission('personal', 'ver')
+  getAccess(@Param('id') id: string) {
+    return this.staff.getAccess(id);
+  }
+
+  @Post(':id/access')
+  @RequirePermission('personal', 'editar')
+  generateAccess(
+    @Param('id') id: string,
+    @(zodBody(staffAccessSchema)) body: StaffAccessInput,
+    @CurrentUser() actor: JwtUser,
+  ) {
+    return this.staff.generateAccess(id, body, actor.sub);
   }
 
   @Patch(':id')

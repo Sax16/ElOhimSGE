@@ -205,8 +205,6 @@ model User {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  tutorOf                      Section[]            @relation("SectionTutor")
-  courses                      Course[]             @relation("CourseTeacher")
   enrollmentsRegistered        Enrollment[]         @relation("RegisteredBy")
   programEnrollmentsRegistered ProgramEnrollment[]  @relation("ProgramEnrollmentRegisteredBy")
   auditLogs                    AuditLog[]
@@ -240,7 +238,6 @@ model User {
   payrollBatchesPaid           PayrollBatch[]       @relation("PayrollBatchPaidBy")
   studentAttendanceMarked      StudentAttendanceEntry[] @relation("StudentAttendanceMarkedBy")
   studentAttendanceCorrected   StudentAttendanceEntry[] @relation("StudentAttendanceCorrectedBy")
-  courseAssignments            CourseAssignment[]   @relation("CourseAssignmentTeacher")
   gradeEntriesGraded           GradeEntry[]         @relation("GradeEntryGradedBy")
   courseResultsGraded          CourseResult[]       @relation("CourseResultGradedBy")
   aspectGradesGraded           AspectGrade[]        @relation("AspectGradeGradedBy")
@@ -367,8 +364,10 @@ model Section {
   name          String // "A" | "Los Girasoles" (Inicial usa nombres)
   shift         Shift
   capacity      Int // vacantes con límite por sección
+  // El tutor de aula es un EMPLEADO (Staff) con cargo docente — no un User. El User es solo la
+  // credencial, vinculada por Staff.userId. Elegible: Staff role DOCENTE y estado ACTIVO.
   tutorId       String?
-  tutor         User?      @relation("SectionTutor", fields: [tutorId], references: [id])
+  tutor         Staff?     @relation("SectionTutor", fields: [tutorId], references: [id])
   assistantName String? // auxiliar (texto libre hasta que exista el módulo Personal en R3)
 
   enrollments       Enrollment[]
@@ -385,8 +384,8 @@ model Course {
   gradeLevel   GradeLevel @relation(fields: [gradeLevelId], references: [id])
   name         String // "Matemática", "Comunicación"...
   weeklyHours  Int
-  teacherId    String?
-  teacher      User?      @relation("CourseTeacher", fields: [teacherId], references: [id])
+  // El plan de estudios es solo catálogo (curso + horas). "Qué docente dicta" vive únicamente en
+  // CourseAssignment (curso × sección) — no hay docente por grado.
 
   assignments   CourseAssignment[]
   competencies  CourseCompetency[]
@@ -994,8 +993,11 @@ model Staff {
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
 
-  timeEntries   StaffTimeEntry[]
-  payrollEntries PayrollEntry[]
+  timeEntries       StaffTimeEntry[]
+  payrollEntries    PayrollEntry[]
+  // Asignaciones académicas: el docente-empleado es tutor de aulas y dicta cursos×sección.
+  tutorOf           Section[]          @relation("SectionTutor")
+  courseAssignments CourseAssignment[] @relation("CourseAssignmentTeacher")
 }
 
 // ===== Marcación (R3 E2): asistencia de ingreso/salida del personal =====
@@ -1210,17 +1212,17 @@ model StudentAttendanceEntry {
   @@index([date])
 }
 
-// Asignación docente por curso×sección (fuente de verdad de "qué dicta cada docente" en R4+).
-// Course.teacherId (R1) queda como estaba. Tabla de configuración: se puede quitar (DELETE).
-// Un docente por curso en cada sección (unique curso×sección). Año CERRADO → 409 al mutar.
+// Asignación docente por curso×sección (ÚNICA fuente de verdad de "qué dicta cada docente").
+// El docente es un EMPLEADO (Staff) con cargo docente, no un User. Tabla de configuración: se puede
+// quitar (DELETE). Un docente por curso en cada sección (unique curso×sección). Año CERRADO → 409 al mutar.
 model CourseAssignment {
   id        String   @id @default(cuid())
   courseId  String
   course    Course   @relation(fields: [courseId], references: [id])
   sectionId String
   section   Section  @relation(fields: [sectionId], references: [id])
-  teacherId String
-  teacher   User     @relation("CourseAssignmentTeacher", fields: [teacherId], references: [id])
+  teacherId String // id de Staff (empleado con cargo docente)
+  teacher   Staff    @relation("CourseAssignmentTeacher", fields: [teacherId], references: [id])
   createdAt DateTime @default(now())
 
   @@unique([courseId, sectionId])

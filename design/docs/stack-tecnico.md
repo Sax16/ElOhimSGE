@@ -199,3 +199,11 @@ Las **decisiones de negocio de R2** (mora fija una vez, sin pagos parciales, caj
 - Seed `16-portal.ts`: acceso demo para el apoderado con más hijos (usuario = su DNI, clave demo, sin cambio forzado); el log del seed imprime el DNI.
 
 **v1.0.0 funcionalmente completa** (R1–R4 + grilla de horarios + portal del apoderado). Post-1.0.0: pagos en línea, Notificaciones (masivo/lectura/documentos), SIAGIE, inventario, promoción → pre-matrículas.
+
+## 12. Corrección pre-1.0.0 — el docente es un empleado
+
+- **FKs repuntadas a Staff**: `Section.tutorId` → Staff y `CourseAssignment.teacherId` → Staff (migración `teacher_is_staff`: limpia los valores de dev y el seed reconstruye; `Course.teacherId` ELIMINADO). Los actores de auditoría (markedById, gradedById, registeredById…) siguen siendo User.
+- **`common/teaching-staff.util.ts`**: `resolveTeachingStaffId(prisma, actorSub)` (Staff por `userId`) es la ÚNICA traducción JWT→docente, usada por los scopes de student-attendance, grades, conduct y schedule; sin ficha vinculada los scopes devuelven vacío (nunca 500). Cargo docente = `Staff.role === 'DOCENTE'` (`teachingStaffWhere`).
+- **Acceso desde la ficha** (`GET/POST /staff/:id/access`, permiso `personal`): username sugerido `nombre.apellido` normalizado y único, clave temporal de un solo uso + `mustChangePassword`, email sintético `@personal.local`, solo cargo docente (422), regeneración. AuditLog `staff.access*`. Front: `StaffAccess.tsx` en la ficha (patrón GuardianAccess).
+- **`/course-assignments/options`**: `teachers` = personal docente `{id: staffId, code P-###, fullName, status}` — ACTIVO elegible; LICENCIA solo aparece si ya tiene asignación/tutoría (marcada, no elegible). El selector de tutor de Estructura consume esta misma fuente; el plan de estudios perdió todo rastro de docente.
+- Seeds convergentes: fichas docentes canónicas con nombres idénticos a sus usuarios y `userId` vinculado; tutorías/asignaciones round-robin por Staff; `15-horarios` deriva el docente vía CourseAssignment. Las fichas creadas a mano por el usuario se respetan (un docente real creado en la app entra al round-robin de elegibles, no del seed).

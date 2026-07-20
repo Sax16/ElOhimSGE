@@ -130,14 +130,16 @@ export async function seedR4Conducta(prisma: PrismaClient) {
   if (!admin) throw new Error('Falta el usuario admin — corre primero el seed 02-users');
 
   // Secciones de Primaria con matrículas vigentes (mismas que la demo de asistencia/notas).
+  // El tutor es un Staff; registeredById debe ser un User (actor de auditoría) → se usa el usuario
+  // vinculado al tutor (Staff.userId), con 'admin' como respaldo.
   const sections = await prisma.section.findMany({
     where: { gradeLevel: { level: { academicYearId: year2026.id, name: 'Primaria' } } },
     orderBy: [{ gradeLevel: { order: 'asc' } }, { name: 'asc' }],
-    select: { id: true, tutorId: true },
+    select: { id: true, tutor: { select: { userId: true } } },
   });
 
   // Aplana (sección, matrícula) para asignar cada incidencia a un estudiante distinto y estable.
-  const pairs: { sectionId: string; tutorId: string | null; enrollmentId: string }[] = [];
+  const pairs: { sectionId: string; tutorUserId: string | null; enrollmentId: string }[] = [];
   for (const section of sections) {
     const enrollments = await prisma.enrollment.findMany({
       where: {
@@ -154,7 +156,7 @@ export async function seedR4Conducta(prisma: PrismaClient) {
       select: { id: true },
     });
     for (const e of enrollments) {
-      pairs.push({ sectionId: section.id, tutorId: section.tutorId, enrollmentId: e.id });
+      pairs.push({ sectionId: section.id, tutorUserId: section.tutor?.userId ?? null, enrollmentId: e.id });
     }
   }
   if (pairs.length < SPECS.length) {
@@ -170,7 +172,7 @@ export async function seedR4Conducta(prisma: PrismaClient) {
   let count = 0;
   for (const [i, spec] of SPECS.entries()) {
     const pair = pairs[i]!;
-    const registeredById = pair.tutorId ?? admin.id;
+    const registeredById = pair.tutorUserId ?? admin.id;
 
     const occurredAt =
       spec.when === 'last-month'

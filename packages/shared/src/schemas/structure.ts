@@ -100,11 +100,12 @@ export type SectionUpdateInput = z.infer<typeof sectionUpdateSchema>;
 
 // ===== Cursos (plan de estudios) =====
 
+// El plan de estudios es solo catálogo (curso + horas). El docente NO se asigna por grado: vive en
+// la Asignación docente por curso×sección (Horarios). Por eso el DTO de curso no lleva teacherId.
 export const courseCreateSchema = z.object({
   gradeLevelId: z.string(),
   name: z.string().min(2),
   weeklyHours: z.number().int().positive(),
-  teacherId: z.string().optional().nullable(),
 });
 export type CourseCreateInput = z.infer<typeof courseCreateSchema>;
 
@@ -112,7 +113,6 @@ export const courseUpdateSchema = z
   .object({
     name: z.string().min(2),
     weeklyHours: z.number().int().positive(),
-    teacherId: z.string().optional().nullable(),
   })
   .partial();
 export type CourseUpdateInput = z.infer<typeof courseUpdateSchema>;

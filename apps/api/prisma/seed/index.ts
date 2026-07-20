@@ -22,6 +22,9 @@ async function main() {
   console.log('Seed Elohim SGE — inicio');
   await seedInstitution(prisma);
   await seedUsers(prisma);
+  // El personal se siembra ANTES de la estructura: el tutor de aula es un empleado (Staff) con cargo
+  // docente, así que 05-structure necesita las fichas docentes ya vinculadas a sus usuarios.
+  await seedStaff(prisma);
   await seedBilling(prisma);
   await seedAcademicYears(prisma);
   await seedStructure2026(prisma);
@@ -29,7 +32,6 @@ async function main() {
   await seedInstallments(prisma);
   await seedCashier(prisma);
   await seedTreasury(prisma);
-  await seedStaff(prisma);
   await seedR4Academico(prisma);
   await seedR4Notas(prisma);
   await seedR4Conducta(prisma);

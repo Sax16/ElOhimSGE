@@ -8,7 +8,6 @@ import type {
   ApiProgram,
   ApiProgramEnrollment,
   ApiRosterRow,
-  ApiTeacher,
   ApiYear,
   CopyCoursesResult,
   CourseCreateBody,
@@ -32,7 +31,6 @@ import type {
 export const structureKeys = {
   years: ['academic-years'] as const, // compartida con el selector del shell
   levels: (yearId: string) => ['levels-tree', yearId] as const,
-  teachers: ['teachers'] as const,
   periods: (yearId: string) => ['periods', yearId] as const,
   courses: (gradeLevelId: string) => ['courses', gradeLevelId] as const,
   programs: (yearId: string) => ['programs', yearId] as const,
@@ -53,13 +51,6 @@ export function useLevelsTree(yearId: string | undefined) {
     queryKey: structureKeys.levels(yearId ?? ''),
     queryFn: () => apiFetch<ApiLevel[]>(`/academic-years/${yearId}/levels`),
     enabled: !!yearId,
-  });
-}
-
-export function useTeachers() {
-  return useQuery<ApiTeacher[]>({
-    queryKey: structureKeys.teachers,
-    queryFn: () => apiFetch<ApiTeacher[]>('/teachers'),
   });
 }
 

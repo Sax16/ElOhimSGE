@@ -15,6 +15,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { type JwtUser } from '../auth/decorators/current-user.decorator';
+import { resolveTeachingStaffId } from '../common/teaching-staff.util';
 import { sectionShortLabel } from '../student-attendance/section-label.util';
 
 const YEAR_CLOSED_MESSAGE = 'El año académico está cerrado — solo lectura';
@@ -531,11 +532,15 @@ export class ScheduleService {
   // ===== GET /schedule/my-week — horario del docente actual (solo lectura) =====
 
   async myWeek(actor: JwtUser) {
-    // Slots del año activo cuyo curso×sección tiene CourseAssignment.teacherId = actor.
+    // El docente se identifica por su Staff vinculado (Staff.userId = actor.sub). Sin ficha → vacío.
+    const staffId = await resolveTeachingStaffId(this.prisma, actor.sub);
+    if (!staffId) return { items: [] };
+
+    // Slots del año activo cuyo curso×sección tiene CourseAssignment.teacherId = staff del actor.
     const slots = await this.prisma.scheduleSlot.findMany({
       where: {
         section: { gradeLevel: { level: { academicYear: { status: 'ACTIVO' } } } },
-        course: { assignments: { some: { teacherId: actor.sub } } },
+        course: { assignments: { some: { teacherId: staffId } } },
       },
       select: {
         dayOfWeek: true,
@@ -561,7 +566,7 @@ export class ScheduleService {
         teacherId = a?.teacherId ?? null;
         teacherCache.set(key, teacherId);
       }
-      if (teacherId !== actor.sub) continue;
+      if (teacherId !== staffId) continue;
       items.push({
         dayOfWeek: s.dayOfWeek,
         startTime: s.block.startTime,

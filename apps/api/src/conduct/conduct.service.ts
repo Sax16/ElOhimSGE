@@ -16,6 +16,7 @@ import { AuditService } from '../common/audit/audit.service';
 import { type JwtUser } from '../auth/decorators/current-user.decorator';
 import { nextCode } from '../common/code-counter.util';
 import { limaTodayISO } from '../common/lima-time.util';
+import { resolveTeachingStaffId } from '../common/teaching-staff.util';
 import { sectionFullLabel } from '../student-attendance/section-label.util';
 
 // Nombres de mes en español para el label de estadística mensual.
@@ -116,16 +117,18 @@ export class ConductService {
   }
 
   // IDs de las secciones que el actor (docente) puede ver: tutor via Section.tutorId o docente via
-  // CourseAssignment. ADMIN → null (todas). Se limita al año activo.
+  // CourseAssignment. Ambos apuntan al Staff vinculado al usuario. Sin ficha docente → sin secciones.
   private async mySectionIds(actor: JwtUser, yearId: string): Promise<string[]> {
+    const staffId = await resolveTeachingStaffId(this.prisma, actor.sub);
+    if (!staffId) return [];
     const [tutorSections, assignments] = await Promise.all([
       this.prisma.section.findMany({
-        where: { tutorId: actor.sub, gradeLevel: { level: { academicYearId: yearId } } },
+        where: { tutorId: staffId, gradeLevel: { level: { academicYearId: yearId } } },
         select: { id: true },
       }),
       this.prisma.courseAssignment.findMany({
         where: {
-          teacherId: actor.sub,
+          teacherId: staffId,
           section: { gradeLevel: { level: { academicYearId: yearId } } },
         },
         select: { sectionId: true },

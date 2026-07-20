@@ -24,12 +24,6 @@ export interface ApiYear {
   enrollmentsCount: number;
 }
 
-/** Docente — GET /api/teachers. */
-export interface ApiTeacher {
-  id: string;
-  fullName: string;
-}
-
 /** Sección dentro del árbol de estructura. */
 export interface ApiSection {
   id: string;
@@ -60,12 +54,13 @@ export interface ApiLevel {
   grades: ApiGrade[];
 }
 
-/** Curso del plan de estudios — GET /api/grade-levels/:id/courses. */
+/** Curso del plan de estudios — GET /api/grade-levels/:id/courses.
+ *  El plan ya no asigna docente por grado: la docencia se define en
+ *  Horarios → Asignación docente (curso×sección). */
 export interface ApiCourse {
   id: string;
   name: string;
   weeklyHours: number;
-  teacher: { id: string; fullName: string } | null;
 }
 
 /** Programa complementario — GET /api/programs?yearId=. */
@@ -197,12 +192,10 @@ export interface CourseCreateBody {
   gradeLevelId: string;
   name: string;
   weeklyHours: number;
-  teacherId?: string | null;
 }
 export interface CourseUpdateBody {
   name?: string;
   weeklyHours?: number;
-  teacherId?: string | null;
 }
 export interface CoursesCopyBody {
   fromGradeLevelId: string;

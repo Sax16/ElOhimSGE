@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { type JwtUser } from '../auth/decorators/current-user.decorator';
+import { teachingStaffWhere } from '../common/teaching-staff.util';
 import { gradeLabel, sectionShortLabel } from './section-label.util';
 
 const YEAR_CLOSED_MESSAGE = 'El año académico está cerrado — solo lectura';
@@ -73,11 +74,26 @@ export class CourseAssignmentsService {
     const year = await this.prisma.academicYear.findUnique({ where: { id: yearId }, select: { id: true } });
     if (!year) throw new NotFoundException('Año académico no encontrado');
 
-    const [teachers, grades] = await Promise.all([
-      this.prisma.user.findMany({
-        where: { role: 'DOCENTE', status: 'ACTIVO' },
-        orderBy: { fullName: 'asc' },
-        select: { id: true, fullName: true },
+    const [activeTeachers, licenseAssigned, grades] = await Promise.all([
+      // Elegibles para asignar: personal con cargo docente (Staff.role DOCENTE) y estado ACTIVO.
+      this.prisma.staff.findMany({
+        where: { ...teachingStaffWhere, status: 'ACTIVO' },
+        orderBy: { code: 'asc' },
+        select: { id: true, code: true, fullName: true, status: true },
+      }),
+      // Docentes en LICENCIA que ya tienen asignación/tutoría en el año: se incluyen marcados
+      // (status LICENCIA) para que el front los muestre deshabilitados donde ya aparezcan.
+      this.prisma.staff.findMany({
+        where: {
+          ...teachingStaffWhere,
+          status: 'LICENCIA',
+          OR: [
+            { courseAssignments: { some: { section: { gradeLevel: { level: { academicYearId: yearId } } } } } },
+            { tutorOf: { some: { gradeLevel: { level: { academicYearId: yearId } } } } },
+          ],
+        },
+        orderBy: { code: 'asc' },
+        select: { id: true, code: true, fullName: true, status: true },
       }),
       this.prisma.gradeLevel.findMany({
         where: { level: { academicYearId: yearId } },
@@ -94,6 +110,9 @@ export class CourseAssignmentsService {
         },
       }),
     ]);
+
+    // ACTIVO (elegibles) + LICENCIA ya asignados (deshabilitados), ordenados por código de empleado.
+    const teachers = [...activeTeachers, ...licenseAssigned].sort((a, b) => a.code.localeCompare(b.code));
 
     return {
       teachers,
@@ -117,15 +136,12 @@ export class CourseAssignmentsService {
         },
       }),
       this.prisma.section.findUnique({ where: { id: input.sectionId }, select: { gradeLevelId: true } }),
-      this.prisma.user.findUnique({ where: { id: input.teacherId }, select: { id: true, role: true } }),
+      this.loadEligibleTeacher(input.teacherId),
     ]);
 
     if (!course) throw new NotFoundException('Curso no encontrado');
     if (!section) throw new NotFoundException('Sección no encontrada');
-    if (!teacher) throw new NotFoundException('Docente no encontrado');
-    if (teacher.role !== 'DOCENTE') {
-      throw new UnprocessableEntityException('El usuario seleccionado no es docente');
-    }
+    void teacher; // validado en loadEligibleTeacher (cargo docente + ACTIVO)
     if (course.gradeLevel.level.academicYear.status === 'CERRADO') {
       throw new ConflictException(YEAR_CLOSED_MESSAGE);
     }
@@ -164,14 +180,7 @@ export class CourseAssignmentsService {
   async update(id: string, input: CourseAssignmentUpdateInput, actor: JwtUser) {
     const existing = await this.loadWithYear(id);
 
-    const teacher = await this.prisma.user.findUnique({
-      where: { id: input.teacherId },
-      select: { id: true, role: true },
-    });
-    if (!teacher) throw new NotFoundException('Docente no encontrado');
-    if (teacher.role !== 'DOCENTE') {
-      throw new UnprocessableEntityException('El usuario seleccionado no es docente');
-    }
+    await this.loadEligibleTeacher(input.teacherId);
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.courseAssignment.update({
@@ -215,6 +224,23 @@ export class CourseAssignmentsService {
         tx,
       );
     });
+  }
+
+  // Valida que el docente sea un EMPLEADO con cargo docente (Staff.role DOCENTE) y ACTIVO.
+  // LICENCIA conserva asignaciones existentes pero no es elegible para nuevas; INACTIVO nunca.
+  private async loadEligibleTeacher(teacherId: string) {
+    const teacher = await this.prisma.staff.findUnique({
+      where: { id: teacherId },
+      select: { id: true, role: true, status: true },
+    });
+    if (!teacher) throw new NotFoundException('Docente no encontrado');
+    if (teacher.role !== 'DOCENTE') {
+      throw new UnprocessableEntityException('El empleado seleccionado no tiene cargo docente');
+    }
+    if (teacher.status !== 'ACTIVO') {
+      throw new UnprocessableEntityException('Solo el personal docente activo puede recibir asignaciones');
+    }
+    return teacher;
   }
 
   // Carga la asignación y valida que su año esté abierto (409 si cerrado).

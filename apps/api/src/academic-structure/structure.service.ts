@@ -13,6 +13,7 @@ import {
 } from '@elohim/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
+import { teachingStaffWhere } from '../common/teaching-staff.util';
 import { YearAccessService } from './year-access.service';
 
 @Injectable()
@@ -383,11 +384,12 @@ export class StructureService {
     return enrollments.map((e) => e.student);
   }
 
+  // El tutor de aula es un EMPLEADO con cargo docente (Staff.role DOCENTE) y ACTIVO — no un User.
   teachers() {
-    return this.prisma.user.findMany({
-      where: { role: 'DOCENTE', status: 'ACTIVO' },
-      select: { id: true, fullName: true },
-      orderBy: { fullName: 'asc' },
+    return this.prisma.staff.findMany({
+      where: { ...teachingStaffWhere, status: 'ACTIVO' },
+      select: { id: true, fullName: true, code: true },
+      orderBy: { code: 'asc' },
     });
   }
 
@@ -396,9 +398,9 @@ export class StructureService {
   async courses(gradeLevelId: string) {
     const grade = await this.prisma.gradeLevel.findUnique({ where: { id: gradeLevelId } });
     if (!grade) throw new NotFoundException('Grado no encontrado');
+    // El plan de estudios es solo catálogo (curso + horas). El docente vive en CourseAssignment.
     return this.prisma.course.findMany({
       where: { gradeLevelId },
-      include: { teacher: { select: { id: true, fullName: true } } },
       orderBy: { name: 'asc' },
     });
   }
@@ -412,7 +414,6 @@ export class StructureService {
             gradeLevelId: input.gradeLevelId,
             name: input.name,
             weeklyHours: input.weeklyHours,
-            teacherId: input.teacherId ?? null,
           },
         });
         await this.audit.log(
@@ -437,9 +438,6 @@ export class StructureService {
     const data: Prisma.CourseUpdateInput = {};
     if (input.name !== undefined) data.name = input.name;
     if (input.weeklyHours !== undefined) data.weeklyHours = input.weeklyHours;
-    if (input.teacherId !== undefined) {
-      data.teacher = input.teacherId ? { connect: { id: input.teacherId } } : { disconnect: true };
-    }
     try {
       return await this.prisma.$transaction(async (tx) => {
         const course = await tx.course.update({ where: { id }, data });
@@ -507,7 +505,6 @@ export class StructureService {
               gradeLevelId: targetId,
               name: course.name,
               weeklyHours: course.weeklyHours,
-              teacherId: course.teacherId,
             },
           });
           copied += 1;
@@ -543,7 +540,6 @@ export class StructureService {
     const payload: Record<string, unknown> = {};
     if (input.name !== undefined) payload.name = input.name;
     if (input.weeklyHours !== undefined) payload.weeklyHours = input.weeklyHours;
-    if (input.teacherId !== undefined) payload.teacherId = input.teacherId;
     return payload as Prisma.InputJsonValue;
   }
 

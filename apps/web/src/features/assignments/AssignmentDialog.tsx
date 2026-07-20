@@ -177,12 +177,18 @@ function FormBody({
         label="Docente"
         placeholder="Selecciona"
         required
-        options={(options?.teachers ?? []).map((t) => ({ value: t.id, label: t.fullName }))}
         value={teacherId}
         error={req(teacherId)}
         onChange={(e) => onTeacher(e.target.value)}
         containerStyle={{ gridColumn: isEdit ? '1 / -1' : undefined }}
-      />
+      >
+        {(options?.teachers ?? []).map((t) => (
+          <option key={t.id} value={t.id} disabled={t.status === 'LICENCIA'}>
+            {t.fullName}
+            {t.status === 'LICENCIA' ? ' · Licencia' : ''}
+          </option>
+        ))}
+      </Select>
       {!isEdit && (
         <>
           <Select

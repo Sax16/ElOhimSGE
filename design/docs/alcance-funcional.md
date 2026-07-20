@@ -295,3 +295,12 @@ Rumbo fijado por el administrador: **v1.0.0 = todo lo construido + grilla de hor
 - **Única gestión: "Escribir a secretaría"** (wa.me al teléfono institucional). Justificación de faltas en línea, confirmaciones de lectura y descargas de documentos quedan para después de la 1.0.0.
 - El aislamiento es a nivel API: cada consulta valida que la matrícula pertenezca a un hijo del apoderado logueado; otros roles no acceden al portal.
 - **Con esto queda completo el alcance funcional de la v1.0.0** (R1–R4 + horarios + portal del apoderado). Post-1.0.0: pagos en línea, notificaciones automáticas (envío masivo, tasa de lectura, documentos digitales), export SIAGIE, inventario, promoción → pre-matrículas.
+
+## Personal y usuarios — corrección pre-1.0.0 (jul 2026)
+
+Detectado por el administrador en la revisión pre-lanzamiento: las asignaciones académicas apuntaban al **usuario** (credencial) en vez de al **empleado**, y el Plan de estudios duplicaba la asignación docente (por grado) contra la de Horarios (por curso×sección).
+
+- **El docente es un empleado**: el tutor de sección y la asignación docente curso×sección apuntan ahora a la **ficha de Personal (Staff)**. El usuario del sistema es solo la llave de acceso, vinculada desde la ficha (`Staff.userId`); el portal del docente resuelve "sus aulas" por ese vínculo. Un usuario docente sin ficha vinculada simplemente no ve aulas.
+- **El acceso del docente se genera desde su ficha de Personal** (mismo patrón que el portal del apoderado): usuario sugerido `nombre.apellido` (editable al crear), clave temporal de un solo uso, cambio obligatorio al primer ingreso, regeneración de clave. Solo el personal con cargo docente recibe acceso (rol DOCENTE). "Usuarios y roles" queda para las cuentas administrativas (admin, secretaría, portería).
+- **La asignación de docente por grado se eliminó por completo** del Plan de estudios (columna `Course.teacherId` incluida): el plan queda como catálogo de cursos y horas semanales; la ÚNICA asignación es curso×sección en Horarios → Asignación docente.
+- **Elegibles para tutoría y asignación**: personal **Activo** con cargo docente. Licencia conserva sus asignaciones (aparece marcada) pero no recibe nuevas; Inactivo nunca es elegible.

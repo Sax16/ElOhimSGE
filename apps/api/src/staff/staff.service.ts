@@ -1,6 +1,15 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { randomInt } from 'node:crypto';
+import bcrypt from 'bcryptjs';
+import {
+  DEFAULT_PERMISSIONS,
+  type StaffAccessInput,
   type StaffCreateInput,
   type StaffListQuery,
   type StaffUpdateInput,
@@ -10,6 +19,33 @@ import { AuditService } from '../common/audit/audit.service';
 import { nextCode } from '../common/code-counter.util';
 import { dateToISO, isoToDate } from '../common/installment-view.util';
 import { effectiveSchedule, type MarkingGroupRow } from './effective-schedule.util';
+
+// Clave temporal legible de 8 caracteres, sin caracteres ambiguos (0/O/1/l/I).
+const TEMP_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+function generateTempPassword(): string {
+  let raw = '';
+  for (let i = 0; i < 8; i++) raw += TEMP_ALPHABET[randomInt(TEMP_ALPHABET.length)];
+  return raw;
+}
+
+// Normaliza un token de nombre a slug de username: sin tildes, ñ→n, minúsculas, solo [a-z0-9].
+function normalizeToken(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/ñ/g, 'n')
+    .replace(/Ñ/g, 'n')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+// "Lucía Díaz Paredes" → "lucia.diaz" (nombre.apellido). Base para el username sugerido.
+function baseUsername(fullName: string): string {
+  const tokens = fullName.trim().split(/\s+/).map(normalizeToken).filter(Boolean);
+  const first = tokens[0] ?? 'docente';
+  const second = tokens[1] ?? '';
+  return second ? `${first}.${second}` : first;
+}
 
 const staffSelect = {
   id: true,
@@ -309,6 +345,143 @@ export class StaffService {
     } catch (error) {
       throw this.mapConflict(error, 'Ya existe un empleado con ese DNI');
     }
+  }
+
+  // ===== Acceso al sistema desde la ficha (solo personal docente) =====
+
+  // Primer username libre a partir de la base (agrega sufijo numérico si colisiona). excludeUserId
+  // permite ignorar la cuenta del propio empleado al calcular el sugerido.
+  private async uniqueUsername(base: string, excludeUserId?: string): Promise<string> {
+    let candidate = base;
+    let n = 1;
+    for (;;) {
+      const taken = await this.prisma.user.findFirst({
+        where: { username: candidate, ...(excludeUserId ? { id: { not: excludeUserId } } : {}) },
+        select: { id: true },
+      });
+      if (!taken) return candidate;
+      n += 1;
+      candidate = `${base}${n}`;
+    }
+  }
+
+  // GET /staff/:id/access — estado de la cuenta del sistema del empleado.
+  async getAccess(id: string) {
+    const staff = await this.prisma.staff.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        fullName: true,
+        role: true,
+        user: { select: { id: true, username: true, role: true } },
+      },
+    });
+    if (!staff) throw new NotFoundException('Empleado no encontrado');
+
+    if (!staff.user) {
+      return {
+        status: 'SIN_ACCESO' as const,
+        username: null,
+        role: null,
+        suggestedUsername: await this.uniqueUsername(baseUsername(staff.fullName)),
+      };
+    }
+    return {
+      status: 'ACTIVO' as const,
+      username: staff.user.username,
+      role: staff.user.role,
+      // Con cuenta ya no se sugiere (el reset ignora el username): se devuelve el actual.
+      suggestedUsername: staff.user.username,
+    };
+  }
+
+  // POST /staff/:id/access — genera (o regenera) el acceso del docente.
+  // Sin cuenta: crea el User rol DOCENTE (username sugerido o el del body) y vincula Staff.userId.
+  // Con cuenta: reinicia la clave temporal (ignora el username del body) y fuerza el cambio.
+  async generateAccess(id: string, input: StaffAccessInput, actorId: string) {
+    const staff = await this.prisma.staff.findUnique({
+      where: { id },
+      select: { id: true, fullName: true, email: true, role: true, userId: true },
+    });
+    if (!staff) throw new NotFoundException('Empleado no encontrado');
+    // Solo el personal con cargo docente (Staff.role DOCENTE) recibe acceso.
+    if (staff.role !== 'DOCENTE') {
+      throw new UnprocessableEntityException('Solo el personal docente recibe acceso al sistema');
+    }
+
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    // Ya tiene cuenta → reset de clave temporal (ignora el username del body).
+    if (staff.userId) {
+      const userId = staff.userId;
+      await this.prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: userId },
+          data: { passwordHash, mustChangePassword: true },
+        });
+        await this.audit.log(
+          {
+            userId: actorId,
+            action: 'staff.access-reset',
+            entity: 'Staff',
+            entityId: staff.id,
+            payload: { staffId: staff.id, userId },
+          },
+          tx,
+        );
+      });
+      const user = await this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { username: true },
+      });
+      return { username: user.username, tempPassword };
+    }
+
+    // Sin cuenta → crear User rol DOCENTE. username: el del body o el sugerido (normalizado, único).
+    const username = input.username?.trim() || (await this.uniqueUsername(baseUsername(staff.fullName)));
+    const clash = await this.prisma.user.findFirst({ where: { username }, select: { id: true } });
+    if (clash) throw new ConflictException(`El usuario ${username} ya está en uso`);
+
+    // La institución no tiene dominio propio y el correo del User es único y obligatorio: se usa el
+    // correo de la ficha si existe; si no, uno sintético a partir del username.
+    const email = staff.email && staff.email.trim() ? staff.email.trim() : `${username}@personal.local`;
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            username,
+            email,
+            passwordHash,
+            fullName: staff.fullName,
+            role: 'DOCENTE',
+            permissions: DEFAULT_PERMISSIONS.DOCENTE as Prisma.InputJsonValue,
+            mustChangePassword: true,
+          },
+          select: { id: true },
+        });
+        await tx.staff.update({ where: { id: staff.id }, data: { userId: user.id } });
+        await this.audit.log(
+          {
+            userId: actorId,
+            action: 'staff.access',
+            entity: 'Staff',
+            entityId: staff.id,
+            payload: { staffId: staff.id, userId: user.id, username },
+          },
+          tx,
+        );
+      });
+    } catch (error) {
+      // username o correo ya en uso por otra cuenta.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException(`El usuario ${username} o el correo ${email} ya están en uso`);
+      }
+      throw error;
+    }
+
+    return { username, tempPassword };
   }
 
   private mapConflict(error: unknown, message: string): Error {

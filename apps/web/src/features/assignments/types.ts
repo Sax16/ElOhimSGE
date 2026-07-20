@@ -20,9 +20,13 @@ export interface AssignmentsResponse {
 }
 
 // ---- Opciones para el diálogo ----------------------------------------------
+/** Docente elegible = empleado de Personal con cargo docente.
+ *  `id` es el staffId (se manda igual que antes en el POST/PATCH). */
 export interface OptionTeacher {
   id: string;
+  code: string; // "P-001"
   fullName: string;
+  status: 'ACTIVO' | 'LICENCIA';
 }
 
 export interface OptionCourse {

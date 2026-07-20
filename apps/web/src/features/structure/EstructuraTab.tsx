@@ -29,10 +29,10 @@ import {
   useDeleteLevel,
   useDeleteSection,
   useRoster,
-  useTeachers,
   useUpdateLevel,
   useUpdateSection,
 } from './api';
+import { useAssignmentOptions } from '../assignments/api';
 import { isInicial, VacBar } from './bits';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import type { ApiGrade, ApiLevel, ApiSection } from './types';
@@ -626,8 +626,10 @@ function GradoDialog({ yearId, ctx, onClose }: { yearId: string; ctx: GradoCtx |
 
 function SeccionDialog({ yearId, ctx, onClose }: { yearId: string; ctx: SeccionCtx | null; onClose: () => void }) {
   const { toast } = useToast();
-  const teachersQuery = useTeachers();
-  const teachers = teachersQuery.data ?? [];
+  // El tutor se elige entre el personal docente (Personal). `id` es el staffId
+  // y se manda en `tutorId` como siempre. Misma fuente que Asignación docente.
+  const optionsQuery = useAssignmentOptions(yearId, !!ctx);
+  const teachers = optionsQuery.data?.teachers ?? [];
   const createSection = useCreateSection(yearId);
   const updateSection = useUpdateSection(yearId);
 
@@ -680,7 +682,10 @@ function SeccionDialog({ yearId, ctx, onClose }: { yearId: string; ctx: SeccionC
 
   const tutorOptions = [
     { value: '', label: '— Sin asignar —' },
-    ...teachers.map((t) => ({ value: t.id, label: t.fullName })),
+    ...teachers.map((t) => ({
+      value: t.id,
+      label: `${t.fullName}${t.code ? ` · ${t.code}` : ''}${t.status === 'LICENCIA' ? ' · Licencia' : ''}`,
+    })),
   ];
 
   return (

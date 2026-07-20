@@ -44,10 +44,27 @@ export async function seedR4Academico(prisma: PrismaClient) {
   const year2026 = await prisma.academicYear.findUnique({ where: { name: '2026' } });
   if (!year2026) throw new Error('Falta el año 2026 — corre primero el seed 04-academic-years');
 
-  // ----- Asignación docente: cada curso con teacherId → todas las secciones de su grado -----
+  // ----- Asignación docente (curso × sección): teacherId = Staff docente -----
+  // "El docente es un empleado": la asignación apunta a un Staff con cargo docente (ACTIVO). Reparto
+  // determinista round-robin POR CURSO (orden por nivel/grado/nombre); el mismo docente-staff cubre
+  // todas las secciones del grado (mismo docente en A y B), como antes.
+  const docenteStaff = await prisma.staff.findMany({
+    where: { role: 'DOCENTE', status: 'ACTIVO' },
+    select: { id: true },
+    orderBy: { code: 'asc' },
+  });
+  const staffIds = docenteStaff.map((s) => s.id);
+  let rr = 0;
+  const nextTeacher = () => (staffIds.length ? staffIds[rr++ % staffIds.length]! : null);
+
   const courses = await prisma.course.findMany({
-    where: { teacherId: { not: null }, gradeLevel: { level: { academicYearId: year2026.id } } },
-    select: { id: true, teacherId: true, gradeLevelId: true },
+    where: { gradeLevel: { level: { academicYearId: year2026.id } } },
+    orderBy: [
+      { gradeLevel: { level: { order: 'asc' } } },
+      { gradeLevel: { order: 'asc' } },
+      { name: 'asc' },
+    ],
+    select: { id: true, gradeLevelId: true },
   });
 
   // gradeLevelId → sectionIds.
@@ -64,13 +81,14 @@ export async function seedR4Academico(prisma: PrismaClient) {
 
   let assignmentCount = 0;
   for (const course of courses) {
-    if (!course.teacherId) continue;
+    const teacherId = nextTeacher();
+    if (!teacherId) break;
     const gradeSections = sectionsByGrade.get(course.gradeLevelId) ?? [];
     for (const sectionId of gradeSections) {
       await prisma.courseAssignment.upsert({
         where: { courseId_sectionId: { courseId: course.id, sectionId } },
-        update: {},
-        create: { courseId: course.id, sectionId, teacherId: course.teacherId },
+        update: { teacherId },
+        create: { courseId: course.id, sectionId, teacherId },
       });
       assignmentCount += 1;
     }
@@ -83,14 +101,16 @@ export async function seedR4Academico(prisma: PrismaClient) {
   const primariaSections = await prisma.section.findMany({
     where: { gradeLevel: { level: { academicYearId: year2026.id, name: 'Primaria' } } },
     orderBy: [{ gradeLevel: { order: 'asc' } }, { name: 'asc' }],
-    select: { id: true, tutorId: true },
+    // El tutor es un Staff; markedBy debe ser un User (actor de auditoría) → se usa el usuario
+    // vinculado al tutor, o el usuario 'docente' como respaldo.
+    select: { id: true, tutor: { select: { userId: true } } },
     take: 4,
   });
 
   const days = businessDaysBeforeToday(10);
   let entryCount = 0;
   for (const section of primariaSections) {
-    const markedById = section.tutorId ?? docente.id;
+    const markedById = section.tutor?.userId ?? docente.id;
     const enrollments = await prisma.enrollment.findMany({
       where: {
         sectionId: section.id,

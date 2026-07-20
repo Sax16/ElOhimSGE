@@ -9,6 +9,7 @@ import {
   formatSalary,
   scheduleText,
 } from './bits';
+import { StaffAccessSection } from './StaffAccess';
 import type { StaffDto } from './types';
 
 export interface StaffDialogProps {
@@ -80,6 +81,9 @@ export function StaffDialog({ staff, onClose, onEdit, canEdit = false }: StaffDi
               </div>
             ))}
           </div>
+          {staff.role === 'DOCENTE' && (
+            <StaffAccessSection staffId={staff.id} canEdit={canEdit} />
+          )}
         </div>
       )}
     </Dialog>

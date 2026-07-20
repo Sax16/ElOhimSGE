@@ -19,6 +19,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { type JwtUser } from '../auth/decorators/current-user.decorator';
+import { resolveTeachingStaffId } from '../common/teaching-staff.util';
 import { buildActaWorkbook } from './grades.xlsx';
 import {
   gradeLabel,
@@ -129,10 +130,18 @@ export class GradesService {
     return period;
   }
 
+  // Staff (empleado con cargo docente) vinculado al actor; null si el usuario no tiene ficha docente.
+  private teachingStaffId(actor: JwtUser): Promise<string | null> {
+    return resolveTeachingStaffId(this.prisma, actor.sub);
+  }
+
   // ¿El docente tiene la asignación exacta curso×sección? (fuente de verdad de "qué dicta").
+  // El docente se identifica por su Staff vinculado; sin ficha docente → false.
   private async hasCourseAssignment(actor: JwtUser, courseId: string, sectionId: string): Promise<boolean> {
+    const staffId = await this.teachingStaffId(actor);
+    if (!staffId) return false;
     const a = await this.prisma.courseAssignment.findFirst({
-      where: { courseId, sectionId, teacherId: actor.sub },
+      where: { courseId, sectionId, teacherId: staffId },
       select: { id: true },
     });
     return Boolean(a);
@@ -140,9 +149,11 @@ export class GradesService {
 
   // ¿El docente es tutor de la sección o tiene alguna asignación en ella? (para ver aspectos/libreta).
   private async ownsSectionAny(actor: JwtUser, section: SectionRow): Promise<boolean> {
-    if (section.tutorId === actor.sub) return true;
+    const staffId = await this.teachingStaffId(actor);
+    if (!staffId) return false;
+    if (section.tutorId === staffId) return true;
     const a = await this.prisma.courseAssignment.findFirst({
-      where: { sectionId: section.id, teacherId: actor.sub },
+      where: { sectionId: section.id, teacherId: staffId },
       select: { id: true },
     });
     return Boolean(a);
@@ -194,10 +205,15 @@ export class GradesService {
     const year = await this.activeYear();
     const period = periodId ? await this.loadPeriod(periodId) : await this.currentPeriod(year.id);
 
+    // Docente: identificado por su Staff vinculado. Sin ficha docente → sin cursos.
+    const isAdmin = this.isAdmin(actor);
+    const staffId = isAdmin ? null : await this.teachingStaffId(actor);
+    if (!isAdmin && !staffId) return { period: { id: period.id, name: period.name }, courses: [] };
+
     const assignments = await this.prisma.courseAssignment.findMany({
       where: {
         section: { gradeLevel: { level: { academicYearId: year.id } } },
-        ...(this.isAdmin(actor) ? {} : { teacherId: actor.sub }),
+        ...(isAdmin ? {} : { teacherId: staffId! }),
       },
       orderBy: [
         { course: { gradeLevel: { level: { order: 'asc' } } } },
@@ -584,7 +600,9 @@ export class GradesService {
     const year = await this.activeYear();
     const [section, period] = await Promise.all([this.loadSection(sectionId), this.loadPeriod(periodId)]);
 
-    const isTutor = section.tutorId === actor.sub;
+    // El tutor del aula es un Staff docente: se compara contra el Staff vinculado al actor.
+    const staffId = this.isAdmin(actor) ? null : await this.teachingStaffId(actor);
+    const isTutor = staffId !== null && section.tutorId === staffId;
     if (!this.isAdmin(actor) && !isTutor && !(await this.ownsSectionAny(actor, section))) {
       throw new ForbiddenException('No tienes acceso a esta sección');
     }
@@ -646,7 +664,9 @@ export class GradesService {
       throw new BadRequestException('La sección o el periodo no pertenecen al año académico activo');
     }
 
-    const isTutor = section.tutorId === actor.sub;
+    // El tutor del aula es un Staff docente: se compara contra el Staff vinculado al actor.
+    const staffId = this.isAdmin(actor) ? null : await this.teachingStaffId(actor);
+    const isTutor = staffId !== null && section.tutorId === staffId;
     const canEditByRole = this.isAdmin(actor) || isTutor;
     const { isCorrection } = this.assertCanMutate(
       actor,

@@ -245,7 +245,6 @@ export class YearsService {
                     gradeLevelId: newGrade.id,
                     name: course.name,
                     weeklyHours: course.weeklyHours,
-                    teacherId: copy.tutors ? course.teacherId : null,
                   },
                 });
                 counts.courses += 1;

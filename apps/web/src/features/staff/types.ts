@@ -79,6 +79,23 @@ export interface StaffCatalogs {
   markingGroups: MarkingGroupCatalog[];
 }
 
+// ---- Acceso al sistema (portal docente) ------------------------------------
+export type StaffAccessStatus = 'SIN_ACCESO' | 'ACTIVO';
+
+/** GET /api/staff/:id/access. Responde 422 si el cargo no es docente. */
+export interface StaffAccess {
+  status: StaffAccessStatus;
+  username: string | null;
+  role: string | null;
+  suggestedUsername: string;
+}
+
+/** POST /api/staff/:id/access — credencial mostrada una sola vez. */
+export interface StaffAccessCredential {
+  username: string;
+  tempPassword: string;
+}
+
 // ---- Bodies de mutación ----------------------------------------------------
 
 export interface StaffCreateBody {

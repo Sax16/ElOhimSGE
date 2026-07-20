@@ -1,7 +1,6 @@
 // Plan de estudios: cursos por grado, con alta/edición y copia desde otro grado.
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Avatar,
   Button,
   Card,
   Dialog,
@@ -20,7 +19,6 @@ import {
   useCourses,
   useCreateCourse,
   useDeleteCourse,
-  useTeachers,
   useUpdateCourse,
 } from './api';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
@@ -81,19 +79,6 @@ export function PlanTab({ yearId, levels, readOnly }: PlanTabProps) {
       render: (v: string) => <span style={{ font: 'var(--type-label)', color: 'var(--text-strong)' }}>{v}</span>,
     },
     { key: 'weeklyHours', header: 'Horas semanales', align: 'center' as const, mono: true },
-    {
-      key: 'teacher',
-      header: 'Docente asignado',
-      render: (_v: unknown, r: ApiCourse) =>
-        r.teacher ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Avatar name={r.teacher.fullName} size="xs" />
-            <span>{r.teacher.fullName}</span>
-          </div>
-        ) : (
-          <span style={{ color: 'var(--text-subtle)' }}>Sin asignar</span>
-        ),
-    },
     ...(readOnly
       ? []
       : [
@@ -238,28 +223,24 @@ function CursoDialog({
   onClose: () => void;
 }) {
   const { toast } = useToast();
-  const teachersQuery = useTeachers();
-  const teachers = teachersQuery.data ?? [];
   const createCourse = useCreateCourse(gradeLevelId);
   const updateCourse = useUpdateCourse(gradeLevelId);
 
   const edit = ctx?.course;
   const [name, setName] = useState('');
   const [hours, setHours] = useState('2');
-  const [teacherId, setTeacherId] = useState('');
 
   useEffect(() => {
     if (!ctx) return;
     setName(edit?.name ?? '');
     setHours(edit ? String(edit.weeklyHours) : '2');
-    setTeacherId(edit?.teacher?.id ?? '');
   }, [ctx]);
 
   const hoursNum = parseInt(hours, 10);
   const pending = createCourse.isPending || updateCourse.isPending;
 
   const submit = () => {
-    const base = { name: name.trim(), weeklyHours: hoursNum, teacherId: teacherId || null };
+    const base = { name: name.trim(), weeklyHours: hoursNum };
     const opts = {
       onSuccess: () => {
         toast('success', edit ? 'Curso actualizado' : 'Curso agregado', `${base.name} · ${base.weeklyHours} h semanales.`);
@@ -271,11 +252,6 @@ function CursoDialog({
     if (edit) updateCourse.mutate({ id: edit.id, body: base }, opts);
     else createCourse.mutate({ gradeLevelId, ...base }, opts);
   };
-
-  const teacherOptions = [
-    { value: '', label: '— Sin asignar —' },
-    ...teachers.map((t) => ({ value: t.id, label: t.fullName })),
-  ];
 
   return (
     <Dialog
@@ -308,21 +284,15 @@ function CursoDialog({
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 14 }}>
-          <Input
-            label="Horas semanales"
-            type="number"
-            value={hours}
-            onChange={(e) => setHours(e.target.value)}
-            suffix="h"
-          />
-          <Select
-            label="Docente asignado"
-            options={teacherOptions}
-            value={teacherId}
-            onChange={(e) => setTeacherId(e.target.value)}
-          />
-        </div>
+        <Input
+          label="Horas semanales"
+          type="number"
+          value={hours}
+          onChange={(e) => setHours(e.target.value)}
+          suffix="h"
+          containerStyle={{ maxWidth: 180 }}
+          hint="El docente se asigna en Horarios → Asignación docente"
+        />
       </div>
     </Dialog>
   );
@@ -381,7 +351,7 @@ function CopiarPlanDialog({
             'Plan copiado',
             `${res.copied} ${res.copied === 1 ? 'curso copiado' : 'cursos copiados'}${
               res.skipped ? ` (${res.skipped} omitidos por duplicado)` : ''
-            } — revisa los docentes.`,
+            }.`,
           );
           onClose();
         },
@@ -397,7 +367,7 @@ function CopiarPlanDialog({
       onClose={onClose}
       title="Copiar plan de otro grado"
       icon={<Icons.Copy />}
-      description="Trae los cursos y horas; los docentes se reasignan después"
+      description="Trae los cursos y sus horas semanales al grado actual"
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={copyCourses.isPending}>

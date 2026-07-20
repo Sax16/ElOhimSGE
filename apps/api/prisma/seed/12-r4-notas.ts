@@ -120,10 +120,12 @@ export async function seedR4Notas(prisma: PrismaClient) {
   if (!bimI || !bimII) throw new Error('Faltan los bimestres 2026 — corre primero el seed 05-structure');
 
   // Mismas 3 secciones de Primaria con matrículas de la asistencia demo.
+  // El tutor y el docente de curso son ahora Staff; gradedById debe ser un User (actor de auditoría),
+  // así que se resuelve el usuario vinculado al Staff (Staff.userId), con 'docente' como respaldo.
   const sections = await prisma.section.findMany({
     where: { gradeLevel: { level: { academicYearId: year2026.id, name: 'Primaria' } } },
     orderBy: [{ gradeLevel: { order: 'asc' } }, { name: 'asc' }],
-    select: { id: true, tutorId: true, gradeLevelId: true },
+    select: { id: true, tutor: { select: { userId: true } }, gradeLevelId: true },
     take: 3,
   });
 
@@ -155,7 +157,11 @@ export async function seedR4Notas(prisma: PrismaClient) {
       select: {
         id: true,
         competencies: { orderBy: { order: 'asc' }, select: { id: true } },
-        assignments: { where: { sectionId: section.id }, select: { teacherId: true }, take: 1 },
+        assignments: {
+          where: { sectionId: section.id },
+          select: { teacher: { select: { userId: true } } },
+          take: 1,
+        },
       },
     });
 
@@ -164,7 +170,7 @@ export async function seedR4Notas(prisma: PrismaClient) {
 
     // ----- Bimestre I (CERRADO): notas completas + logro auto -----
     for (const course of bimICourses) {
-      const gradedById = course.assignments[0]?.teacherId ?? section.tutorId ?? docente.id;
+      const gradedById = course.assignments[0]?.teacher?.userId ?? section.tutor?.userId ?? docente.id;
       for (const enrollment of enrollments) {
         const letters: GradeLetter[] = [];
         for (const comp of course.competencies) {
@@ -217,7 +223,7 @@ export async function seedR4Notas(prisma: PrismaClient) {
     }
 
     // ----- Aspectos Bimestre I (completos, los registra el tutor) -----
-    const aspectGradedBy = section.tutorId ?? docente.id;
+    const aspectGradedBy = section.tutor?.userId ?? docente.id;
     for (const enrollment of enrollments) {
       for (const aspect of activeAspects) {
         const letter = deterministicLetter(`${enrollment.id}|${aspect.id}|B1`);
@@ -244,7 +250,7 @@ export async function seedR4Notas(prisma: PrismaClient) {
 
     // ----- Bimestre II (EN_CURSO): captura parcial (~60% de estudiantes completos) -----
     for (const course of bimIICourses) {
-      const gradedById = course.assignments[0]?.teacherId ?? section.tutorId ?? docente.id;
+      const gradedById = course.assignments[0]?.teacher?.userId ?? section.tutor?.userId ?? docente.id;
       for (const enrollment of enrollments) {
         // ~60% de los estudiantes ya tienen notas del bimestre en curso.
         if (hash100(`${enrollment.id}|${course.id}|B2`) >= 60) continue;

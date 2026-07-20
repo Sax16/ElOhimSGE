@@ -1,15 +1,8 @@
 import { type PrismaClient, type Shift } from '@prisma/client';
 
-// Docentes del seed 02 (role DOCENTE): se reparten como tutores y docentes de curso.
-const DOCENTE_NAMES = [
-  'Pedro Gómez Silva',
-  'Lucía Díaz Paredes',
-  'Mario Silva Chávez',
-  'Carmen Rojas Vega',
-  'Jorge Mendoza Ríos',
-  'Elena Castro Salas',
-  'Raúl Torres Ninanya',
-];
+// "El docente es un empleado": el tutor de aula es un Staff con cargo docente (role DOCENTE) y ACTIVO.
+// Se reparten en round-robin determinista (orden por código de empleado). Los cursos NO llevan
+// docente (Course.teacherId se eliminó): la asignación docente vive en CourseAssignment (11-r4).
 
 type SectionSeed = { name: string; shift: Shift; capacity: number };
 type GradeSeed = { name: string; order: number; sections: SectionSeed[] };
@@ -165,16 +158,16 @@ export async function seedStructure2026(prisma: PrismaClient) {
     throw new Error('Faltan los años 2025/2026 — corre primero el seed 04-academic-years');
   }
 
-  // Docentes: mapa fullName → id, con rotación round-robin para tutores y cursos.
-  const docentes = await prisma.user.findMany({
-    where: { role: 'DOCENTE', fullName: { in: DOCENTE_NAMES } },
+  // Tutores: empleados con cargo docente (Staff.role DOCENTE) y ACTIVO, en round-robin determinista
+  // por código de empleado. LICENCIA/INACTIVO no reciben tutoría nueva.
+  const docentes = await prisma.staff.findMany({
+    where: { role: 'DOCENTE', status: 'ACTIVO' },
     select: { id: true },
-    orderBy: { fullName: 'asc' },
+    orderBy: { code: 'asc' },
   });
-  const teacherIds = docentes.map((d) => d.id);
+  const tutorIds = docentes.map((s) => s.id);
   let rr = 0;
-  const nextTeacher = () =>
-    teacherIds.length ? teacherIds[rr++ % teacherIds.length] : null;
+  const nextTutor = () => (tutorIds.length ? tutorIds[rr++ % tutorIds.length] : null);
 
   let levelCount = 0;
   let gradeCount = 0;
@@ -231,23 +224,31 @@ export async function seedStructure2026(prisma: PrismaClient) {
       gradeCount += 1;
 
       for (const section of grade.sections) {
-        await prisma.section.upsert({
+        // Se avanza el round-robin por CADA sección (posición estable, independiente de lo existente).
+        const tutorId = nextTutor();
+        const existing = await prisma.section.findUnique({
           where: {
-            gradeLevelId_name_shift: {
+            gradeLevelId_name_shift: { gradeLevelId: dbGrade.id, name: section.name, shift: section.shift },
+          },
+          select: { id: true, tutorId: true },
+        });
+        if (existing) {
+          // Solo repuebla el tutor si quedó sin asignar (p. ej. tras la migración que apunta a Staff);
+          // no pisa un tutor ya establecido a mano.
+          if (!existing.tutorId) {
+            await prisma.section.update({ where: { id: existing.id }, data: { tutorId } });
+          }
+        } else {
+          await prisma.section.create({
+            data: {
               gradeLevelId: dbGrade.id,
               name: section.name,
               shift: section.shift,
+              capacity: section.capacity,
+              tutorId,
             },
-          },
-          update: {},
-          create: {
-            gradeLevelId: dbGrade.id,
-            name: section.name,
-            shift: section.shift,
-            capacity: section.capacity,
-            tutorId: nextTeacher(),
-          },
-        });
+          });
+        }
         sectionCount += 1;
       }
 
@@ -259,7 +260,6 @@ export async function seedStructure2026(prisma: PrismaClient) {
             gradeLevelId: dbGrade.id,
             name: course.name,
             weeklyHours: course.weeklyHours,
-            teacherId: nextTeacher(),
           },
         });
         courseCount += 1;
