@@ -1,0 +1,149 @@
+/* Asignación docente — vistas Por sección / Por docente. */
+
+/* ---- Por sección: filas de curso ---- */
+.esge-asg-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.esge-asg-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+.esge-asg-row:first-child {
+  border-top: none;
+}
+
+.esge-asg-course {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.esge-asg-course__name {
+  font: var(--type-label);
+  color: var(--text-strong);
+}
+.esge-asg-course__hours {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs, 12px);
+  color: var(--text-muted);
+}
+
+.esge-asg-teacher {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.esge-asg-teacher__name {
+  font: var(--type-body);
+  color: var(--text-body);
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.esge-asg-teacher__code {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs, 12px);
+  color: var(--text-muted);
+}
+
+.esge-asg-actions {
+  display: inline-flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* ---- Por docente: encabezado + chips ---- */
+.esge-asg-teacher-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.esge-asg-teacher-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.esge-asg-teacher-id__name {
+  font: var(--type-label);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.esge-asg-teacher-id__meta {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs, 12px);
+  color: var(--text-muted);
+}
+.esge-asg-teacher-load {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.esge-asg-teacher-load__hours {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-medium);
+  color: var(--text-body);
+}
+
+.esge-asg-chips {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.esge-asg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  font: var(--type-caption);
+  color: var(--text-body);
+}
+.esge-asg-chip__course {
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+}
+.esge-asg-chip__sep {
+  color: var(--text-muted);
+}
+.esge-asg-chip__section {
+  color: var(--text-body);
+}
+.esge-asg-chip__hours {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+/* ---- Responsive: filas apiladas en sm ---- */
+@media (max-width: 767px) {
+  .esge-asg-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 14px 4px;
+  }
+  .esge-asg-actions {
+    justify-content: flex-start;
+  }
+  .esge-asg-actions .esge-btn {
+    min-height: 44px;
+  }
+}

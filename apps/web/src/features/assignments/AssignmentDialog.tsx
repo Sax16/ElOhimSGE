@@ -5,21 +5,27 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Dialog, Icons, Select, useToast } from '@elohim/ui';
 import { ApiError } from '../../lib/api';
 import { useAssignmentOptions, useCreateAssignment, useUpdateAssignment } from './api';
-import type { AssignmentOptions, CourseAssignment } from './types';
+import type { AssignmentOptions, AssignPrefill, CourseAssignment } from './types';
 
 export interface AssignmentDialogProps {
   open: boolean;
   /** Asignación a editar; null = alta nueva. */
   editing: CourseAssignment | null;
+  /** Contexto fijo (curso+sección) para "Asignar" desde Por sección. */
+  prefill?: AssignPrefill | null;
   yearId: string | undefined;
   onClose: () => void;
 }
 
 const DUP_MESSAGE = 'Esa sección ya tiene docente asignado para este curso.';
 
-export function AssignmentDialog({ open, editing, yearId, onClose }: AssignmentDialogProps) {
+export function AssignmentDialog({ open, editing, prefill, yearId, onClose }: AssignmentDialogProps) {
   const { toast } = useToast();
   const isEdit = !!editing;
+  // Modo "Asignar" con curso+sección fijos: solo se elige el docente.
+  const locked = !isEdit && !!prefill;
+  // Sin selects de estructura (edición o modo bloqueado).
+  const compact = isEdit || locked;
 
   const { data: options } = useAssignmentOptions(yearId, open);
   const create = useCreateAssignment();
@@ -31,7 +37,7 @@ export function AssignmentDialog({ open, editing, yearId, onClose }: AssignmentD
   const [sectionId, setSectionId] = useState('');
   const [touched, setTouched] = useState(false);
 
-  // Al abrir, precarga los valores (edición) o limpia (alta).
+  // Al abrir, precarga los valores (edición / prefill) o limpia (alta libre).
   useEffect(() => {
     if (!open) return;
     setTouched(false);
@@ -40,13 +46,18 @@ export function AssignmentDialog({ open, editing, yearId, onClose }: AssignmentD
       setGradeLevelId(editing.gradeLevelId);
       setCourseId(editing.courseId);
       setSectionId(editing.sectionId);
+    } else if (prefill) {
+      setTeacherId('');
+      setGradeLevelId('');
+      setCourseId(prefill.courseId);
+      setSectionId(prefill.sectionId);
     } else {
       setTeacherId('');
       setGradeLevelId('');
       setCourseId('');
       setSectionId('');
     }
-  }, [open, editing?.id]);
+  }, [open, editing?.id, prefill?.courseId, prefill?.sectionId]);
 
   const grade = useMemo(
     () => options?.grades.find((g) => g.gradeLevelId === gradeLevelId) ?? null,
@@ -61,7 +72,7 @@ export function AssignmentDialog({ open, editing, yearId, onClose }: AssignmentD
   };
 
   const pending = create.isPending || update.isPending;
-  const complete = isEdit
+  const complete = compact
     ? !!teacherId
     : !!teacherId && !!gradeLevelId && !!courseId && !!sectionId;
 
@@ -108,22 +119,28 @@ export function AssignmentDialog({ open, editing, yearId, onClose }: AssignmentD
       open={open}
       onClose={onClose}
       icon={<Icons.Teacher />}
-      title={isEdit ? 'Cambiar docente' : 'Nueva asignación'}
-      description={isEdit ? `${editing?.courseName} · ${editing?.gradeLabel} · ${editing?.sectionLabel}` : undefined}
+      title={isEdit ? 'Cambiar docente' : locked ? 'Asignar docente' : 'Nueva asignación'}
+      description={
+        isEdit
+          ? `${editing?.courseName} · ${editing?.gradeLabel} · ${editing?.sectionLabel}`
+          : locked
+            ? `${prefill?.courseName} · ${prefill?.sectionLabel}`
+            : undefined
+      }
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={pending}>
             Cancelar
           </Button>
           <Button variant="primary" iconLeft={<Icons.Check />} disabled={pending} onClick={submit}>
-            {isEdit ? 'Guardar cambios' : 'Crear asignación'}
+            {isEdit ? 'Guardar cambios' : locked ? 'Asignar docente' : 'Crear asignación'}
           </Button>
         </>
       }
     >
       <FormBody
         options={options}
-        isEdit={isEdit}
+        isEdit={compact}
         teacherId={teacherId}
         gradeLevelId={gradeLevelId}
         courseId={courseId}

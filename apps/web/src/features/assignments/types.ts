@@ -53,6 +53,15 @@ export interface AssignmentOptions {
   grades: OptionGrade[];
 }
 
+/** Contexto precargado para "Asignar" desde la vista Por sección: curso y
+ *  sección quedan fijos (solo se elige el docente). */
+export interface AssignPrefill {
+  courseId: string;
+  courseName: string;
+  sectionId: string;
+  sectionLabel: string; // ya formateado, p.ej. "3° A · Primaria"
+}
+
 // ---- Bodies de mutación ----------------------------------------------------
 export interface CreateAssignmentBody {
   courseId: string;
