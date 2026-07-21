@@ -16,7 +16,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { type JwtUser } from '../auth/decorators/current-user.decorator';
 import { resolveTeachingStaffId } from '../common/teaching-staff.util';
-import { sectionShortLabel } from '../student-attendance/section-label.util';
+import { sectionFullLabel } from '../student-attendance/section-label.util';
 
 const YEAR_CLOSED_MESSAGE = 'El año académico está cerrado — solo lectura';
 
@@ -185,7 +185,8 @@ export class ScheduleService {
     return {
       section: {
         id: section.id,
-        label: sectionShortLabel(section.name, section.shift),
+        // Etiqueta completa "3° B · Primaria": ubica grado y nivel (no solo "B · Mañana").
+        label: sectionFullLabel(section),
         shift: section.shift,
         levelId,
         gradeLevelId: section.gradeLevelId,
@@ -406,7 +407,13 @@ export class ScheduleService {
       select: {
         courseId: true,
         sectionId: true,
-        section: { select: { name: true, shift: true } },
+        section: {
+          select: {
+            name: true,
+            shift: true,
+            gradeLevel: { select: { name: true, level: { select: { name: true } } } },
+          },
+        },
         course: { select: { name: true } },
         block: { select: { startTime: true, endTime: true } },
       },
@@ -426,9 +433,9 @@ export class ScheduleService {
       const cEnd = timeToMinutes(c.block.endTime);
       // Solape de horas: start < cEnd && cStart < end.
       if (start < cEnd && cStart < end) {
-        return `El docente ${assignment.teacher.fullName} ya tiene ${c.course.name} en ${sectionShortLabel(
-          c.section.name,
-          c.section.shift,
+        // Etiqueta completa "3° B · Primaria" para ubicar el choque sin ambigüedad.
+        return `El docente ${assignment.teacher.fullName} ya tiene ${c.course.name} en ${sectionFullLabel(
+          c.section,
         )} ese día de ${c.block.startTime} a ${c.block.endTime}`;
       }
     }
@@ -547,7 +554,13 @@ export class ScheduleService {
         courseId: true,
         sectionId: true,
         course: { select: { name: true } },
-        section: { select: { name: true, shift: true } },
+        section: {
+          select: {
+            name: true,
+            shift: true,
+            gradeLevel: { select: { name: true, level: { select: { name: true } } } },
+          },
+        },
         block: { select: { startTime: true, endTime: true } },
       },
     });
@@ -572,7 +585,7 @@ export class ScheduleService {
         startTime: s.block.startTime,
         endTime: s.block.endTime,
         courseName: s.course.name,
-        sectionLabel: sectionShortLabel(s.section.name, s.section.shift),
+        sectionLabel: sectionFullLabel(s.section),
       });
     }
 
